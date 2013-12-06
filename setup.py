@@ -31,6 +31,6 @@ setup(name='pytypedecl',
       url='http://www.github.com/google/pytypedecl',
       requires=['ply(>=3.0)'],
       package_dir={'pytypedecl': ''},
-      packages=['pytypedecl', 'pytypedecl.parser'],
+      packages=['pytypedecl', 'pytypedecl.parse'],
      )
 
