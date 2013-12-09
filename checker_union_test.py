@@ -18,8 +18,8 @@
 import unittest
 from pytypedecl import checker
 from pytypedecl.parse import typing
-from pytypedecl.tests import simple
-from pytypedecl.tests import union
+from tests import simple
+from tests import union
 
 
 class TestCheckerUnion(unittest.TestCase):

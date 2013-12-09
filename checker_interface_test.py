@@ -18,7 +18,7 @@
 import unittest
 from pytypedecl import checker
 from pytypedecl.parse import typing
-from pytypedecl.tests import interface
+from tests import interface
 
 
 class TestCheckerInterface(unittest.TestCase):

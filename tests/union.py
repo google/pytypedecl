@@ -24,7 +24,7 @@
 import sys
 from pytypedecl import checker
 # some signatures use type defined in the simple module
-from pytypedecl.tests import simple
+from tests import simple
 
 
 # def StrToInt(i :str?) -> int

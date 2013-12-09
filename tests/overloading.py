@@ -21,7 +21,7 @@
 
 import sys
 from pytypedecl import checker
-from pytypedecl.tests import simple
+from tests import simple
 
 
 # def Bar(i :int) -> int

@@ -18,7 +18,7 @@
 import unittest
 from pytypedecl import checker
 from pytypedecl.parse import typing
-from pytypedecl.tests import generics
+from tests import generics
 
 
 class TestCheckerGenerics(unittest.TestCase):

@@ -17,8 +17,8 @@
 
 import unittest
 from pytypedecl import checker
-from pytypedecl.tests import overloading
-from pytypedecl.tests import simple
+from tests import overloading
+from tests import simple
 
 
 class TestCheckerOverloading(unittest.TestCase):
