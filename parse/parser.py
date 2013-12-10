@@ -337,8 +337,7 @@ class PyParser(object):
 
   def p_union_type_multi(self, p):
     """union_type : union_type UNION identifier"""
-    p[1].AddType(p[3])
-    p[0] = p[1]
+    p[0] = p[1]._replace(type_list=p[1].type_list + [p[3]])
 
   def p_union_type_1(self, p):
     """union_type : identifier"""
@@ -347,8 +346,7 @@ class PyParser(object):
 
   def p_intersection_type_multi(self, p):
     """intersection_type : intersection_type INTERSECT identifier"""
-    p[1].AddType(p[3])
-    p[0] = p[1]
+    p[0] = p[1]._replace(type_list=p[1].type_list + [p[3]])
 
   def p_intersection_type_1(self, p):
     """intersection_type : identifier"""
@@ -377,13 +375,11 @@ class PyParser(object):
 
   def p_compound_type_union(self, p):
     """compound_type : union_type UNION identifier"""
-    p[1].AddType(p[3])
-    p[0] = p[1]
+    p[0] = p[1]._replace(type_list=p[1].type_list + [p[3]])
 
   def p_compound_type_intersection(self, p):
     """compound_type : intersection_type INTERSECT identifier"""
-    p[1].AddType(p[3])
-    p[0] = p[1]
+    p[0] = p[1]._replace(type_list=p[1].type_list + [p[3]])
 
   def p_compound_type_identifier(self, p):
     """compound_type : identifier"""

@@ -41,12 +41,6 @@ method. For example:
 """
 
 
-# TODO: The AddType methods smash an existing item on the parse tree
-#                  ... change to something like:
-#                  def AppendType(self, t):
-#                    return type(self)(self.type_list + t)
-
-
 import collections
 from pytypedecl.parse import typed_tuple
 
@@ -78,18 +72,12 @@ class UnionType(typed_tuple.Eq, collections.namedtuple(
   def Process(self, processor):
     return processor.ProcessUnionType(self)
 
-  def AddType(self, type_element):
-    self.type_list.append(type_element)
-
 
 class IntersectionType(typed_tuple.Eq, collections.namedtuple(
     'IntersectionType', ['type_list'])):
 
   def Process(self, processor):
     return processor.ProcessIntersectionType(self)
-
-  def AddType(self, type_element):
-    self.type_list.append(type_element)
 
 
 class StructType(typed_tuple.Eq, collections.namedtuple(
