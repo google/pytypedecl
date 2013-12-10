@@ -182,12 +182,11 @@ class PyParser(object):
 
   def p_classdefs(self, p):
     """classdefs : classdefs classdef"""
-    p[1].AddClassDef(p[2])
-    p[0] = p[1]
+    p[0] = p[1] + [p[2]]
 
   def p_classdefs_null(self, p):
     """classdefs :"""
-    p[0] = ast.PyOptClassDefs([])
+    p[0] = []
 
   # TODO(rgurma): doesn't support nested classes
   # TODO: parents is redundant -- should match what's in .py file
@@ -203,22 +202,20 @@ class PyParser(object):
 
   def p_class_funcs(self, p):
     """class_funcs : class_funcs funcdef"""
-    p[1].AddFuncDef(p[2])
-    p[0] = p[1]
+    p[0] = p[1] + [p[2]]
 
   def p_class_funcs_null(self, p):
     """class_funcs :"""
-    p[0] = ast.PyOptFuncDefs([])
+    p[0] = []
 
   def p_interfacedefs(self, p):
     """interfacedefs : interfacedefs interfacedef
     """
-    p[1].AddInterfaceDef(p[2])
-    p[0] = p[1]
+    p[0] = p[1] + [p[2]]
 
   def p_interfacedefs_null(self, p):
     """interfacedefs :"""
-    p[0] = ast.PyOptInterfaceDefs([])
+    p[0] = []
 
   # TODO: add "where", similar to funcdef for parameterizing an
   #                  interface.
@@ -241,8 +238,7 @@ class PyParser(object):
 
   def p_parent_list_multi(self, p):
     """parent_list : parent_list COMMA NAME"""
-    p[1].append(p[3])
-    p[0] = p[1]
+    p[0] = p[1] + [p[3]]
 
   def p_parent_list_1(self, p):
     """parent_list : NAME"""
@@ -260,8 +256,7 @@ class PyParser(object):
   # TODO(rgurma): support signatures in interfaces
   def p_interface_attrs(self, p):
     """interface_attrs : interface_attrs DEF NAME"""
-    p[1].append(p[3])
-    p[0] = p[1]
+    p[0] = p[1] + [p[3]]
 
   def p_interface_attrs_null(self, p):
     """interface_attrs : DEF NAME"""
@@ -269,13 +264,12 @@ class PyParser(object):
 
   def p_funcdefs(self, p):
     """funcdefs : funcdefs funcdef"""
-    p[1].AddFuncDef(p[2])
-    p[0] = p[1]
+    p[0] = p[1] + [p[2]]
 
   # TODO(rgurma): doesn't support nested functions
   def p_funcdefs_null(self, p):
     """funcdefs :"""
-    p[0] = ast.PyOptFuncDefs([])
+    p[0] = []
 
   def p_funcdef(self, p):
     """funcdef : provenance DEF NAME LPAREN params RPAREN ARROW compound_type raise where signature"""
@@ -286,8 +280,7 @@ class PyParser(object):
 
   def p_params_multi(self, p):
     """params : params COMMA param"""
-    p[1].append(p[3])
-    p[0] = p[1]
+    p[0] = p[1] + [p[3]]
 
   def p_params_1(self, p):
     """params : param"""
@@ -320,8 +313,7 @@ class PyParser(object):
 
   def p_exceptions_multi(self, p):
     """exceptions : exceptions COMMA exception"""
-    p[1].append(p[3])
-    p[0] = p[1]
+    p[0] = p[1] + [p[3]]
 
   def p_exception(self, p):
     """exception : identifier"""

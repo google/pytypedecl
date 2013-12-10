@@ -43,14 +43,12 @@ class ParserUtils(object):
     type_decl_unit = self._parser.Parse(content)
     functions_by_name = {f_name: list(g) for f_name, g
                          in itertools.groupby(
-                             type_decl_unit.funcdefs.list_funcdef,
+                             type_decl_unit.funcdefs,
                              lambda f: f.name)}
 
-    interface_by_name = {i.name: i for i
-                         in type_decl_unit.interfacedefs.list_interfacedef}
+    interface_by_name = {i.name: i for i in type_decl_unit.interfacedefs}
 
-    class_by_name = {c.name: c for c
-                     in type_decl_unit.classdefs.list_classdef}
+    class_by_name = {c.name: c for c in type_decl_unit.classdefs}
     # TODO(rgurma): make this a named_tuple
     return (interface_by_name, class_by_name, functions_by_name)
 

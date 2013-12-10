@@ -486,7 +486,7 @@ def _Check(module, interfaces, classes, functions):
     if c_name in classes:
       functions_in_class = {f_name: list(g) for f_name, g
                             in itertools.groupby(
-                                classes[c_name].funcs.list_funcdef,
+                                classes[c_name].funcs,
                                 lambda f: f.name)}
 
       for f_name, f_def in MethodsForClass(c_def):

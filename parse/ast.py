@@ -35,35 +35,14 @@ class PyOptTypeDeclUnit(typed_tuple.Eq, collections.namedtuple(
   """
 
 
-class PyOptInterfaceDefs(typed_tuple.Eq, collections.namedtuple(
-    'PyOptInterfaceDefs', ['list_interfacedef'])):
-
-  def AddInterfaceDef(self, interfacedef):
-    self.list_interfacedef.append(interfacedef)
-
-
 class PyOptInterfaceDef(typed_tuple.Eq, collections.namedtuple(
     'PyOptInterfaceDef', ['name', 'parents', 'attrs'])):
   pass
 
 
-class PyOptClassDefs(typed_tuple.Eq, collections.namedtuple(
-    'PyOptClassDefs', ['list_classdef'])):
-
-  def AddClassDef(self, classdef):
-    self.list_classdef.append(classdef)
-
-
 class PyOptClassDef(typed_tuple.Eq, collections.namedtuple(
     'PyOptClassDef', ['name', 'parents', 'funcs'])):
   pass
-
-
-class PyOptFuncDefs(typed_tuple.Eq, collections.namedtuple(
-    'PyOptFuncDefs', ['list_funcdef'])):
-
-  def AddFuncDef(self, funcdef):
-    self.list_funcdef.append(funcdef)
 
 
 class PyOptFuncDef(typed_tuple.Eq, collections.namedtuple(
