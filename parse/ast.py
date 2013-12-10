@@ -55,7 +55,7 @@ class PyOptClassDefs(typed_tuple.Eq, collections.namedtuple(
 
 
 class PyOptClassDef(typed_tuple.Eq, collections.namedtuple(
-    'PyOptClassDef', ['name', 'funcs'])):
+    'PyOptClassDef', ['name', 'parents', 'funcs'])):
   pass
 
 
@@ -67,7 +67,8 @@ class PyOptFuncDefs(typed_tuple.Eq, collections.namedtuple(
 
 
 class PyOptFuncDef(typed_tuple.Eq, collections.namedtuple(
-    'PyOptFuncDef', ['name', 'params', 'return_type', 'exceptions'])):
+    'PyOptFuncDef', ['name', 'params', 'return_type', 'exceptions', 'where',
+                     'provenance', 'signature'])):
   """Represents a function definition.
 
   Attributes:
@@ -75,6 +76,17 @@ class PyOptFuncDef(typed_tuple.Eq, collections.namedtuple(
     params: The list of parameters for this function definition.
     return_type: The return type of this function.
     exceptions: A list of exceptions for this function definition.
+    where: names for bindings for bounded types in params/return_type
+    provenance: TBD
+    signature: TBD
+
+  # TODO: define/implement provenance:
+                     ... inferred
+                     --- programmer-deleted
+                     +++ locked (no need to look inside it ... all declarations
+                         for this function must be marked with +++ or ---
+                     (nothing) programmer-approved
+  # TODO: implement signature
   """
 
 
@@ -103,4 +115,14 @@ class PyOptIdentifier(typed_tuple.Eq, collections.namedtuple(
 
   Attributes:
     identifier_str: String of the identifier.
+  """
+
+
+class PyWhereItem(typed_tuple.Eq, collections.namedtuple(
+    'PyWhereItem', ['name', 'within_type'])):
+  """Represents "where name <= bounded_type".
+
+  Attributes:
+    name: the name that's used in a generic type
+    type: the "<=" type for this name (e.g., BasicType('object'))
   """

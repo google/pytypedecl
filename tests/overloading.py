@@ -49,8 +49,8 @@ def MultiOverload(a):
   return a
 
 
-# def ExceptionOverload() -> None raises foo.WrongException
-# def ExceptionOverload() -> None raises foo.BadException
+# def ExceptionOverload() -> None raise foo.WrongException
+# def ExceptionOverload() -> None raise foo.BadException
 def ExceptionOverload():
   raise simple.WrongException
 

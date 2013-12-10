@@ -77,22 +77,22 @@ class BadException(Exception):
   pass
 
 
-# def FooFail() -> None raises FooException
+# def FooFail() -> None raise FooException
 def FooFail():
   raise FooException
 
 
-# def WrongFail() -> None raises FooException, WrongException
+# def WrongFail() -> None raise FooException, WrongException
 def WrongFail():
   raise WrongException
 
 
-# def BadFail() -> None raises FooException, WrongException
+# def BadFail() -> None raise FooException, WrongException
 def BadFail():
   raise BadException
 
 
-# def MultiFail(a: Apple) -> None raises FooException
+# def MultiFail(a: Apple) -> None raise FooException
 def MultiFail(a):
   raise BadException
 

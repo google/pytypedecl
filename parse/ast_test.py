@@ -1,5 +1,4 @@
 # -*- coding:utf-8; python-indent:2; indent-tabs-mode:nil -*-
-
 # Copyright 2013 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,23 +32,10 @@ class TestASTGeneration(unittest.TestCase):
     """Test parsing of a single function definition."""
     data = textwrap.dedent("""
         # a function def with two params
-        def foo(a : int, c : bool) -> int raises Test, Foo
+        def foo(a : int, c : bool) -> int raise Test, Foo
         """)
 
     result = self.parser.Parse(data)
-    expect_repr = (
-        "PyOptTypeDeclUnit(interfacedefs=PyOptInterfaceDefs("
-        "list_interfacedef=[]), "
-        "classdefs=PyOptClassDefs(list_classdef=[]), "
-        "funcdefs=PyOptFuncDefs("
-        "list_funcdef=[PyOptFuncDef(name='foo', params="
-        "[PyOptParam(name='a', type=BasicType(containing_type='int')), "
-        "PyOptParam(name='c', type=BasicType(containing_type='bool'))], "
-        "return_type=BasicType(containing_type='int'), "
-        "exceptions=[PyOptException(name="
-        "BasicType(containing_type='Test')), "
-        "PyOptException(name=BasicType(containing_type='Foo'"
-        "))])]))")
     expect = ast.PyOptTypeDeclUnit(
         interfacedefs=ast.PyOptInterfaceDefs(list_interfacedef=[]),
         classdefs=ast.PyOptClassDefs(list_classdef=[]),
@@ -66,6 +52,7 @@ class TestASTGeneration(unittest.TestCase):
                             name="c",
                             type=typing.BasicType(containing_type="bool"))],
                     return_type=typing.BasicType(containing_type="int"),
+                    where=[], provenance="", signature=None,
                     exceptions=[
                         ast.PyOptException(
                             name=typing.BasicType(containing_type="Test")),
@@ -73,39 +60,18 @@ class TestASTGeneration(unittest.TestCase):
                             name=typing.BasicType(
                                 containing_type="Foo"))])]))
     self.assertEqual(expect, result)
-    self.assertEqual(expect_repr, repr(result))
 
   def testMultiFuncDef(self):
     """Test parsing of multiple function defs including overloaded version."""
 
     data = textwrap.dedent("""
         # several function defs with different sigs
-        def foo(a : int, c : bool) -> int raises Test, Foo
+        def foo(a : int, c : bool) -> int raise Test, Foo
         def foo() -> None
         def add(x : int, y : int) -> int
         """)
 
     result = self.parser.Parse(data)
-    expect_repr = (
-        "PyOptTypeDeclUnit(interfacedefs=PyOptInterfaceDefs("
-        "list_interfacedef=[]), "
-        "classdefs=PyOptClassDefs(list_classdef=[]), "
-        "funcdefs=PyOptFuncDefs("
-        "list_funcdef=[PyOptFuncDef(name='foo', params="
-        "[PyOptParam(name='a', type=BasicType(containing_type='int')), "
-        "PyOptParam(name='c', type=BasicType(containing_type='bool'))], "
-        "return_type=BasicType(containing_type='int'), "
-        "exceptions=[PyOptException(name="
-        "BasicType(containing_type='Test')), "
-        "PyOptException(name=BasicType(containing_type='Foo'))]), "
-        "PyOptFuncDef(name='foo', params=[], return_type="
-        "BasicType(containing_type='None'),"
-        " exceptions=[]), "
-        "PyOptFuncDef(name='add', params="
-        "[PyOptParam(name='x', type=BasicType(containing_type='int')), "
-        "PyOptParam(name='y', type=BasicType(containing_type='int'))], "
-        "return_type=BasicType(containing_type='int'),"
-        " exceptions=[])]))")
     expect = ast.PyOptTypeDeclUnit(
         interfacedefs=ast.PyOptInterfaceDefs(list_interfacedef=[]),
         classdefs=ast.PyOptClassDefs(list_classdef=[]),
@@ -120,6 +86,7 @@ class TestASTGeneration(unittest.TestCase):
                         name="c",
                         type=typing.BasicType(containing_type="bool"))],
                 return_type=typing.BasicType(containing_type="int"),
+                where=[], provenance="", signature=None,
                 exceptions=[
                     ast.PyOptException(
                         name=typing.BasicType(containing_type="Test")),
@@ -130,6 +97,7 @@ class TestASTGeneration(unittest.TestCase):
                               params=[],
                               return_type=typing.BasicType(
                                   containing_type="None"),
+                              where=[], provenance="", signature=None,
                               exceptions=[]),
                           ast.PyOptFuncDef(
                               name="add",
@@ -144,38 +112,18 @@ class TestASTGeneration(unittest.TestCase):
                                           containing_type="int"))],
                               return_type=typing.BasicType(
                                   containing_type="int"),
+                              where=[], provenance="", signature=None,
                               exceptions=[])]))
     self.assertEqual(expect, result)
-    self.assertEqual(expect_repr, repr(result))
 
   def testComplexFuncDef(self):
     """Test parsing of a function with unions, noneable etc."""
 
     data = textwrap.dedent("""
-        def foo(a: int?, b: int | float | None, c: Foo & s.Bar) -> int? raises Bad
+        def foo(a: int?, b: int | float | None, c: Foo & s.Bar) -> int? raise Bad
     """)
 
     result = self.parser.Parse(data)
-    expect_repr = (
-        "PyOptTypeDeclUnit(interfacedefs=PyOptInterfaceDefs("
-        "list_interfacedef=[]), "
-        "classdefs=PyOptClassDefs(list_classdef=[]), "
-        "funcdefs=PyOptFuncDefs"
-        "(list_funcdef=[PyOptFuncDef(name='foo', params="
-        "[PyOptParam(name='a', type=NoneAbleType(base_type="
-        "BasicType(containing_type='int'))), "
-        "PyOptParam(name='b', type=UnionType(type_list=["
-        "BasicType(containing_type='int'), "
-        "BasicType(containing_type='float'), "
-        "BasicType(containing_type='None')])), "
-        "PyOptParam(name='c', "
-        "type=IntersectionType(type_list=["
-        "BasicType(containing_type='Foo'), "
-        "BasicType(containing_type='s.Bar')]))], return_type="
-        "NoneAbleType(base_type="
-        "BasicType(containing_type='int')), "
-        "exceptions=[PyOptException(name="
-        "BasicType(containing_type='Bad'))])]))")
     expect = ast.PyOptTypeDeclUnit(
         interfacedefs=ast.PyOptInterfaceDefs(
             list_interfacedef=[]),
@@ -208,9 +156,9 @@ class TestASTGeneration(unittest.TestCase):
                 exceptions=[
                     ast.PyOptException(
                         name=typing.BasicType(
-                            containing_type="Bad"))])]))
+                            containing_type="Bad"))],
+                where=[], provenance="", signature=None)]))
     self.assertEqual(expect, result)
-    self.assertEqual(expect_repr, repr(result))
 
   def testInterfaceSimple(self):
     """Test parsing of basic interface."""
@@ -223,6 +171,9 @@ class TestASTGeneration(unittest.TestCase):
          """)
 
     result = self.parser.Parse(data)
+    # TODO: Remove test for expect_repr, as it adds very little
+    # value, assuming that the structure equality (using typed_tuple.Eq) works
+    # properly.
     expect_repr = ("PyOptTypeDeclUnit(interfacedefs=PyOptInterfaceDefs("
                    "list_interfacedef=[PyOptInterfaceDef(name='Readable', "
                    "parents=[], attrs=['Open', 'Read', 'Close'])]), "
@@ -260,18 +211,6 @@ class TestASTGeneration(unittest.TestCase):
         """)
 
     result = self.parser.Parse(data)
-    expect_repr = ("PyOptTypeDeclUnit(interfacedefs=PyOptInterfaceDefs"
-                   "(list_interfacedef=[PyOptInterfaceDef(name='Openable', "
-                   "parents=[], attrs=['Open']), PyOptInterfaceDef(name="
-                   "'Closable', parents=[], attrs=['Close']), "
-                   "PyOptInterfaceDef(name='Readable', parents="
-                   "['Openable', 'Closable'], attrs=['Read']), "
-                   "PyOptInterfaceDef(name='Writable', parents="
-                   "['Openable', 'Closable'], attrs=['Write'])]), "
-                   "classdefs=PyOptClassDefs(list_classdef=[]), "
-                   "funcdefs=PyOptFuncDefs(list_funcdef=[PyOptFuncDef"
-                   "(name='foo', params=[], return_type="
-                   "BasicType(containing_type='None'), exceptions=[])]))")
     expect = ast.PyOptTypeDeclUnit(
         interfacedefs=ast.PyOptInterfaceDefs(
             list_interfacedef=[
@@ -297,9 +236,9 @@ class TestASTGeneration(unittest.TestCase):
                 name="foo",
                 params=[],
                 return_type=typing.BasicType(containing_type="None"),
-                exceptions=[])]))
+                exceptions=[],
+                where=[], provenance="", signature=None)]))
     self.assertEqual(expect, result)
-    self.assertEqual(expect_repr, repr(result))
 
   def testTokens(self):
     """Test various token forms (int, float, n"...", etc.)."""
@@ -311,10 +250,8 @@ class TestASTGeneration(unittest.TestCase):
 
     result = self.parser.Parse(data)
     expect = ast.PyOptTypeDeclUnit(
-        interfacedefs=ast.PyOptInterfaceDefs(
-            list_interfacedef=[]),
-        classdefs=ast.PyOptClassDefs(
-            list_classdef=[]),
+        interfacedefs=ast.PyOptInterfaceDefs(list_interfacedef=[]),
+        classdefs=ast.PyOptClassDefs(list_classdef=[]),
         funcdefs=ast.PyOptFuncDefs(
             list_funcdef=[
                 ast.PyOptFuncDef(
@@ -329,7 +266,8 @@ class TestASTGeneration(unittest.TestCase):
                         ast.PyOptParam(name="c",
                                        type=typing.ConstType(value=666))],
                     return_type=typing.BasicType(containing_type="int"),
-                    exceptions=[])]))
+                    exceptions=[],
+                    where=[], provenance="", signature=None)]))
     self.assertEqual(expect, result)
 
   def testSyntaxErrorReturnType(self):

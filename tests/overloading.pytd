@@ -23,6 +23,5 @@ def MultiOverload(a: int) -> int
 def MultiOverload(a: float) -> float
 def MultiOverload(a: str) -> str
 def MultiOverload(a : list) -> list
-def ExceptionOverload() -> None raises simple.WrongException
-def ExceptionOverload() -> None raises simple.BadException
-
+def ExceptionOverload() -> None raise simple.WrongException
+def ExceptionOverload() -> None raise simple.BadException

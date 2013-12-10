@@ -27,15 +27,14 @@
 #                  that it's Foo or subclass) ... doesn't have interfaces
 #                  or intersection
 
-# TODO: add support for constants and functions
-
 # pylint: disable=g-bad-name, g-short-docstring-punctuation
 # pylint: disable=g-doc-args, g-no-space-after-docstring-summary
 # pylint: disable=g-space-before-docstring-summary
 # pylint: disable=g-backslash-continuation
 
-import ply.lex as lex
-import ply.yacc as yacc
+import sys
+from ply import lex
+from ply import yacc
 from pytypedecl.parse import ast
 from pytypedecl.parse import typing
 
@@ -44,23 +43,28 @@ class PyLexer(object):
   """Lexer for type declaration language."""
 
   def __init__(self):
+    # TODO: See comments with PyParser about generating the
+    #                  $GENFILESDIR/pytypedecl_lexer.py and using it by
+    #                  calling lex.lex(lextab=pytypedecl_lexer)
     self.lexer = lex.lex(module=self, debug=False)
     self.lexer.escaping = False
 
   t_ARROW = r'->'
+  t_AT = r'@'
   t_CLASS = r'class'
   t_COLON = r':'
+  t_COLON_COLON = r'::'
   t_COMMA = r','
   t_DEF = r'def'
   t_DOT = r'\.'
-  t_EQUALS = r'='
   t_INTERFACE = r'interface'
   t_INTERSECT = r'&'
   t_LBRACKET = r'\['
   t_LPAREN = r'\('
-  t_NEWLINE = r'\n'  # TODO: [unused] figure out how to do this
+  t_MINUS = r'-'
+  t_PLUS = r'\+'
   t_QUESTION = r'\?'
-  t_RAISES = r'raises'
+  t_RAISE = r'raise'
   t_RBRACKET = r'\]'
   t_RPAREN = r'\)'
   t_UNION = r'\|'
@@ -69,22 +73,24 @@ class PyLexer(object):
       t_CLASS: 'CLASS',
       t_DEF: 'DEF',
       t_INTERFACE: 'INTERFACE',
-      t_RAISES: 'RAISES',
+      t_RAISE: 'RAISE',
   }
 
   tokens = [
       'ARROW',
+      'AT',
       'COLON',
+      'COLON_COLON',
       'COMMA',
-      'COMMENT',  # TODO: Currently unused
-      'DOT',      # TODO: Currently unused
-      'EQUALS',   # TODO: Currently unused
+      # 'COMMENT',  # Not used in the grammar; only used to discard comments
+      'DOT',
       'INTERSECT',
       'LBRACKET',
       'LPAREN',
+      'MINUS',
       'NAME',
-      'NEWLINE',  # TODO: Currently unused
       'NUMBER',
+      'PLUS',
       'QUESTION',
       'RBRACKET',
       'RPAREN',
@@ -94,6 +100,9 @@ class PyLexer(object):
 
   # Ignored characters
   t_ignore = ' \t'
+
+  # Start symbol
+  start = 'defs'
 
   def t_NAME(self, t):
     r"""([a-zA-Z_][a-zA-Z0-9_\.]*)|""" \
@@ -140,20 +149,21 @@ class PyParser(object):
   """Parser for type declaration language."""
 
   def __init__(self, **kwargs):
+    # TODO: Don't generate the lex/yacc tables each time. This should
+    #                  be done by a separate program that imports this module
+    #                  and calls yacc.yacc(write_tables=True,
+    #                  outputdir=$GENFILESDIR, tabmodule='pytypedecl_parser')
+    #                  and similar params for lex.lex(...).  Then:
+    #                    import pytypdecl_parser
+    #                    self.parser = yacc.yacc(tabmodule=pytypedecl_parser)
+    #                  [might also need optimize=True]
     self.lexer = PyLexer()
     self.tokens = self.lexer.tokens
     self.parser = yacc.yacc(
         module=self,
-        # TODO: Instead of using write_tables, debug= here,
-        #                  there should be a separate build step that generates
-        #                  the tables file and the parser simply reads it for
-        #                  production use. (With a suitable flag to __init__
-        #                  and a flag to main.)
-        write_tables=False,   # TODO: outputdir=..., tabmodule=...
         debug=False,
-        # comment out the following line to get warnings from PLY such as
-        # reduce/reduce conflicts (also set debug=True):
-        errorlog=yacc.NullLogger(),
+        # debuglog=yacc.PlyLogger(sys.stderr),
+        # errorlog=yacc.NullLogger(),  # If you really want to suppress messages
         **kwargs)
 
   def Parse(self, data, **kwargs):
@@ -162,37 +172,43 @@ class PyParser(object):
   def p_defs(self, p):
     """defs : funcdefs classdefs interfacedefs
     """
-    # TODO: change to def : funcdef | classdef | interfacedef
-    #                            defs : defs def | defs
-    #        (this will require handling indent/exdent and/or allowing {...}
+    # TODO: change the definition of defs to:
+    #            defs : defs def | defs
+    #            def : funcdef | classdef | interfacedef
+    #        This will require handling indent/exdent and/or allowing {...}.
+    #        Also requires supporting INDENT/DEDENT because otherwise it's
+    #        ambiguous on the meaning of a funcdef after a classdef
     p[0] = ast.PyOptTypeDeclUnit(p[3], p[2], p[1])
+
+  def p_classdefs(self, p):
+    """classdefs : classdefs classdef"""
+    p[1].AddClassDef(p[2])
+    p[0] = p[1]
 
   def p_classdefs_null(self, p):
     """classdefs :"""
     p[0] = ast.PyOptClassDefs([])
 
-  def p_classdefss(self, p):
-    """classdefs : classdefs classdef"""
-    p[1].AddClassDef(p[2])
-    p[0] = p[1]
-
   # TODO(rgurma): doesn't support nested classes
+  # TODO: parents is redundant -- should match what's in .py file
+  #                  but is here for compatibility with INTERFACE
+  # TODO: add "where", similar to funcdef for parameterizing a class
+  #                  Note that becuase funcdef uses 'params' for the where,
+  #                  there's a grammar ambiguity if you try this with a
+  #                  'class' def.
   def p_classdef(self, p):
-    """classdef : CLASS NAME COLON class_funcs"""
-    p[0] = ast.PyOptClassDef(p[2], p[4])
-
-  def p_class_funcs_null(self, p):
-    """class_funcs :"""
-    p[0] = ast.PyOptFuncDefs([])
+    """classdef : CLASS NAME parents COLON class_funcs"""
+    #             1     2    3       4     5     6
+    p[0] = ast.PyOptClassDef(name=p[2], parents=p[3], funcs=p[5])
 
   def p_class_funcs(self, p):
     """class_funcs : class_funcs funcdef"""
     p[1].AddFuncDef(p[2])
     p[0] = p[1]
 
-  def p_interfacedefs_null(self, p):
-    """interfacedefs :"""
-    p[0] = ast.PyOptInterfaceDefs([])
+  def p_class_funcs_null(self, p):
+    """class_funcs :"""
+    p[0] = ast.PyOptFuncDefs([])
 
   def p_interfacedefs(self, p):
     """interfacedefs : interfacedefs interfacedef
@@ -200,26 +216,46 @@ class PyParser(object):
     p[1].AddInterfaceDef(p[2])
     p[0] = p[1]
 
+  def p_interfacedefs_null(self, p):
+    """interfacedefs :"""
+    p[0] = ast.PyOptInterfaceDefs([])
+
+  # TODO: add "where", similar to funcdef for parameterizing an
+  #                  interface.
+  #                  Note that becuase funcdef uses 'params' for the where,
+  #                  there's a grammar ambiguity if you try this with a
+  #                  'class' def.
   def p_interfacedef(self, p):
-    """interfacedef : INTERFACE NAME interface_parents COLON interface_attrs"""
-    p[0] = ast.PyOptInterfaceDef(p[2], p[3], p[5])
+    """interfacedef : INTERFACE NAME parents COLON interface_attrs"""
+    #                 1         2    3       4     5
+    p[0] = ast.PyOptInterfaceDef(
+        name=p[2], parents=p[3], attrs=p[5])
 
-  def p_interface_parents_null(self, p):
-    """interface_parents :"""
-    p[0] = []
-
-  def p_interface_parents(self, p):
-    """interface_parents : LPAREN parent_list RPAREN"""
+  def p_parents(self, p):
+    """parents : LPAREN parent_list RPAREN"""
     p[0] = p[2]
 
-  def p_parent_list_1(self, p):
-    """parent_list : NAME"""
-    p[0] = [p[1]]
+  def p_parents_null(self, p):
+    """parents :"""
+    p[0] = []
 
   def p_parent_list_multi(self, p):
     """parent_list : parent_list COMMA NAME"""
     p[1].append(p[3])
     p[0] = p[1]
+
+  def p_parent_list_1(self, p):
+    """parent_list : NAME"""
+    p[0] = [p[1]]
+
+  def p_where(self, p):
+    """where : COLON_COLON params"""
+    # TODO: test cases for COLON_COLON
+    p[0] = p[1]
+
+  def p_where_null(self, p):
+    """where :"""
+    p[0] = []
 
   # TODO(rgurma): support signatures in interfaces
   def p_interface_attrs(self, p):
@@ -231,19 +267,22 @@ class PyParser(object):
     """interface_attrs : DEF NAME"""
     p[0] = [p[2]]
 
-  # TODO(rgurma): doesn't support nested functions
-  def p_funcdefs_null(self, p):
-    """funcdefs :"""
-    p[0] = ast.PyOptFuncDefs([])
-
   def p_funcdefs(self, p):
     """funcdefs : funcdefs funcdef"""
     p[1].AddFuncDef(p[2])
     p[0] = p[1]
 
+  # TODO(rgurma): doesn't support nested functions
+  def p_funcdefs_null(self, p):
+    """funcdefs :"""
+    p[0] = ast.PyOptFuncDefs([])
+
   def p_funcdef(self, p):
-    """funcdef : DEF NAME LPAREN params RPAREN ARROW compound_type raises"""
-    p[0] = ast.PyOptFuncDef(p[2], p[4], p[7], p[8])
+    """funcdef : provenance DEF NAME LPAREN params RPAREN ARROW compound_type raise where signature"""
+    #            1          2   3    4      5      6      7     8             9     10    11
+    p[0] = ast.PyOptFuncDef(name=p[3], params=p[5], return_type=p[8],
+                            exceptions=p[9], where=p[10], provenance=p[1],
+                            signature=p[11])
 
   def p_params_multi(self, p):
     """params : params COMMA param"""
@@ -254,7 +293,7 @@ class PyParser(object):
     """params : param"""
     p[0] = [p[1]]
 
-  def p_params_empty(self, p):
+  def p_params_null(self, p):
     """params :"""
     p[0] = []
 
@@ -267,12 +306,12 @@ class PyParser(object):
     """param : NAME COLON compound_type"""
     p[0] = ast.PyOptParam(p[1], p[3])
 
-  def p_raises(self, p):
-    """raises : RAISES exceptions"""
+  def p_raise(self, p):
+    """raise : RAISE exceptions"""
     p[0] = p[2]
 
-  def p_raises_null(self, p):
-    """raises :"""
+  def p_raise_null(self, p):
+    """raise :"""
     p[0] = []
 
   def p_exceptions_1(self, p):
@@ -358,5 +397,33 @@ class PyParser(object):
     """compound_type : identifier"""
     p[0] = p[1]
 
+  def p_provenance_approved(self, p):
+    """provenance :"""
+    p[0] = ''  # TODO: implement
+
+  def p_provenance_inferred(self, p):
+    """provenance : DOT DOT DOT"""
+    p[0] = '...'  # TODO: implement
+
+  def p_provenance_negated(self, p):
+    """provenance : MINUS MINUS MINUS"""
+    p[0] = '---'  # TODO: implement
+
+  def p_provenance_locked(self, p):
+    """provenance : PLUS PLUS PLUS"""
+    # TODO: verify that all other rules for this definition are
+    #                  either 'locked' or 'negated' (none 'inferred' or
+    #                  'approved'
+    p[0] = '+++'  # TODO: implement
+
+  def p_signature_(self, p):
+    """signature : AT STRING"""
+    p[0] = p[2]
+
+  def p_signature_none(self, p):
+    """signature :"""
+    p[0] = None
+
   def p_error(self, p):
+    # TODO: Improve the error output
     raise SyntaxError("Syntax error at '%s'" % repr(p))
