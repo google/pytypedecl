@@ -18,8 +18,14 @@
 """Utilities for parsing type declaration files.
 """
 
+import collections
 import itertools
 from pytypedecl.parse import parser
+
+
+InterfacesClassesFuncsByName = collections.namedtuple(
+  'InterfacesClassesFuncsByName',
+  ['interfaces', 'classes', 'funcs'])
 
 
 class ParserUtils(object):
@@ -49,8 +55,10 @@ class ParserUtils(object):
     interface_by_name = {i.name: i for i in type_decl_unit.interfacedefs}
 
     class_by_name = {c.name: c for c in type_decl_unit.classdefs}
-    # TODO(rgurma): make this a named_tuple
-    return (interface_by_name, class_by_name, functions_by_name)
+    return InterfacesClassesFuncsByName(
+        interfaces=interface_by_name,
+        classes=class_by_name,
+        funcs=functions_by_name)
 
   def LoadTypeDeclarationFromFile(self, type_decl_path):
     """Parse a type declaration and convert it to a list of functions.

@@ -502,8 +502,8 @@ def _Check(module, interfaces, classes, functions):
 
 
 def CheckFromFile(module, path):
-  interfaces, classes, funcs = _parse_utils.LoadTypeDeclarationFromFile(path)
-  _Check(module, interfaces, classes, funcs)
+  by_name = _parse_utils.LoadTypeDeclarationFromFile(path)
+  _Check(module, by_name.interfaces, by_name.classes, by_name.funcs)
 
 
 def CheckFromData(module, data):

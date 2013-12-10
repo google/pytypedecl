@@ -107,11 +107,10 @@ class PyLexer(object):
   def t_NAME(self, t):
     r"""([a-zA-Z_][a-zA-Z0-9_\.]*)|""" \
     r"""(`[^`]*`)"""
-    # TODO: Add a n'...' form to allow names that match a keyword
-    # (or names with illegal characters) ... perhaps use `...` (note that n'...'
-    # doesn't work because it's not distinguishable from "n '...'" unless more
-    # cleverness is put into the tokenizer to do a 1-lookahead).
+    # This defines a token of the form `...`, to allow names that are keywords
+    # in pytd syntax.
     if t.value[0] == r'`':
+      assert t.value[-1] == r'`'  # from regexp
       t.value = t.value[1:-1]
       t.type = 'NAME'
     else:
