@@ -46,6 +46,12 @@ class ParserUtils(object):
                  classes    dict[str, PyOptClassDef],
                  functions  dict[str, PyOptFuncdef]
     """
+    # TODO: There is an inconsistency here ... the functions are
+    #                  grouped by named but this isn't done for the functions
+    #                  (methods) inside a class or interface.  Add grouping to
+    #                  class/interface and change the pytd-to-constraints
+    #                  compiler to use this for detecting polymorphic functions
+    #                  and methods.
     type_decl_unit = self._parser.Parse(content)
     functions_by_name = {f_name: list(g) for f_name, g
                          in itertools.groupby(

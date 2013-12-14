@@ -45,19 +45,17 @@ class TestASTGeneration(unittest.TestCase):
                 params=[
                     ast.PyOptParam(
                         name="a",
-                        type=typing.BasicType(
-                            containing_type="int")),
+                        type=typing.BasicType("int")),
                     ast.PyOptParam(
                         name="c",
-                        type=typing.BasicType(containing_type="bool"))],
-                return_type=typing.BasicType(containing_type="int"),
-                where=[], provenance="", signature=None,
+                        type=typing.BasicType("bool"))],
+                return_type=typing.BasicType("int"),
+                template=[], provenance="", signature=None,
                 exceptions=[
                     ast.PyOptException(
-                        name=typing.BasicType(containing_type="Test")),
+                        name=typing.BasicType("Test")),
                     ast.PyOptException(
-                        name=typing.BasicType(
-                            containing_type="Foo"))])])
+                        name=typing.BasicType("Foo"))])])
     self.assertEqual(expect, result)
 
   def testMultiFuncDef(self):
@@ -80,23 +78,23 @@ class TestASTGeneration(unittest.TestCase):
                 params=[
                     ast.PyOptParam(
                         name="a",
-                        type=typing.BasicType(containing_type="int")),
+                        type=typing.BasicType("int")),
                     ast.PyOptParam(
                         name="c",
-                        type=typing.BasicType(containing_type="bool"))],
-                return_type=typing.BasicType(containing_type="int"),
-                where=[], provenance="", signature=None,
+                        type=typing.BasicType("bool"))],
+                return_type=typing.BasicType("int"),
+                template=[], provenance="", signature=None,
                 exceptions=[
                     ast.PyOptException(
-                        name=typing.BasicType(containing_type="Test")),
+                        name=typing.BasicType("Test")),
                     ast.PyOptException(
-                        name=typing.BasicType(containing_type="Foo"))]),
+                        name=typing.BasicType("Foo"))]),
             ast.PyOptFuncDef(
                 name="foo",
                 params=[],
                 return_type=typing.BasicType(
-                    containing_type="None"),
-                where=[], provenance="", signature=None,
+                    "None"),
+                template=[], provenance="", signature=None,
                 exceptions=[]),
             ast.PyOptFuncDef(
                 name="add",
@@ -104,14 +102,14 @@ class TestASTGeneration(unittest.TestCase):
                     ast.PyOptParam(
                         name="x",
                         type=typing.BasicType(
-                            containing_type="int")),
+                            "int")),
                     ast.PyOptParam(
                         name="y",
                         type=typing.BasicType(
-                            containing_type="int"))],
+                            "int"))],
                 return_type=typing.BasicType(
-                    containing_type="int"),
-                where=[], provenance="", signature=None,
+                    "int"),
+                template=[], provenance="", signature=None,
                 exceptions=[])])
     self.assertEqual(expect, result)
 
@@ -134,28 +132,28 @@ class TestASTGeneration(unittest.TestCase):
                         name="a",
                         type=typing.NoneAbleType(
                             base_type=typing.BasicType(
-                                containing_type="int"))),
+                                "int"))),
                     ast.PyOptParam(
                         name="b",
                         type=typing.UnionType(
                             type_list=[
-                                typing.BasicType(containing_type="int"),
-                                typing.BasicType(containing_type="float"),
-                                typing.BasicType(containing_type="None")])),
+                                typing.BasicType("int"),
+                                typing.BasicType("float"),
+                                typing.BasicType("None")])),
                     ast.PyOptParam(
                         name="c",
                         type=typing.IntersectionType(
                             type_list=[
-                                typing.BasicType(containing_type="Foo"),
-                                typing.BasicType(containing_type="s.Bar")]))],
+                                typing.BasicType("Foo"),
+                                typing.BasicType("s.Bar")]))],
                 return_type=typing.NoneAbleType(
                     base_type=typing.BasicType(
-                        containing_type="int")),
+                        "int")),
                 exceptions=[
                     ast.PyOptException(
                         name=typing.BasicType(
-                            containing_type="Bad"))],
-                where=[], provenance="", signature=None)])
+                            "Bad"))],
+                template=[], provenance="", signature=None)])
     self.assertEqual(expect, result)
 
   def testInterfaceSimple(self):
@@ -174,14 +172,15 @@ class TestASTGeneration(unittest.TestCase):
     # properly.
     expect_repr = ("PyOptTypeDeclUnit(interfacedefs="
                    "[PyOptInterfaceDef(name='Readable', "
-                   "parents=[], attrs=['Open', 'Read', 'Close'])], "
+                   "parents=[], attrs=['Open', 'Read', 'Close'], "
+                   "template=[])], "
                    "classdefs=[], "
                    "funcdefs=[])")
     expect = ast.PyOptTypeDeclUnit(
         interfacedefs=[
             ast.PyOptInterfaceDef(
                 name="Readable",
-                parents=[],
+                parents=[], template=[],
                 attrs=["Open", "Read", "Close"])],
         classdefs=[],
         funcdefs=[])
@@ -212,18 +211,18 @@ class TestASTGeneration(unittest.TestCase):
         interfacedefs=[
             ast.PyOptInterfaceDef(
                 name="Openable",
-                parents=[],
+                parents=[], template=[],
                 attrs=["Open"]),
             ast.PyOptInterfaceDef(
                 name="Closable",
-                parents=[],
+                parents=[], template=[],
                 attrs=["Close"]),
             ast.PyOptInterfaceDef(
-                name="Readable",
+                name="Readable", template=[],
                 parents=["Openable", "Closable"],
                 attrs=["Read"]),
             ast.PyOptInterfaceDef(
-                name="Writable",
+                name="Writable", template=[],
                 parents=["Openable", "Closable"],
                 attrs=["Write"])],
         classdefs=[],
@@ -231,9 +230,9 @@ class TestASTGeneration(unittest.TestCase):
             ast.PyOptFuncDef(
                 name="foo",
                 params=[],
-                return_type=typing.BasicType(containing_type="None"),
+                return_type=typing.BasicType("None"),
                 exceptions=[],
-                where=[], provenance="", signature=None)])
+                template=[], provenance="", signature=None)])
     self.assertEqual(expect, result)
 
   def testTokens(self):
@@ -260,18 +259,31 @@ class TestASTGeneration(unittest.TestCase):
                                    type=typing.ConstType(value=-1.0)),
                     ast.PyOptParam(name="c",
                                    type=typing.ConstType(value=666))],
-                return_type=typing.BasicType(containing_type="int"),
+                return_type=typing.BasicType("int"),
                 exceptions=[],
-                where=[], provenance="", signature=None)])
+                template=[], provenance="", signature=None)])
     self.assertEqual(expect, result)
 
-  def testSyntaxErrorReturnType(self):
+  def testNoReturnType(self):
     """Test a parsing error (no return type)."""
 
-    data = "def foo()"
+    data1 = "def foo()"
+    data2 = "def foo() -> None"
 
-    with self.assertRaises(SyntaxError):
-      self.parser.Parse(data)
+    result1 = self.parser.Parse(data1)
+    result2 = self.parser.Parse(data2)
+    expect = ast.PyOptTypeDeclUnit(
+        interfacedefs=[],
+        classdefs=[],
+        funcdefs=[
+            ast.PyOptFuncDef(
+                name="foo",
+                params=[],
+                return_type=typing.BasicType("None"),
+                template=[], provenance="", signature=None, exceptions=[])])
+    self.assertEqual(result1, expect)
+    self.assertEqual(result2, expect)
+    self.assertEqual(result1, result2)  # redundant test
 
 
 class C1(typed_tuple.Eq, collections.namedtuple("C1", ["a", "b"])):

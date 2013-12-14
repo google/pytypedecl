@@ -53,7 +53,6 @@ class PyLexer(object):
   t_AT = r'@'
   t_CLASS = r'class'
   t_COLON = r':'
-  t_COLON_COLON = r'::'
   t_COMMA = r','
   t_DEF = r'def'
   t_DOT = r'\.'
@@ -67,6 +66,7 @@ class PyLexer(object):
   t_RAISE = r'raise'
   t_RBRACKET = r'\]'
   t_RPAREN = r'\)'
+  t_SUBCLASS = r'<='  # or '<:' - notation from Scala, type theory
   t_UNION = r'\|'
 
   reserved = {
@@ -80,7 +80,6 @@ class PyLexer(object):
       'ARROW',
       'AT',
       'COLON',
-      'COLON_COLON',
       'COMMA',
       # 'COMMENT',  # Not used in the grammar; only used to discard comments
       'DOT',
@@ -95,6 +94,7 @@ class PyLexer(object):
       'RBRACKET',
       'RPAREN',
       'STRING',
+      'SUBCLASS',
       'UNION',
   ] + list(reserved.values())
 
@@ -190,14 +190,10 @@ class PyParser(object):
   # TODO(rgurma): doesn't support nested classes
   # TODO: parents is redundant -- should match what's in .py file
   #                  but is here for compatibility with INTERFACE
-  # TODO: add "where", similar to funcdef for parameterizing a class
-  #                  Note that becuase funcdef uses 'params' for the where,
-  #                  there's a grammar ambiguity if you try this with a
-  #                  'class' def.
   def p_classdef(self, p):
-    """classdef : CLASS NAME parents COLON class_funcs"""
-    #             1     2    3       4     5     6
-    p[0] = ast.PyOptClassDef(name=p[2], parents=p[3], funcs=p[5])
+    """classdef : CLASS template NAME parents COLON class_funcs"""
+    #             1     2        3    4       5     6
+    p[0] = ast.PyOptClassDef(name=p[3], parents=p[4], funcs=p[6], template=p[2])
 
   def p_class_funcs(self, p):
     """class_funcs : class_funcs funcdef"""
@@ -216,16 +212,11 @@ class PyParser(object):
     """interfacedefs :"""
     p[0] = []
 
-  # TODO: add "where", similar to funcdef for parameterizing an
-  #                  interface.
-  #                  Note that becuase funcdef uses 'params' for the where,
-  #                  there's a grammar ambiguity if you try this with a
-  #                  'class' def.
   def p_interfacedef(self, p):
-    """interfacedef : INTERFACE NAME parents COLON interface_attrs"""
-    #                 1         2    3       4     5
+    """interfacedef : INTERFACE template NAME parents COLON interface_attrs"""
+    #                 1         2        3    4       5     6
     p[0] = ast.PyOptInterfaceDef(
-        name=p[2], parents=p[3], attrs=p[5])
+        name=p[3], parents=p[4], attrs=p[6], template=p[2])
 
   def p_parents(self, p):
     """parents : LPAREN parent_list RPAREN"""
@@ -243,14 +234,30 @@ class PyParser(object):
     """parent_list : NAME"""
     p[0] = [p[1]]
 
-  def p_where(self, p):
-    """where : COLON_COLON params"""
-    # TODO: test cases for COLON_COLON
+  def p_template(self, p):
+    """template : LBRACKET templates RBRACKET"""
     p[0] = p[1]
 
-  def p_where_null(self, p):
-    """where :"""
+  def p_template_null(self, p):
+    """template : """
+    # TODO: test cases
     p[0] = []
+
+  def p_templates_multi(self, p):
+    """templates : templates COMMA template_item"""
+    p[0] = p[1] + [p[3]]
+
+  def p_templates_1(self, p):
+    """templates : template_item"""
+    p[0] = [p[1]]
+
+  def p_template_item(self, p):
+    """template_item : NAME"""
+    p[0] = ast.PyTemplateItem(p[1], typing.BasicType('None'))
+
+  def p_template_item_subclss(self, p):
+    """template_item : NAME SUBCLASS compound_type"""
+    p[0] = ast.PyTemplateItem(p[1], p[3])
 
   # TODO(rgurma): support signatures in interfaces
   def p_interface_attrs(self, p):
@@ -271,11 +278,19 @@ class PyParser(object):
     p[0] = []
 
   def p_funcdef(self, p):
-    """funcdef : provenance DEF NAME LPAREN params RPAREN ARROW compound_type raise where signature"""
-    #            1          2   3    4      5      6      7     8             9     10    11
-    p[0] = ast.PyOptFuncDef(name=p[3], params=p[5], return_type=p[8],
-                            exceptions=p[9], where=p[10], provenance=p[1],
-                            signature=p[11])
+    """funcdef : provenance DEF template NAME LPAREN params RPAREN return raise signature"""
+    #            1          2   3        4     5     6      7      8      9     10
+    p[0] = ast.PyOptFuncDef(name=p[4], params=p[6], return_type=p[8],
+                            exceptions=p[9], template=p[3], provenance=p[1],
+                            signature=p[10])
+
+  def p_return(self, p):
+    """return : ARROW compound_type"""
+    p[0] = p[2]
+
+  def p_return_null(self, p):
+    """return :"""
+    p[0] = typing.BasicType('None')
 
   def p_params_multi(self, p):
     """params : params COMMA param"""
@@ -336,7 +351,7 @@ class PyParser(object):
 
   def p_union_type_multi(self, p):
     """union_type : union_type UNION identifier"""
-    p[0] = p[1]._replace(type_list=p[1].type_list + [p[3]])
+    p[0] = typing.AppendedTypeList(p[1], p[3])
 
   def p_union_type_1(self, p):
     """union_type : identifier"""
@@ -345,7 +360,7 @@ class PyParser(object):
 
   def p_intersection_type_multi(self, p):
     """intersection_type : intersection_type INTERSECT identifier"""
-    p[0] = p[1]._replace(type_list=p[1].type_list + [p[3]])
+    p[0] = typing.AppendedTypeList(p[1], p[3])
 
   def p_intersection_type_1(self, p):
     """intersection_type : identifier"""
@@ -374,11 +389,11 @@ class PyParser(object):
 
   def p_compound_type_union(self, p):
     """compound_type : union_type UNION identifier"""
-    p[0] = p[1]._replace(type_list=p[1].type_list + [p[3]])
+    p[0] = typing.AppendedTypeList(p[1], p[3])
 
   def p_compound_type_intersection(self, p):
     """compound_type : intersection_type INTERSECT identifier"""
-    p[0] = p[1]._replace(type_list=p[1].type_list + [p[3]])
+    p[0] = typing.AppendedTypeList(p[1], p[3])
 
   def p_compound_type_identifier(self, p):
     """compound_type : identifier"""

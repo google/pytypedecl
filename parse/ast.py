@@ -36,17 +36,17 @@ class PyOptTypeDeclUnit(typed_tuple.Eq, collections.namedtuple(
 
 
 class PyOptInterfaceDef(typed_tuple.Eq, collections.namedtuple(
-    'PyOptInterfaceDef', ['name', 'parents', 'attrs'])):
+    'PyOptInterfaceDef', ['name', 'parents', 'attrs', 'template'])):
   pass
 
 
 class PyOptClassDef(typed_tuple.Eq, collections.namedtuple(
-    'PyOptClassDef', ['name', 'parents', 'funcs'])):
+    'PyOptClassDef', ['name', 'parents', 'funcs', 'template'])):
   pass
 
 
 class PyOptFuncDef(typed_tuple.Eq, collections.namedtuple(
-    'PyOptFuncDef', ['name', 'params', 'return_type', 'exceptions', 'where',
+    'PyOptFuncDef', ['name', 'params', 'return_type', 'exceptions', 'template',
                      'provenance', 'signature'])):
   """Represents a function definition.
 
@@ -55,7 +55,7 @@ class PyOptFuncDef(typed_tuple.Eq, collections.namedtuple(
     params: The list of parameters for this function definition.
     return_type: The return type of this function.
     exceptions: A list of exceptions for this function definition.
-    where: names for bindings for bounded types in params/return_type
+    template: names for bindings for bounded types in params/return_type
     provenance: TBD
     signature: TBD
 
@@ -97,9 +97,9 @@ class PyOptIdentifier(typed_tuple.Eq, collections.namedtuple(
   """
 
 
-class PyWhereItem(typed_tuple.Eq, collections.namedtuple(
-    'PyWhereItem', ['name', 'within_type'])):
-  """Represents "where name <= bounded_type".
+class PyTemplateItem(typed_tuple.Eq, collections.namedtuple(
+    'PyTemplateItem', ['name', 'within_type'])):
+  """Represents "template name <= bounded_type".
 
   Attributes:
     name: the name that's used in a generic type
