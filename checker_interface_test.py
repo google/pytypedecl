@@ -17,6 +17,7 @@
 
 import unittest
 from pytypedecl import checker
+from pytypedecl.parse import ast
 from pytypedecl.parse import typing
 from tests import interface
 
@@ -31,12 +32,13 @@ class TestCheckerInterface(unittest.TestCase):
     with self.assertRaises(checker.CheckTypeAnnotationError) as context:
       interface.ReadStuff(interface.FakeOpenable())
 
-    expected_p = checker.ParamTypeErrorMsg("ReadStuff",
-                                           "r",
-                                           interface.FakeOpenable,
-                                           typing.StructType(["Open",
-                                                              "Read",
-                                                              "Close"]))
+    expected_p = checker.ParamTypeErrorMsg(
+        "ReadStuff",
+        "r",
+        interface.FakeOpenable,
+        typing.StructType([ast.PyOptFuncDefMinimal("Open"),
+                           ast.PyOptFuncDefMinimal("Read"),
+                           ast.PyOptFuncDefMinimal("Close")]))
 
     expected_e = checker.ExceptionTypeErrorMsg("ReadStuff",
                                                AttributeError,
@@ -45,6 +47,7 @@ class TestCheckerInterface(unittest.TestCase):
     self.assertEquals(expected_p, actual_p)
     self.assertEquals(expected_e, actual_e)
 
+  # TODO: reinstate this test, probably with PyOptInterfaceDef
   def testReturnInterface(self):
     """Function returning an object matching an Interface.
     """
@@ -52,11 +55,12 @@ class TestCheckerInterface(unittest.TestCase):
     with self.assertRaises(checker.CheckTypeAnnotationError) as context:
       interface.GetWritable()
 
-    expected_r = checker.ReturnTypeErrorMsg("GetWritable",
-                                            interface.NoGoodWritable,
-                                            typing.StructType(["Open",
-                                                               "Write",
-                                                               "Close"]))
+    expected_r = checker.ReturnTypeErrorMsg(
+        "GetWritable",
+        interface.NoGoodWritable,
+        typing.StructType([ast.PyOptFuncDefMinimal("Open"),
+                           ast.PyOptFuncDefMinimal("Write"),
+                           ast.PyOptFuncDefMinimal("Close")]))
 
     [actual_r] = context.exception.args[0]
     self.assertEquals(expected_r, actual_r)

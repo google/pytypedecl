@@ -38,6 +38,11 @@ method. For example:
             u.Process(self) for u in t.type_list))
 
       ... etc. ...
+
+The ExpandTemplates method is used to look up names in the AST and replace them
+by ast.PyTemplateItem from the look-up. The 'rev_templates' argument is the list
+of templates in reverse order (most recent one first).
+
 """
 
 
@@ -48,12 +53,33 @@ from pytypedecl.parse import typed_tuple
 class BasicType(typed_tuple.Eq, collections.namedtuple(
     'BasicType', ['containing_type'])):
 
+  def ExpandTemplates(self, rev_templates):
+    for level, templ in enumerate(rev_templates):
+      for t in templ:
+        if self.containing_type == t.name:
+          return t._replace(level=level)  # PyTemplateItem
+    else:
+      return self
+
   def Process(self, processor):
     return processor.ProcessBasicType(self)
 
 
+class TemplatedName(typed_tuple.Eq, collections.namedtuple(
+    'TemplatedName', ['name'])):
+
+  def ExpandTemplates(self, unused_rev_templates):
+    return self
+
+  def Process(self, processor):
+    return processor.ProcessTemplatedName(self)
+
+
 class ConstType(typed_tuple.Eq, collections.namedtuple(
     'ConstType', ['value'])):
+
+  def ExpandTemplates(self, unused_rev_templates):
+    return self
 
   def Process(self, processor):
     return processor.ProcessConstType(self)
@@ -62,12 +88,19 @@ class ConstType(typed_tuple.Eq, collections.namedtuple(
 class NoneAbleType(typed_tuple.Eq, collections.namedtuple(
     'NoneAbleType', ['base_type'])):
 
+  def ExpandTemplates(self, unused_rev_templates):
+    return self
+
   def Process(self, processor):
     return processor.ProcessNonableType(self)
 
 
 class UnionType(typed_tuple.Eq, collections.namedtuple(
     'UnionType', ['type_list'])):
+
+  def ExpandTemplates(self, rev_templates):
+    return self._replace(
+        type_list=[t.ExpandTemplates(rev_templates) for t in self.type_list])
 
   def Process(self, processor):
     return processor.ProcessUnionType(self)
@@ -76,6 +109,10 @@ class UnionType(typed_tuple.Eq, collections.namedtuple(
 class IntersectionType(typed_tuple.Eq, collections.namedtuple(
     'IntersectionType', ['type_list'])):
 
+  def ExpandTemplates(self, rev_templates):
+    return self._replace(
+        type_list=[t.ExpandTemplates(rev_templates) for t in self.type_list])
+
   def Process(self, processor):
     return processor.ProcessIntersectionType(self)
 
@@ -83,10 +120,13 @@ class IntersectionType(typed_tuple.Eq, collections.namedtuple(
 class StructType(typed_tuple.Eq, collections.namedtuple(
     'StructType', ['ops'])):
 
+  # There's no ExpandTemplates method because StructType isn't
+  # created by the parser.
+
   def Process(self, processor):
     return processor.ProcessStructType(self)
 
-  # Extra initialition ... see
+  # Extra initialization ... see
   # http://stackoverflow.com/questions/3624753/how-to-provide-additional-initialization-for-a-subclass-of-namedtuple
 
   def __new__(cls, ops):
@@ -95,6 +135,11 @@ class StructType(typed_tuple.Eq, collections.namedtuple(
 
 class GenericType1(typed_tuple.Eq, collections.namedtuple(
     'GenericType1', ['base_type', 'type1'])):
+
+  def ExpandTemplates(self, rev_templates):
+    return self._replace(
+        base_type=self.base_type.ExpandTemplates(rev_templates),
+        type1=self.type1.ExpandTemplates(rev_templates))
 
   def Process(self, processor):
     return processor.ProcessGenericType1(self)
@@ -110,11 +155,20 @@ class GenericType2(typed_tuple.Eq, collections.namedtuple(
     type2: second type parameter. E.g. dict[type1, type2]
   """
 
+  def ExpandTemplates(self, rev_templates):
+    return self._replace(
+        base_type=self.base_type.ExpandTemplates(rev_templates),
+        type1=self.type1.ExpandTemplates(rev_templates),
+        type2=self.type2.ExpandTemplates(rev_templates))
+
   def Process(self, processor):
     return processor.ProcessGenericType1(self)
 
 
-class UnknownType(typed_tuple.Eq, collections.namedtuple('UnkownType', '')):
+class UnknownType(typed_tuple.Eq, collections.namedtuple('UnknownType', '')):
+
+  def ExpandTemplates(self, unused_rev_templatesn):
+    return self
 
   def Process(self, processor):
     return processor.ProcessUnknownType(self)

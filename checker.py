@@ -206,7 +206,8 @@ def IsCompatibleType(actual, formal):
   if isinstance(formal, typing.StructType):
     # we check that all the interface operations are supported in actual
     actual_ops = dir(actual)
-    return all(o in actual_ops for o in formal.ops)
+    # TODO: this assumes all the entries are PyOptFuncDefMinimal:
+    return all(o.name in actual_ops for o in formal.ops)
   if isinstance(formal, typing.NoneAbleType):
     return (IsCompatibleType(actual, types.NoneType)
             or IsCompatibleType(actual, formal.base_type))
@@ -275,7 +276,7 @@ def _GetExceptionsTupleFromFuncSig(module, interfaces, func_sig):
   Returns:
       a tuple of exceptions from the function definition
   """
-  return tuple(ConvertToType(module, interfaces, e.name)
+  return tuple(ConvertToType(module, interfaces, e.containing_type)
                for e in func_sig.exceptions)
 
 

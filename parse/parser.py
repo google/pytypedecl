@@ -165,7 +165,7 @@ class PyParser(object):
     self.parser = yacc.yacc(
         module=self,
         debug=False,
-        debuglog=yacc.PlyLogger(sys.stderr),
+        # debuglog=yacc.PlyLogger(sys.stderr),
         # errorlog=yacc.NullLogger(),  # If you really want to suppress messages
         **kwargs)
 
@@ -189,7 +189,7 @@ class PyParser(object):
     #        This will require handling indent/exdent and/or allowing {...}.
     #        Also requires supporting INDENT/DEDENT because otherwise it's
     #        ambiguous on the meaning of a funcdef after a classdef
-    p[0] = ast.PyOptTypeDeclUnit(p[3], p[2], p[1])
+    p[0] = ast.PyOptTypeDeclUnit(p[3], p[2], p[1]).ExpandTemplates([])
 
   def p_classdefs(self, p):
     """classdefs : classdefs classdef"""
@@ -250,7 +250,7 @@ class PyParser(object):
 
   def p_template(self, p):
     """template : LBRACKET templates RBRACKET"""
-    p[0] = p[1]
+    p[0] = p[2]
 
   def p_template_null(self, p):
     """template : """
@@ -267,20 +267,20 @@ class PyParser(object):
 
   def p_template_item(self, p):
     """template_item : NAME"""
-    p[0] = ast.PyTemplateItem(p[1], typing.BasicType('None'))
+    p[0] = ast.PyTemplateItem(p[1], typing.BasicType('object'), 0)
 
   def p_template_item_subclss(self, p):
     """template_item : NAME SUBCLASS compound_type"""
-    p[0] = ast.PyTemplateItem(p[1], p[3])
+    p[0] = ast.PyTemplateItem(p[1], p[3], 0)
 
   # TODO(raoulDoc): support signatures in interfaces
   def p_interface_attrs(self, p):
     """interface_attrs : interface_attrs DEF NAME"""
-    p[0] = p[1] + [p[3]]
+    p[0] = p[1] + [ast.PyOptFuncDefMinimal(name=p[3])]
 
   def p_interface_attrs_null(self, p):
     """interface_attrs : DEF NAME"""
-    p[0] = [p[2]]
+    p[0] = [ast.PyOptFuncDefMinimal(name=p[2])]
 
   def p_funcdefs(self, p):
     """funcdefs : funcdefs funcdef"""
@@ -345,7 +345,7 @@ class PyParser(object):
     p[0] = p[1] + [p[3]]
 
   def p_exception(self, p):
-    """exception : identifier"""
+    """exception : compound_type"""
     p[0] = ast.PyOptException(p[1])
 
   def p_identifier_name_optional(self, p):
@@ -388,12 +388,16 @@ class PyParser(object):
   # TODO(raoulDoc): should we consider nested generics?
 
   def p_compound_type_generic_1(self, p):
-    """compound_type : identifier LBRACKET identifier RBRACKET"""
+    """compound_type : compound_type LBRACKET compound_type RBRACKET"""
     p[0] = typing.GenericType1(p[1], p[3])
 
   def p_compound_type_generic_2(self, p):
-    """compound_type : identifier LBRACKET identifier COMMA identifier RBRACKET"""
+    """compound_type : compound_type LBRACKET compound_type COMMA compound_type RBRACKET"""
     p[0] = typing.GenericType2(p[1], p[3], p[5])
+
+  def p_compound_type_paren(self, p):
+    """compound_type : LPAREN compound_type RPAREN"""
+    p[0] = p[1]
 
   def p_compound_type_identifier(self, p):
     """compound_type : identifier"""

@@ -52,10 +52,8 @@ class TestASTGeneration(unittest.TestCase):
                 return_type=typing.BasicType("int"),
                 template=[], provenance="", signature=None,
                 exceptions=[
-                    ast.PyOptException(
-                        name=typing.BasicType("Test")),
-                    ast.PyOptException(
-                        name=typing.BasicType("Foo"))])])
+                    ast.PyOptException(typing.BasicType("Test")),
+                    ast.PyOptException(typing.BasicType("Foo"))])])
     self.assertEqual(expect, result)
 
   def testMultiFuncDef(self):
@@ -85,10 +83,8 @@ class TestASTGeneration(unittest.TestCase):
                 return_type=typing.BasicType("int"),
                 template=[], provenance="", signature=None,
                 exceptions=[
-                    ast.PyOptException(
-                        name=typing.BasicType("Test")),
-                    ast.PyOptException(
-                        name=typing.BasicType("Foo"))]),
+                    ast.PyOptException(typing.BasicType("Test")),
+                    ast.PyOptException(typing.BasicType("Foo"))]),
             ast.PyOptFuncDef(
                 name="foo",
                 params=[],
@@ -150,9 +146,7 @@ class TestASTGeneration(unittest.TestCase):
                     base_type=typing.BasicType(
                         "int")),
                 exceptions=[
-                    ast.PyOptException(
-                        name=typing.BasicType(
-                            "Bad"))],
+                    ast.PyOptException(typing.BasicType("Bad"))],
                 template=[], provenance="", signature=None)])
     self.assertEqual(expect, result)
 
@@ -199,7 +193,10 @@ class TestASTGeneration(unittest.TestCase):
     # properly.
     expect_repr = ("PyOptTypeDeclUnit(interfacedefs="
                    "[PyOptInterfaceDef(name='Readable', "
-                   "parents=[], attrs=['Open', 'Read', 'Close'], "
+                   "parents=[], attrs=["
+                   "PyOptFuncDefMinimal(name='Open'), "
+                   "PyOptFuncDefMinimal(name='Read'), "
+                   "PyOptFuncDefMinimal(name='Close')], "
                    "template=[])], "
                    "classdefs=[], "
                    "funcdefs=[])")
@@ -208,7 +205,9 @@ class TestASTGeneration(unittest.TestCase):
             ast.PyOptInterfaceDef(
                 name="Readable",
                 parents=[], template=[],
-                attrs=["Open", "Read", "Close"])],
+                attrs=[ast.PyOptFuncDefMinimal("Open"),
+                       ast.PyOptFuncDefMinimal("Read"),
+                       ast.PyOptFuncDefMinimal("Close")])],
         classdefs=[],
         funcdefs=[])
     self.assertEqual(expect, result)
@@ -239,19 +238,19 @@ class TestASTGeneration(unittest.TestCase):
             ast.PyOptInterfaceDef(
                 name="Openable",
                 parents=[], template=[],
-                attrs=["Open"]),
+                attrs=[ast.PyOptFuncDefMinimal("Open")]),
             ast.PyOptInterfaceDef(
                 name="Closable",
                 parents=[], template=[],
-                attrs=["Close"]),
+                attrs=[ast.PyOptFuncDefMinimal("Close")]),
             ast.PyOptInterfaceDef(
                 name="Readable", template=[],
                 parents=["Openable", "Closable"],
-                attrs=["Read"]),
+                attrs=[ast.PyOptFuncDefMinimal("Read")]),
             ast.PyOptInterfaceDef(
                 name="Writable", template=[],
                 parents=["Openable", "Closable"],
-                attrs=["Write"])],
+                attrs=[ast.PyOptFuncDefMinimal("Write")])],
         classdefs=[],
         funcdefs=[
             ast.PyOptFuncDef(
@@ -312,6 +311,96 @@ class TestASTGeneration(unittest.TestCase):
     self.assertEqual(result2, expect)
     self.assertEqual(result1, result2)  # redundant test
 
+  def testTemplates(self):
+    """Test the template name lookup."""
+
+    data = textwrap.dedent("""
+        class [C <= Cbase] MyClass:
+          def f1(c: C)
+          def[T,U] f2(c: C, t1: T, t2: dict[C, T]) -> T raise Error[T]
+        """)
+
+    result = self.parser.Parse(data)
+    expect = ast.PyOptTypeDeclUnit(
+        interfacedefs=[],
+        classdefs=[ast.PyOptClassDef(
+            name="MyClass",
+            parents=[],
+            funcs=[
+                ast.PyOptFuncDef(
+                    name="f1",
+                    params=[
+                        ast.PyOptParam(
+                            name="c",
+                            type=ast.PyTemplateItem(
+                                name="C",
+                                within_type=typing.BasicType("Cbase"),
+                                level=1))],
+                    return_type=typing.BasicType("None"),
+                    exceptions=[],
+                    template=[],
+                    provenance="",
+                    signature=None),
+                ast.PyOptFuncDef(
+                    name="f2",
+                    params=[
+                        ast.PyOptParam(
+                            name="c",
+                            type=ast.PyTemplateItem(
+                                name="C",
+                                within_type=typing.BasicType("Cbase"),
+                                level=1)),
+                        ast.PyOptParam(
+                            name="t1",
+                            type=ast.PyTemplateItem(
+                                name="T",
+                                within_type=typing.BasicType("object"),
+                                level=0)),
+                        ast.PyOptParam(
+                            name="t2",
+                            type=typing.GenericType2(
+                                base_type=typing.BasicType(
+                                    "dict"),
+                                type1=ast.PyTemplateItem(
+                                    name="C",
+                                    within_type=typing.BasicType(
+                                        "Cbase"),
+                                    level=1),
+                                type2=ast.PyTemplateItem(
+                                    name="T",
+                                    within_type=typing.BasicType("object"),
+                                    level=0)))],
+                    return_type=ast.PyTemplateItem(
+                                    name="T",
+                                    within_type=typing.BasicType("object"),
+                                    level=0),
+                    exceptions=[
+                        ast.PyOptException(
+                            typing.GenericType1(
+                                base_type=typing.BasicType("Error"),
+                                type1=ast.PyTemplateItem(
+                                    name="T",
+                                    within_type=typing.BasicType("object"),
+                                    level=0)))],
+                    template=[
+                        ast.PyTemplateItem(
+                            name="T",
+                            within_type=typing.BasicType("object"),
+                            level=0),
+                        ast.PyTemplateItem(
+                            name="U",
+                            within_type=typing.BasicType("object"),
+                            level=0)],
+                    provenance="",
+                    signature=None)],
+            template=[
+                ast.PyTemplateItem(
+                    name="C",
+                    within_type=typing.BasicType("Cbase"),
+                    level=0)])],
+        funcdefs=[])
+    self.assertEqual(expect, result)
+
 
 class C1(typed_tuple.Eq, collections.namedtuple("C1", ["a", "b"])):
 
@@ -332,6 +421,7 @@ class C2b(typed_tuple.Eq, collections.namedtuple("C2b", ["x", "y"])):
 
 
 class TestTupleEq(unittest.TestCase):
+  """Test typed_tupe.Eq (which is heavily used in other tests."""
 
   def testDeepEq1(self):
     c1a = C1(a=1, b=2)

@@ -14,11 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# TODO: Combine with the 'typing' module?
+
 
 """Classes used by parser to generate an AST.
-
-The __repr__ definition aren't required by PLY.
-They are useful for testing & debugging.
 """
 
 import collections
@@ -30,19 +29,32 @@ class PyOptTypeDeclUnit(typed_tuple.Eq, collections.namedtuple(
   """Top level node. Holds a list of FuncDef nodes.
 
   Attributes:
-    funcdefs: A list of function defined in this type decl unit.
-    interfacedefs: A list of interface defined in this type decl unit.
+    funcdefs: A list of functions defined in this type decl unit.
+    interfacedefs: A list of interfaces defined in this type decl unit.
+    classdefs: A list of interfaces defined in this type decl unit.
   """
 
+  def ExpandTemplates(self, rev_templates):
+    return self._replace(
+        interfacedefs=[i.ExpandTemplates(rev_templates)
+                       for i in self.interfacedefs],
+        classdefs=[c.ExpandTemplates(rev_templates) for c in self.classdefs],
+        funcdefs=[f.ExpandTemplates(rev_templates) for f in self.funcdefs])
 
 class PyOptInterfaceDef(typed_tuple.Eq, collections.namedtuple(
     'PyOptInterfaceDef', ['name', 'parents', 'attrs', 'template'])):
-  pass
+
+  def ExpandTemplates(self, rev_templates):
+    rev_t = [self.template] + rev_templates
+    return self._replace(attrs=[a.ExpandTemplates(rev_t) for a in self.attrs])
 
 
 class PyOptClassDef(typed_tuple.Eq, collections.namedtuple(
     'PyOptClassDef', ['name', 'parents', 'funcs', 'template'])):
-  pass
+
+  def ExpandTemplates(self, rev_templates):
+    rev_t = [self.template] + rev_templates
+    return self._replace(funcs=[f.ExpandTemplates(rev_t) for f in self.funcs])
 
 
 class PyOptFuncDef(typed_tuple.Eq, collections.namedtuple(
@@ -68,14 +80,33 @@ class PyOptFuncDef(typed_tuple.Eq, collections.namedtuple(
   # TODO: implement signature
   """
 
+  def ExpandTemplates(self, rev_templates):
+    rev_t = [self.template] + rev_templates
+    return self._replace(
+        params=[p.ExpandTemplates(rev_t) for p in self.params],
+        return_type=self.return_type.ExpandTemplates(rev_t),
+        exceptions=[e.ExpandTemplates(rev_t) for e in self.exceptions])
+
+
+class PyOptFuncDefMinimal(typed_tuple.Eq, collections.namedtuple(
+    'PyOptFuncDefMinimal', ['name'])):
+  """Like PyOptFuncDef, but without params etc."""
+
+  def ExpandTemplates(self, rev_templates):
+    return self
+
 
 class PyOptException(typed_tuple.Eq, collections.namedtuple(
-    'PyOptException', ['name'])):
+    'PyOptException', ['containing_type'])):
   """Represents an exception.
 
   Attributes:
-    name: The name of this exception.
+    name: The exception typ.
   """
+
+  def ExpandTemplates(self, rev_templates):
+    return self._replace(
+        containing_type=self.containing_type.ExpandTemplates(rev_templates))
 
 
 class PyOptParam(typed_tuple.Eq, collections.namedtuple(
@@ -87,21 +118,27 @@ class PyOptParam(typed_tuple.Eq, collections.namedtuple(
     type: The type of the parameter.
   """
 
-
-class PyOptIdentifier(typed_tuple.Eq, collections.namedtuple(
-    'PyOptIdentifier', ['identifier_str'])):
-  """Represents an identifier.
-
-  Attributes:
-    identifier_str: String of the identifier.
-  """
+  def ExpandTemplates(self, rev_templates):
+    return self._replace(type=self.type.ExpandTemplates(rev_templates))
 
 
 class PyTemplateItem(typed_tuple.Eq, collections.namedtuple(
-    'PyTemplateItem', ['name', 'within_type'])):
+    'PyTemplateItem', ['name', 'within_type', 'level'])):
   """Represents "template name <= bounded_type".
+
+  This can be either the result of the 'template' in the parser (e.g.,
+    funcdef : provenance DEF template NAME LPAREN params RPAREN ...)
+  or the result of a lookup using the ExpandTemplates method.
 
   Attributes:
     name: the name that's used in a generic type
     type: the "<=" type for this name (e.g., BasicType('object'))
+    level: When this object is the result of a lookup, it is how many
+           levels "up" the name was found. For example:
+             class [T] Foo:
+               def [U] bar(t: T, u: U)
+           in the definition of 'bar', T has level=1 and U has level=0
   """
+
+  def ExpandTemplates(self, rev_templates):
+    return self._replace(self.within_type.ExpandTemplates(rev_templates))
