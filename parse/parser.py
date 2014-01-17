@@ -49,6 +49,10 @@ class PyLexer(object):
     self.lexer = lex.lex(module=self, debug=False)
     self.lexer.escaping = False
 
+  def set_parse_info(self, data, filename):
+    self.data = data
+    self.filename = filename
+
   t_ARROW = r'->'
   t_AT = r'@'
   t_CLASS = r'class'
@@ -141,7 +145,7 @@ class PyLexer(object):
     t.lexer.on_newline = True
 
   def t_error(self, t):
-    raise SyntaxError("Illegal character '%s'" % t.value[0])
+    raise make_syntax_error(self, "Illegal character '%s'" % t.value[0], t)
 
 
 class PyParser(object):
@@ -165,7 +169,10 @@ class PyParser(object):
         # errorlog=yacc.NullLogger(),  # If you really want to suppress messages
         **kwargs)
 
-  def Parse(self, data, **kwargs):
+  def Parse(self, data, filename=None, **kwargs):
+    self.data = data  # Keep a copy of what's being parsed
+    self.filename = filename if filename else "<string>"
+    self.lexer.set_parse_info(self.data, self.filename)
     return self.parser.parse(data, **kwargs)
 
   def p_defs(self, p):
@@ -427,5 +434,21 @@ class PyParser(object):
     p[0] = None
 
   def p_error(self, p):
-    # TODO: Improve the error output
-    raise SyntaxError("Syntax error at '%s'" % repr(p))
+    raise make_syntax_error(self, "Parse error", p)
+
+
+
+def make_syntax_error(parser_or_tokenizer, msg, p):
+  # SyntaxError(msg, (filename, lineno, offset, line))
+  # is output in a nice format by traceback.print_exception
+  # TODO: add test cases for this (including beginning/end of file,
+  #                  lexer error, parser error)
+
+  # Convert the lexer's offset to an offset within the line with the error
+  # TODO: use regexp to split on r'[\r\n]' (for Windows, old MacOS):
+  last_line_offset = parser_or_tokenizer.data.rfind('\n', 0, p.lexpos) + 1
+  line, _, _ = parser_or_tokenizer.data[last_line_offset:].partition('\n')
+
+  raise SyntaxError(msg,
+                    (parser_or_tokenizer.filename,
+                     p.lineno, p.lexpos - last_line_offset + 1, line))

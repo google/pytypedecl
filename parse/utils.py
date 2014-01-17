@@ -20,6 +20,8 @@
 
 import collections
 import itertools
+import sys
+import traceback
 from pytypedecl.parse import parser
 
 
@@ -30,12 +32,14 @@ InterfacesClassesFuncsByName = collections.namedtuple(
 
 class ParserUtils(object):
   """A utility class for parsing type declaration files.
+
+  If there's an error, prints a message and calls sys.exit(1)
   """
 
   def __init__(self):
     self._parser = parser.PyParser()
 
-  def LoadTypeDeclaration(self, content):
+  def LoadTypeDeclaration(self, content, filename=""):
     """Parse a type declaration from a str.
 
     Args:
@@ -52,7 +56,13 @@ class ParserUtils(object):
     #                  class/interface and change the pytd-to-constraints
     #                  compiler to use this for detecting polymorphic functions
     #                  and methods.
-    type_decl_unit = self._parser.Parse(content)
+    try:
+      type_decl_unit = self._parser.Parse(content, filename)
+    except SyntaxError as unused_exception:
+      # without all the tedious traceback stuff from PLY:
+      traceback.print_exception(sys.exc_type, sys.exc_value, None)
+      sys.exit(1)
+
     functions_by_name = {f_name: list(g) for f_name, g
                          in itertools.groupby(
                              type_decl_unit.funcdefs,
@@ -78,4 +88,4 @@ class ParserUtils(object):
                  functions  dict[str, PyOptFuncdef]
     """
     with open(type_decl_path) as f:
-      return self.LoadTypeDeclaration(f.read())
+      return self.LoadTypeDeclaration(f.read(), type_decl_path)
