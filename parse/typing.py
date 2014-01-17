@@ -152,7 +152,7 @@ class GenericType2(typed_tuple.Eq, collections.namedtuple(
         type2=self.type2.ExpandTemplates(rev_templates))
 
   def Process(self, processor):
-    return processor.ProcessGenericType1(self)
+    return processor.ProcessGenericType2(self)
 
 
 class UnknownType(typed_tuple.Eq, collections.namedtuple('UnknownType', '')):
@@ -162,9 +162,3 @@ class UnknownType(typed_tuple.Eq, collections.namedtuple('UnknownType', '')):
 
   def Process(self, processor):
     return processor.ProcessUnknownType(self)
-
-
-def AppendedTypeList(base, added_type):
-  """New instance with one more item on the type_list."""
-  # pylint: disable=protected-access
-  return base._replace(type_list=base.type_list + [added_type])

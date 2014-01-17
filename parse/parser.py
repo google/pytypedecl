@@ -32,7 +32,6 @@
 # pylint: disable=g-space-before-docstring-summary
 # pylint: disable=g-backslash-continuation
 
-import sys
 from ply import lex
 from ply import yacc
 from pytypedecl.parse import ast
@@ -171,7 +170,7 @@ class PyParser(object):
 
   def Parse(self, data, filename=None, **kwargs):
     self.data = data  # Keep a copy of what's being parsed
-    self.filename = filename if filename else "<string>"
+    self.filename = filename if filename else '<string>'
     self.lexer.set_parse_info(self.data, self.filename)
     return self.parser.parse(data, **kwargs)
 
@@ -367,16 +366,26 @@ class PyParser(object):
   def p_compound_type_intersect(self, p):
     """compound_type : compound_type INTERSECT compound_type"""
     # This rule depends on precedence specification
-    if isinstance(p[1], typing.IntersectionType):
-      p[0] = typing.AppendedTypeList(p[1], p[3])
+    if (isinstance(p[1], typing.IntersectionType) and
+        isinstance(p[3], typing.BasicType)):
+      p[0] = typing.IntersectionType(p[1].type_list + [p[3]])
+    elif (isinstance(p[1], typing.BasicType) and
+          isinstance(p[3], typing.IntersectionType)):
+      # associative
+      p[0] = typing.IntersectionType([p[1]] + p[3].type_list)
     else:
       p[0] = typing.IntersectionType([p[1], p[3]])
 
   def p_compound_type_union(self, p):
     """compound_type : compound_type UNION compound_type"""
     # This rule depends on precedence specification
-    if isinstance(p[1], typing.UnionType):
-      p[0] = typing.AppendedTypeList(p[1], p[3])
+    if (isinstance(p[1], typing.UnionType) and
+        isinstance(p[3], typing.BasicType)):
+      p[0] = typing.UnionType(p[1].type_list + [p[3]])
+    elif (isinstance(p[1], typing.BasicType) and
+          isinstance(p[3], typing.UnionType)):
+      # associative
+      p[0] = typing.UnionType([p[1]] + p[3].type_list)
     else:
       p[0] = typing.UnionType([p[1], p[3]])
 
@@ -387,17 +396,26 @@ class PyParser(object):
   # might want to extend in future if there are use cases
   # TODO(raoulDoc): should we consider nested generics?
 
+  # TODO: for generic types, we explicitly don't allow
+  #                  compound_type[...] but insist on identifier[...] ... this
+  #                  is because the grammar would be ambiguous, but for some
+  #                  reason PLY didn't come up with a shift/reduce conflict but
+  #                  just quietly promoted UNION and INTERSECT above LBRACKET
+  #                  (or, at least, that's what I think happened). Probably best
+  #                  to not use precedence and write everything out fully, even
+  #                  if it's a more verbose grammar.
+
   def p_compound_type_generic_1(self, p):
-    """compound_type : compound_type LBRACKET compound_type RBRACKET"""
-    p[0] = typing.GenericType1(p[1], p[3])
+    """compound_type : identifier LBRACKET compound_type RBRACKET"""
+    p[0] = typing.GenericType1(base_type=p[1], type1=p[3])
 
   def p_compound_type_generic_2(self, p):
-    """compound_type : compound_type LBRACKET compound_type COMMA compound_type RBRACKET"""
-    p[0] = typing.GenericType2(p[1], p[3], p[5])
+    """compound_type : identifier LBRACKET compound_type COMMA compound_type RBRACKET"""
+    p[0] = typing.GenericType2(base_type=p[1], type1=p[3], type2=p[5])
 
   def p_compound_type_paren(self, p):
     """compound_type : LPAREN compound_type RPAREN"""
-    p[0] = p[1]
+    p[0] = p[2]
 
   def p_compound_type_identifier(self, p):
     """compound_type : identifier"""
@@ -431,8 +449,7 @@ class PyParser(object):
     p[0] = None
 
   def p_error(self, p):
-    raise make_syntax_error(self, "Parse error", p)
-
+    raise make_syntax_error(self, 'Parse error', p)
 
 
 def make_syntax_error(parser_or_tokenizer, msg, p):

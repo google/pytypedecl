@@ -112,11 +112,23 @@ class TestASTGeneration(unittest.TestCase):
   def testComplexFuncDef(self):
     """Test parsing of a function with unions, noneable etc."""
 
-    data = textwrap.dedent("""
-        def foo(a: int?, b: int | float | None, c: Foo & s.Bar) -> int? raise Bad
+    data1 = textwrap.dedent("""
+        def foo(a: int?, b: int | float | None, c: Foo & s.Bar & Zot) -> int? raise Bad
+    """)
+    data2 = textwrap.dedent("""
+        def foo(a: int?, b: int | (float | None), c: Foo & (s.Bar & Zot)) -> int? raise Bad
+    """)
+    data3 = textwrap.dedent("""
+        def foo(a: int?, b: (int | float) | None, c: (Foo & s.Bar) & Zot) -> int? raise Bad
+    """)
+    data4 = textwrap.dedent("""
+        def foo(a: int?, b: ((((int | float)) | ((None)))), c: (((Foo) & s.Bar & (Zot)))) -> int? raise Bad
     """)
 
-    result = self.parser.Parse(data)
+    result1 = self.parser.Parse(data1)
+    result2 = self.parser.Parse(data2)
+    result3 = self.parser.Parse(data3)
+    result4 = self.parser.Parse(data4)
     expect = ast.PyOptTypeDeclUnit(
         interfacedefs=[],
         classdefs=[],
@@ -141,20 +153,26 @@ class TestASTGeneration(unittest.TestCase):
                         type=typing.IntersectionType(
                             type_list=[
                                 typing.BasicType("Foo"),
-                                typing.BasicType("s.Bar")]))],
+                                typing.BasicType("s.Bar"),
+                                typing.BasicType("Zot")]))],
                 return_type=typing.NoneAbleType(
                     base_type=typing.BasicType(
                         "int")),
                 exceptions=[
                     ast.PyOptException(typing.BasicType("Bad"))],
                 template=[], provenance="", signature=None)])
-    self.assertEqual(expect, result)
+    self.assertEqual(expect, result1)
+    self.assertEqual(expect, result2)
+    self.assertEqual(expect, result3)
+    self.assertEqual(expect, result4)
 
   def testComplexCombinedType(self):
     """Test parsing a type with both union and intersection."""
 
-    data = r"def foo(a: Foo | Bar & Zot)"
-    result = self.parser.Parse(data)
+    data1 = r"def foo(a: Foo | Bar & Zot)"
+    data2 = r"def foo(a: Foo | (Bar & Zot))"
+    result1 = self.parser.Parse(data1)
+    result2 = self.parser.Parse(data2)
     expect = ast.PyOptTypeDeclUnit(
         interfacedefs=[],
         classdefs=[],
@@ -175,7 +193,8 @@ class TestASTGeneration(unittest.TestCase):
                 return_type=typing.BasicType("None"),
                 template=[], provenance="", signature=None,
                 exceptions=[])])
-    self.assertEqual(expect, result)
+    self.assertEqual(expect, result1)
+    self.assertEqual(expect, result2)
 
   def testInterfaceSimple(self):
     """Test parsing of basic interface."""
@@ -317,7 +336,7 @@ class TestASTGeneration(unittest.TestCase):
     data = textwrap.dedent("""
         class [C <= Cbase] MyClass:
           def f1(c: C)
-          def[T,U] f2(c: C, t1: T, t2: dict[C, T]) -> T raise Error[T]
+          def[T,U] f2(c: C, t1: T, t2: dict[C, C|T|int]) -> T raise Error[T]
         """)
 
     result = self.parser.Parse(data)
@@ -359,21 +378,25 @@ class TestASTGeneration(unittest.TestCase):
                         ast.PyOptParam(
                             name="t2",
                             type=typing.GenericType2(
-                                base_type=typing.BasicType(
-                                    "dict"),
+                                base_type=typing.BasicType("dict"),
                                 type1=ast.PyTemplateItem(
-                                    name="C",
-                                    within_type=typing.BasicType(
-                                        "Cbase"),
-                                    level=1),
-                                type2=ast.PyTemplateItem(
-                                    name="T",
-                                    within_type=typing.BasicType("object"),
-                                    level=0)))],
+                                        name='C',
+                                        within_type=typing.BasicType('Cbase'),
+                                        level=1),
+                                type2=typing.UnionType([
+                                    ast.PyTemplateItem(
+                                        name='C',
+                                        within_type=typing.BasicType('Cbase'),
+                                        level=1),
+                                    ast.PyTemplateItem(
+                                        name='T',
+                                        within_type=typing.BasicType('object'),
+                                        level=0),
+                                    typing.BasicType('int')])))],
                     return_type=ast.PyTemplateItem(
-                                    name="T",
-                                    within_type=typing.BasicType("object"),
-                                    level=0),
+                        name="T",
+                        within_type=typing.BasicType("object"),
+                        level=0),
                     exceptions=[
                         ast.PyOptException(
                             typing.GenericType1(

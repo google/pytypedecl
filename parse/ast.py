@@ -41,6 +41,7 @@ class PyOptTypeDeclUnit(typed_tuple.Eq, collections.namedtuple(
         classdefs=[c.ExpandTemplates(rev_templates) for c in self.classdefs],
         funcdefs=[f.ExpandTemplates(rev_templates) for f in self.funcdefs])
 
+
 class PyOptInterfaceDef(typed_tuple.Eq, collections.namedtuple(
     'PyOptInterfaceDef', ['name', 'parents', 'attrs', 'template'])):
 
@@ -92,7 +93,7 @@ class PyOptFuncDefMinimal(typed_tuple.Eq, collections.namedtuple(
     'PyOptFuncDefMinimal', ['name'])):
   """Like PyOptFuncDef, but without params etc."""
 
-  def ExpandTemplates(self, rev_templates):
+  def ExpandTemplates(self, unused_rev_templates):
     return self
 
 

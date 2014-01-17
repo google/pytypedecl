@@ -26,8 +26,8 @@ from pytypedecl.parse import parser
 
 
 InterfacesClassesFuncsByName = collections.namedtuple(
-  'InterfacesClassesFuncsByName',
-  ['interfaces', 'classes', 'funcs'])
+    'InterfacesClassesFuncsByName',
+    ['interfaces', 'classes', 'funcs'])
 
 
 class ParserUtils(object):
@@ -39,11 +39,12 @@ class ParserUtils(object):
   def __init__(self):
     self._parser = parser.PyParser()
 
-  def LoadTypeDeclaration(self, content, filename=""):
+  def LoadTypeDeclaration(self, content, filename=''):
     """Parse a type declaration from a str.
 
     Args:
-      content: type declaration to parse
+      content:  string: type declarations to parse
+      filename: name of the file whose content is in 'content'
 
     Returns:
       A tuple of interfaces dict[str, PyOptInterfaceDef],
