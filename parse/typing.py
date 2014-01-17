@@ -65,16 +65,6 @@ class BasicType(typed_tuple.Eq, collections.namedtuple(
     return processor.ProcessBasicType(self)
 
 
-class TemplatedName(typed_tuple.Eq, collections.namedtuple(
-    'TemplatedName', ['name'])):
-
-  def ExpandTemplates(self, unused_rev_templates):
-    return self
-
-  def Process(self, processor):
-    return processor.ProcessTemplatedName(self)
-
-
 class ConstType(typed_tuple.Eq, collections.namedtuple(
     'ConstType', ['value'])):
 

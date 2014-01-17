@@ -142,3 +142,6 @@ class PyTemplateItem(typed_tuple.Eq, collections.namedtuple(
 
   def ExpandTemplates(self, rev_templates):
     return self._replace(self.within_type.ExpandTemplates(rev_templates))
+
+  def Process(self, processor):
+    return processor.ProcessTemplateItem(self)
