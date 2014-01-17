@@ -17,7 +17,7 @@
 
 """Parser & Lexer for type declaration language."""
 
-# NOTE(rgurma): the naming scheme of 'tokens' and 'states', 't_*', 'p_*'
+# NOTE(raoulDoc): the naming scheme of 'tokens' and 'states', 't_*', 'p_*'
 # variables/functions below are specially required by ply.yacc and ply.lex. We
 # have to give up Google Python coding style in order to use them.
 # Also, must use backslash-continuation to combine docstrings
@@ -187,7 +187,7 @@ class PyParser(object):
     """classdefs :"""
     p[0] = []
 
-  # TODO(rgurma): doesn't support nested classes
+  # TODO(raoulDoc): doesn't support nested classes
   # TODO: parents is redundant -- should match what's in .py file
   #                  but is here for compatibility with INTERFACE
   def p_classdef(self, p):
@@ -259,7 +259,7 @@ class PyParser(object):
     """template_item : NAME SUBCLASS compound_type"""
     p[0] = ast.PyTemplateItem(p[1], p[3])
 
-  # TODO(rgurma): support signatures in interfaces
+  # TODO(raoulDoc): support signatures in interfaces
   def p_interface_attrs(self, p):
     """interface_attrs : interface_attrs DEF NAME"""
     p[0] = p[1] + [p[3]]
@@ -272,7 +272,7 @@ class PyParser(object):
     """funcdefs : funcdefs funcdef"""
     p[0] = p[1] + [p[2]]
 
-  # TODO(rgurma): doesn't support nested functions
+  # TODO(raoulDoc): doesn't support nested functions
   def p_funcdefs_null(self, p):
     """funcdefs :"""
     p[0] = []
@@ -368,11 +368,11 @@ class PyParser(object):
     p[0] = typing.IntersectionType([p[1]])
 
   # This is parameterized type
-  # TODO(rgurma): support data types in future?
+  # TODO(raoulDoc): support data types in future?
   # data  Tree a  =  Leaf a | Branch (Tree a) (Tree a)
-  # TODO(rgurma): restricted to 2 params on purpose
+  # TODO(raoulDoc): restricted to 2 params on purpose
   # might want to extend in future if there are use cases
-  # TODO(rgurma): should we consider nested generics?
+  # TODO(raoulDoc): should we consider nested generics?
 
   def p_generic_type_1(self, p):
     """generic_type : identifier LBRACKET identifier RBRACKET"""

@@ -74,7 +74,7 @@ def ExceptionTypeErrorMsg(func_name, actual_e, expected_e):
               f=func_name, found=actual_e, expected=expected_e)
 
 
-# TODO(rgurma): improve error message (actual args)
+# TODO(raoulDoc): improve error message (actual args)
 def OverloadingTypeErrorMsg(func_name):
   return ("[TYPE_ERROR] Function: {f}, overloading error "
           "no matching signature found").format(f=func_name)
@@ -231,7 +231,7 @@ def IsCompatibleType(actual, formal):
             isinstance(e, formal.type1) for e in actual)
       return True
     return False
-  # TODO(rgurma): GenericType2, assume only dict for now
+  # TODO(raoulDoc): GenericType2, assume only dict for now
   if isinstance(formal, typing.GenericType2):
     if not isinstance(actual, dict):
       raise TypeError("Only dict is supported for types with 2 type params")
@@ -304,7 +304,7 @@ def TypeCheck(module, interfaces, func, func_sigs):
     Raises:
       CheckTypeAnnotationError: Type errors were found
     """
-    # TODO(rgurma): generalise single sig and multiple sig checking
+    # TODO(raoulDoc): generalise single sig and multiple sig checking
     # to reuse code?
     # at the moment this implementation is convenient because for
     # single signature we stack the errors before raising them
@@ -325,7 +325,7 @@ def TypeCheck(module, interfaces, func, func_sigs):
                                         interfaces,
                                         func_sig.params[i].type)
           # Was the generator defined as generic-typed?
-          # TODO(rgurma): formal  may be a union, so need to extract
+          # TODO(raoulDoc): formal  may be a union, so need to extract
           # generator signature
           if isinstance(resolved_type, typing.GenericType1):
             # if yes replace generator with a decorated version
@@ -359,7 +359,7 @@ def TypeCheck(module, interfaces, func, func_sigs):
       # we check for excptions caught that were
       # not explicitly declared in the signature
       try:
-        # TODO(rgurma): get a better understanding of classmethod
+        # TODO(raoulDoc): get a better understanding of classmethod
         # Is there a way without removing the first argument?
         if _IsClassMethod(func):
           mod_args = mod_args[1:]
@@ -388,8 +388,8 @@ def TypeCheck(module, interfaces, func, func_sigs):
         return res
    # overloading checking
     else:
-      # TODO(rgurma): overloaded class method support
-      # TODO(rgurma): support for overloaded typed generators
+      # TODO(raoulDoc): overloaded class method support
+      # TODO(raoulDoc): support for overloaded typed generators
       param_sig_checked = ((func_sig,
                             _GetParamTypeErrors(module,
                                                 interfaces,
@@ -456,7 +456,7 @@ def _GetListOpsForInterface(interface, interfaces_dict):
   return frozenset(ops)
 
 
-# TODO(rgurma): attach line number of functions/classes
+# TODO(raoulDoc): attach line number of functions/classes
 def _PrintWarning(msg):
   print("(Warning)", msg, "not annotated", file=sys.stderr)
 

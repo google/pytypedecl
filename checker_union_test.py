@@ -163,7 +163,7 @@ class TestCheckerUnion(unittest.TestCase):
     [actual] = context.exception.args[0]
     self.assertEquals(expected, actual)
 
-  # TODO(rgurma): more tests! mixing overloading etc
+  # TODO(raoulDoc): more tests! mixing overloading etc
 
 
 if __name__ == "__main__":
