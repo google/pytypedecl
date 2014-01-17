@@ -156,6 +156,33 @@ class TestASTGeneration(unittest.TestCase):
                 template=[], provenance="", signature=None)])
     self.assertEqual(expect, result)
 
+  def testComplexCombinedType(self):
+    """Test parsing a type with both union and intersection."""
+
+    data = r"def foo(a: Foo | Bar & Zot)"
+    result = self.parser.Parse(data)
+    expect = ast.PyOptTypeDeclUnit(
+        interfacedefs=[],
+        classdefs=[],
+        funcdefs=[
+            ast.PyOptFuncDef(
+                name="foo",
+                params=[
+                  ast.PyOptParam(
+                      name="a",
+                      type=typing.UnionType(
+                          type_list=[
+                              typing.BasicType("Foo"),
+                              typing.IntersectionType(
+                                  type_list=[
+                                      typing.BasicType("Bar"),
+                                      typing.BasicType("Zot")])]))
+                    ],
+                return_type=typing.BasicType("None"),
+                template=[], provenance="", signature=None,
+                exceptions=[])])
+    self.assertEqual(expect, result)
+
   def testInterfaceSimple(self):
     """Test parsing of basic interface."""
 

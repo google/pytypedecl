@@ -71,6 +71,7 @@ class ParserUtils(object):
     interface_by_name = {i.name: i for i in type_decl_unit.interfacedefs}
 
     class_by_name = {c.name: c for c in type_decl_unit.classdefs}
+
     return InterfacesClassesFuncsByName(
         interfaces=interface_by_name,
         classes=class_by_name,

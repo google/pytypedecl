@@ -165,7 +165,7 @@ class PyParser(object):
     self.parser = yacc.yacc(
         module=self,
         debug=False,
-        # debuglog=yacc.PlyLogger(sys.stderr),
+        debuglog=yacc.PlyLogger(sys.stderr),
         # errorlog=yacc.NullLogger(),  # If you really want to suppress messages
         **kwargs)
 
@@ -174,6 +174,11 @@ class PyParser(object):
     self.filename = filename if filename else "<string>"
     self.lexer.set_parse_info(self.data, self.filename)
     return self.parser.parse(data, **kwargs)
+
+  precedence = (
+      ('left', 'UNION'),
+      ('left', 'INTERSECT'),
+  )
 
   def p_defs(self, p):
     """defs : funcdefs classdefs interfacedefs
@@ -200,6 +205,7 @@ class PyParser(object):
   def p_classdef(self, p):
     """classdef : CLASS template NAME parents COLON class_funcs"""
     #             1     2        3    4       5     6
+    # TODO: do name lookups for template within class_funcs
     p[0] = ast.PyOptClassDef(name=p[3], parents=p[4], funcs=p[6], template=p[2])
 
   def p_class_funcs(self, p):
@@ -222,6 +228,7 @@ class PyParser(object):
   def p_interfacedef(self, p):
     """interfacedef : INTERFACE template NAME parents COLON interface_attrs"""
     #                 1         2        3    4       5     6
+    # TODO: do name lookups for template within interface_attrs
     p[0] = ast.PyOptInterfaceDef(
         name=p[3], parents=p[4], attrs=p[6], template=p[2])
 
@@ -287,6 +294,7 @@ class PyParser(object):
   def p_funcdef(self, p):
     """funcdef : provenance DEF template NAME LPAREN params RPAREN return raise signature"""
     #            1          2   3        4     5     6      7      8      9     10
+    # TODO: do name lookups for template within params, return, raise
     p[0] = ast.PyOptFuncDef(name=p[4], params=p[6], return_type=p[8],
                             exceptions=p[9], template=p[3], provenance=p[1],
                             signature=p[10])
@@ -356,23 +364,21 @@ class PyParser(object):
     """identifier : NUMBER"""
     p[0] = typing.ConstType(p[1])
 
-  def p_union_type_multi(self, p):
-    """union_type : union_type UNION identifier"""
-    p[0] = typing.AppendedTypeList(p[1], p[3])
+  def p_compound_type_intersect(self, p):
+    """compound_type : compound_type INTERSECT compound_type"""
+    # This rule depends on precedence specification
+    if isinstance(p[1], typing.IntersectionType):
+      p[0] = typing.AppendedTypeList(p[1], p[3])
+    else:
+      p[0] = typing.IntersectionType([p[1], p[3]])
 
-  def p_union_type_1(self, p):
-    """union_type : identifier"""
-    # Create UnionType only if more than one identifier
-    p[0] = typing.UnionType([p[1]])
-
-  def p_intersection_type_multi(self, p):
-    """intersection_type : intersection_type INTERSECT identifier"""
-    p[0] = typing.AppendedTypeList(p[1], p[3])
-
-  def p_intersection_type_1(self, p):
-    """intersection_type : identifier"""
-    # Create IntersectionType only if more than one identifier
-    p[0] = typing.IntersectionType([p[1]])
+  def p_compound_type_union(self, p):
+    """compound_type : compound_type UNION compound_type"""
+    # This rule depends on precedence specification
+    if isinstance(p[1], typing.UnionType):
+      p[0] = typing.AppendedTypeList(p[1], p[3])
+    else:
+      p[0] = typing.UnionType([p[1], p[3]])
 
   # This is parameterized type
   # TODO(raoulDoc): support data types in future?
@@ -381,26 +387,13 @@ class PyParser(object):
   # might want to extend in future if there are use cases
   # TODO(raoulDoc): should we consider nested generics?
 
-  def p_generic_type_1(self, p):
-    """generic_type : identifier LBRACKET identifier RBRACKET"""
+  def p_compound_type_generic_1(self, p):
+    """compound_type : identifier LBRACKET identifier RBRACKET"""
     p[0] = typing.GenericType1(p[1], p[3])
 
-  def p_generic_type_2(self, p):
-    """generic_type : identifier LBRACKET identifier COMMA identifier RBRACKET
-    """
+  def p_compound_type_generic_2(self, p):
+    """compound_type : identifier LBRACKET identifier COMMA identifier RBRACKET"""
     p[0] = typing.GenericType2(p[1], p[3], p[5])
-
-  def p_compound_type_generic(self, p):
-    """compound_type : generic_type"""
-    p[0] = p[1]
-
-  def p_compound_type_union(self, p):
-    """compound_type : union_type UNION identifier"""
-    p[0] = typing.AppendedTypeList(p[1], p[3])
-
-  def p_compound_type_intersection(self, p):
-    """compound_type : intersection_type INTERSECT identifier"""
-    p[0] = typing.AppendedTypeList(p[1], p[3])
 
   def p_compound_type_identifier(self, p):
     """compound_type : identifier"""
