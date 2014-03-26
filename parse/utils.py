@@ -47,8 +47,8 @@ class ParserUtils(object):
       filename: name of the file whose content is in 'content'
 
     Returns:
-      A tuple of interfaces dict[str, PyOptInterfaceDef],
-                 classes    dict[str, PyOptClassDef],
+      A tuple of interfaces dict[str, Interface],
+                 classes    dict[str, Class],
                  functions  dict[str, PyOptFuncdef]
     """
     # TODO: There is an inconsistency here ... the functions are
@@ -85,8 +85,8 @@ class ParserUtils(object):
       type_decl_path: type declaration to parse
 
     Returns:
-      A tuple of interfaces dict[str, PyOptInterfaceDef],
-                 classes    dict[str, PyOptClassDef],
+      A tuple of interfaces dict[str, Interface],
+                 classes    dict[str, Class],
                  functions  dict[str, PyOptFuncdef]
     """
     with open(type_decl_path) as f:

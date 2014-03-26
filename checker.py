@@ -206,7 +206,7 @@ def IsCompatibleType(actual, formal):
   if isinstance(formal, typing.StructType):
     # we check that all the interface operations are supported in actual
     actual_ops = dir(actual)
-    # TODO: this assumes all the entries are PyOptFuncDefMinimal:
+    # TODO: this assumes all the entries are MinimalFunction:
     return all(o.name in actual_ops for o in formal.ops)
   if isinstance(formal, typing.NoneAbleType):
     return (IsCompatibleType(actual, types.NoneType)
@@ -249,7 +249,7 @@ def _GetParamTypeErrors(module, interfaces, func_sig, args):
   Args:
     module: The module to look up symbols/types
     interfaces: A list of declared interfaces
-    func_sig: function definition (PyOptFuncDef)
+    func_sig: function definition (Function)
     args: actual arguments passed to the function
 
   Returns:
@@ -287,7 +287,7 @@ def TypeCheck(module, interfaces, func, func_sigs):
     module: The module associated with the function to typecheck
     interfaces: A list of declared interfaces
     func: A function to typecheck
-    func_sigs: signatures of the function (PyOptFuncDef)
+    func_sigs: signatures of the function (Function)
 
   Returns:
     A decorated function with typechecking assertions
@@ -444,7 +444,7 @@ def _GetListOpsForInterface(interface, interfaces_dict):
 
   Args:
     interface: the interface name to look up
-    interfaces_dict: a dictionary of interface name to PyOptInterfaceDef
+    interfaces_dict: a dictionary of interface name to Interface
 
   Returns:
     a set of operations supported by the interface (with inherited ops)

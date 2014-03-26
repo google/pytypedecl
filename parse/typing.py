@@ -40,7 +40,7 @@ method. For example:
       ... etc. ...
 
 The ExpandTemplates method is used to look up names in the AST and replace them
-by ast.PyTemplateItem from the look-up. The 'rev_templates' argument is the list
+by ast.TemplateItem from the look-up. The 'rev_templates' argument is the list
 of templates in reverse order (most recent one first).
 
 """
@@ -58,7 +58,7 @@ class BasicType(typed_tuple.Eq, collections.namedtuple(
     for level, templ in enumerate(rev_templates):
       for t in templ:
         if self.containing_type == t.name:
-          return t._replace(level=level)  # PyTemplateItem
+          return t._replace(level=level)  # TemplateItem
     else:
       return self
 

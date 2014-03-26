@@ -28,7 +28,7 @@ class TestASTGeneration(unittest.TestCase):
   def setUp(self):
     self.parser = parser.PyParser()
 
-  def testOneFuncDef(self):
+  def testOneFunction(self):
     """Test parsing of a single function definition."""
     data = textwrap.dedent("""
         # a function def with two params
@@ -36,27 +36,27 @@ class TestASTGeneration(unittest.TestCase):
         """)
 
     result = self.parser.Parse(data)
-    expect = ast.PyOptTypeDeclUnit(
+    expect = ast.TypeDeclUnit(
         interfacedefs=[],
         classdefs=[],
         funcdefs=[
-            ast.PyOptFuncDef(
+            ast.Function(
                 name="foo",
                 params=[
-                    ast.PyOptParam(
+                    ast.Parameter(
                         name="a",
                         type=typing.BasicType("int")),
-                    ast.PyOptParam(
+                    ast.Parameter(
                         name="c",
                         type=typing.BasicType("bool"))],
                 return_type=typing.BasicType("int"),
                 template=[], provenance="", signature=None,
                 exceptions=[
-                    ast.PyOptException(typing.BasicType("Test")),
-                    ast.PyOptException(typing.BasicType("Foo"))])])
+                    ast.ExceptionDef(typing.BasicType("Test")),
+                    ast.ExceptionDef(typing.BasicType("Foo"))])])
     self.assertEqual(expect, result)
 
-  def testMultiFuncDef(self):
+  def testMultiFunction(self):
     """Test parsing of multiple function defs including overloaded version."""
 
     data = textwrap.dedent("""
@@ -67,39 +67,39 @@ class TestASTGeneration(unittest.TestCase):
         """)
 
     result = self.parser.Parse(data)
-    expect = ast.PyOptTypeDeclUnit(
+    expect = ast.TypeDeclUnit(
         interfacedefs=[],
         classdefs=[],
         funcdefs=[
-            ast.PyOptFuncDef(
+            ast.Function(
                 name="foo",
                 params=[
-                    ast.PyOptParam(
+                    ast.Parameter(
                         name="a",
                         type=typing.BasicType("int")),
-                    ast.PyOptParam(
+                    ast.Parameter(
                         name="c",
                         type=typing.BasicType("bool"))],
                 return_type=typing.BasicType("int"),
                 template=[], provenance="", signature=None,
                 exceptions=[
-                    ast.PyOptException(typing.BasicType("Test")),
-                    ast.PyOptException(typing.BasicType("Foo"))]),
-            ast.PyOptFuncDef(
+                    ast.ExceptionDef(typing.BasicType("Test")),
+                    ast.ExceptionDef(typing.BasicType("Foo"))]),
+            ast.Function(
                 name="foo",
                 params=[],
                 return_type=typing.BasicType(
                     "None"),
                 template=[], provenance="", signature=None,
                 exceptions=[]),
-            ast.PyOptFuncDef(
+            ast.Function(
                 name="add",
                 params=[
-                    ast.PyOptParam(
+                    ast.Parameter(
                         name="x",
                         type=typing.BasicType(
                             "int")),
-                    ast.PyOptParam(
+                    ast.Parameter(
                         name="y",
                         type=typing.BasicType(
                             "int"))],
@@ -109,7 +109,7 @@ class TestASTGeneration(unittest.TestCase):
                 exceptions=[])])
     self.assertEqual(expect, result)
 
-  def testComplexFuncDef(self):
+  def testComplexFunction(self):
     """Test parsing of a function with unions, noneable etc."""
 
     data1 = textwrap.dedent("""
@@ -129,26 +129,26 @@ class TestASTGeneration(unittest.TestCase):
     result2 = self.parser.Parse(data2)
     result3 = self.parser.Parse(data3)
     result4 = self.parser.Parse(data4)
-    expect = ast.PyOptTypeDeclUnit(
+    expect = ast.TypeDeclUnit(
         interfacedefs=[],
         classdefs=[],
         funcdefs=[
-            ast.PyOptFuncDef(
+            ast.Function(
                 name="foo",
                 params=[
-                    ast.PyOptParam(
+                    ast.Parameter(
                         name="a",
                         type=typing.NoneAbleType(
                             base_type=typing.BasicType(
                                 "int"))),
-                    ast.PyOptParam(
+                    ast.Parameter(
                         name="b",
                         type=typing.UnionType(
                             type_list=[
                                 typing.BasicType("int"),
                                 typing.BasicType("float"),
                                 typing.BasicType("None")])),
-                    ast.PyOptParam(
+                    ast.Parameter(
                         name="c",
                         type=typing.IntersectionType(
                             type_list=[
@@ -159,7 +159,7 @@ class TestASTGeneration(unittest.TestCase):
                     base_type=typing.BasicType(
                         "int")),
                 exceptions=[
-                    ast.PyOptException(typing.BasicType("Bad"))],
+                    ast.ExceptionDef(typing.BasicType("Bad"))],
                 template=[], provenance="", signature=None)])
     self.assertEqual(expect, result1)
     self.assertEqual(expect, result2)
@@ -173,14 +173,14 @@ class TestASTGeneration(unittest.TestCase):
     data2 = r"def foo(a: Foo | (Bar & Zot))"
     result1 = self.parser.Parse(data1)
     result2 = self.parser.Parse(data2)
-    expect = ast.PyOptTypeDeclUnit(
+    expect = ast.TypeDeclUnit(
         interfacedefs=[],
         classdefs=[],
         funcdefs=[
-            ast.PyOptFuncDef(
+            ast.Function(
                 name="foo",
                 params=[
-                  ast.PyOptParam(
+                  ast.Parameter(
                       name="a",
                       type=typing.UnionType(
                           type_list=[
@@ -210,23 +210,23 @@ class TestASTGeneration(unittest.TestCase):
     # TODO: Remove test for expect_repr, as it adds very little
     # value, assuming that the structure equality (using typed_tuple.Eq) works
     # properly.
-    expect_repr = ("PyOptTypeDeclUnit(interfacedefs="
-                   "[PyOptInterfaceDef(name='Readable', "
+    expect_repr = ("TypeDeclUnit(interfacedefs="
+                   "[Interface(name='Readable', "
                    "parents=[], attrs=["
-                   "PyOptFuncDefMinimal(name='Open'), "
-                   "PyOptFuncDefMinimal(name='Read'), "
-                   "PyOptFuncDefMinimal(name='Close')], "
+                   "MinimalFunction(name='Open'), "
+                   "MinimalFunction(name='Read'), "
+                   "MinimalFunction(name='Close')], "
                    "template=[])], "
                    "classdefs=[], "
                    "funcdefs=[])")
-    expect = ast.PyOptTypeDeclUnit(
+    expect = ast.TypeDeclUnit(
         interfacedefs=[
-            ast.PyOptInterfaceDef(
+            ast.Interface(
                 name="Readable",
                 parents=[], template=[],
-                attrs=[ast.PyOptFuncDefMinimal("Open"),
-                       ast.PyOptFuncDefMinimal("Read"),
-                       ast.PyOptFuncDefMinimal("Close")])],
+                attrs=[ast.MinimalFunction("Open"),
+                       ast.MinimalFunction("Read"),
+                       ast.MinimalFunction("Close")])],
         classdefs=[],
         funcdefs=[])
     self.assertEqual(expect, result)
@@ -252,27 +252,27 @@ class TestASTGeneration(unittest.TestCase):
         """)
 
     result = self.parser.Parse(data)
-    expect = ast.PyOptTypeDeclUnit(
+    expect = ast.TypeDeclUnit(
         interfacedefs=[
-            ast.PyOptInterfaceDef(
+            ast.Interface(
                 name="Openable",
                 parents=[], template=[],
-                attrs=[ast.PyOptFuncDefMinimal("Open")]),
-            ast.PyOptInterfaceDef(
+                attrs=[ast.MinimalFunction("Open")]),
+            ast.Interface(
                 name="Closable",
                 parents=[], template=[],
-                attrs=[ast.PyOptFuncDefMinimal("Close")]),
-            ast.PyOptInterfaceDef(
+                attrs=[ast.MinimalFunction("Close")]),
+            ast.Interface(
                 name="Readable", template=[],
                 parents=["Openable", "Closable"],
-                attrs=[ast.PyOptFuncDefMinimal("Read")]),
-            ast.PyOptInterfaceDef(
+                attrs=[ast.MinimalFunction("Read")]),
+            ast.Interface(
                 name="Writable", template=[],
                 parents=["Openable", "Closable"],
-                attrs=[ast.PyOptFuncDefMinimal("Write")])],
+                attrs=[ast.MinimalFunction("Write")])],
         classdefs=[],
         funcdefs=[
-            ast.PyOptFuncDef(
+            ast.Function(
                 name="foo",
                 params=[],
                 return_type=typing.BasicType("None"),
@@ -289,20 +289,20 @@ class TestASTGeneration(unittest.TestCase):
         """)
 
     result = self.parser.Parse(data)
-    expect = ast.PyOptTypeDeclUnit(
+    expect = ast.TypeDeclUnit(
         interfacedefs=[],
         classdefs=[],
         funcdefs=[
-            ast.PyOptFuncDef(
+            ast.Function(
                 name="interface",
                 params=[
-                    ast.PyOptParam(name="abcde",
+                    ast.Parameter(name="abcde",
                                    type=typing.ConstType(value="xyz")),
-                    ast.PyOptParam(name="foo",
+                    ast.Parameter(name="foo",
                                    type=typing.ConstType(value='a"b')),
-                    ast.PyOptParam(name="b",
+                    ast.Parameter(name="b",
                                    type=typing.ConstType(value=-1.0)),
-                    ast.PyOptParam(name="c",
+                    ast.Parameter(name="c",
                                    type=typing.ConstType(value=666))],
                 return_type=typing.BasicType("int"),
                 exceptions=[],
@@ -317,11 +317,11 @@ class TestASTGeneration(unittest.TestCase):
 
     result1 = self.parser.Parse(data1)
     result2 = self.parser.Parse(data2)
-    expect = ast.PyOptTypeDeclUnit(
+    expect = ast.TypeDeclUnit(
         interfacedefs=[],
         classdefs=[],
         funcdefs=[
-            ast.PyOptFuncDef(
+            ast.Function(
                 name="foo",
                 params=[],
                 return_type=typing.BasicType("None"),
@@ -340,18 +340,18 @@ class TestASTGeneration(unittest.TestCase):
         """)
 
     result = self.parser.Parse(data)
-    expect = ast.PyOptTypeDeclUnit(
+    expect = ast.TypeDeclUnit(
         interfacedefs=[],
-        classdefs=[ast.PyOptClassDef(
+        classdefs=[ast.Class(
             name="MyClass",
             parents=[],
             funcs=[
-                ast.PyOptFuncDef(
+                ast.Function(
                     name="f1",
                     params=[
-                        ast.PyOptParam(
+                        ast.Parameter(
                             name="c",
-                            type=ast.PyTemplateItem(
+                            type=ast.TemplateItem(
                                 name="C",
                                 within_type=typing.BasicType("Cbase"),
                                 level=1))],
@@ -360,64 +360,64 @@ class TestASTGeneration(unittest.TestCase):
                     template=[],
                     provenance="",
                     signature=None),
-                ast.PyOptFuncDef(
+                ast.Function(
                     name="f2",
                     params=[
-                        ast.PyOptParam(
+                        ast.Parameter(
                             name="c",
-                            type=ast.PyTemplateItem(
+                            type=ast.TemplateItem(
                                 name="C",
                                 within_type=typing.BasicType("Cbase"),
                                 level=1)),
-                        ast.PyOptParam(
+                        ast.Parameter(
                             name="t1",
-                            type=ast.PyTemplateItem(
+                            type=ast.TemplateItem(
                                 name="T",
                                 within_type=typing.BasicType("object"),
                                 level=0)),
-                        ast.PyOptParam(
+                        ast.Parameter(
                             name="t2",
                             type=typing.GenericType2(
                                 base_type=typing.BasicType("dict"),
-                                type1=ast.PyTemplateItem(
+                                type1=ast.TemplateItem(
                                         name='C',
                                         within_type=typing.BasicType('Cbase'),
                                         level=1),
                                 type2=typing.UnionType([
-                                    ast.PyTemplateItem(
+                                    ast.TemplateItem(
                                         name='C',
                                         within_type=typing.BasicType('Cbase'),
                                         level=1),
-                                    ast.PyTemplateItem(
+                                    ast.TemplateItem(
                                         name='T',
                                         within_type=typing.BasicType('object'),
                                         level=0),
                                     typing.BasicType('int')])))],
-                    return_type=ast.PyTemplateItem(
+                    return_type=ast.TemplateItem(
                         name="T",
                         within_type=typing.BasicType("object"),
                         level=0),
                     exceptions=[
-                        ast.PyOptException(
+                        ast.ExceptionDef(
                             typing.GenericType1(
                                 base_type=typing.BasicType("Error"),
-                                type1=ast.PyTemplateItem(
+                                type1=ast.TemplateItem(
                                     name="T",
                                     within_type=typing.BasicType("object"),
                                     level=0)))],
                     template=[
-                        ast.PyTemplateItem(
+                        ast.TemplateItem(
                             name="T",
                             within_type=typing.BasicType("object"),
                             level=0),
-                        ast.PyTemplateItem(
+                        ast.TemplateItem(
                             name="U",
                             within_type=typing.BasicType("object"),
                             level=0)],
                     provenance="",
                     signature=None)],
             template=[
-                ast.PyTemplateItem(
+                ast.TemplateItem(
                     name="C",
                     within_type=typing.BasicType("Cbase"),
                     level=0)])],

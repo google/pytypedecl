@@ -23,13 +23,10 @@
 import collections
 from pytypedecl.parse import typed_tuple
 
-# TODO: Get rid of all the various "PyOpt" and "Py" prefixes. They
-# don't seem to mean anything.
 
-
-class PyOptTypeDeclUnit(typed_tuple.Eq, collections.namedtuple(
-    'PyOptTypeDeclUnit', ['interfacedefs', 'classdefs', 'funcdefs'])):
-  """Top level node. Holds a list of FuncDef nodes.
+class TypeDeclUnit(typed_tuple.Eq, collections.namedtuple(
+    'TypeDeclUnit', ['interfacedefs', 'classdefs', 'funcdefs'])):
+  """Top level node. Holds a list of Function nodes.
 
   Attributes:
     funcdefs: A list of functions defined in this type decl unit.
@@ -46,8 +43,8 @@ class PyOptTypeDeclUnit(typed_tuple.Eq, collections.namedtuple(
         funcdefs=[f.ExpandTemplates(rev_templates) for f in self.funcdefs])
 
 
-class PyOptInterfaceDef(typed_tuple.Eq, collections.namedtuple(
-    'PyOptInterfaceDef', ['name', 'parents', 'attrs', 'template'])):
+class Interface(typed_tuple.Eq, collections.namedtuple(
+    'Interface', ['name', 'parents', 'attrs', 'template'])):
   __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
@@ -55,8 +52,8 @@ class PyOptInterfaceDef(typed_tuple.Eq, collections.namedtuple(
     return self._replace(attrs=[a.ExpandTemplates(rev_t) for a in self.attrs])
 
 
-class PyOptClassDef(typed_tuple.Eq, collections.namedtuple(
-    'PyOptClassDef', ['name', 'parents', 'funcs', 'template'])):
+class Class(typed_tuple.Eq, collections.namedtuple(
+    'Class', ['name', 'parents', 'funcs', 'template'])):
   __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
@@ -64,8 +61,8 @@ class PyOptClassDef(typed_tuple.Eq, collections.namedtuple(
     return self._replace(funcs=[f.ExpandTemplates(rev_t) for f in self.funcs])
 
 
-class PyOptFuncDef(typed_tuple.Eq, collections.namedtuple(
-    'PyOptFuncDef', ['name', 'params', 'return_type', 'exceptions', 'template',
+class Function(typed_tuple.Eq, collections.namedtuple(
+    'Function', ['name', 'params', 'return_type', 'exceptions', 'template',
                      'provenance', 'signature'])):
   """Represents a function definition.
 
@@ -101,17 +98,17 @@ class ConstantDef(typed_tuple.Eq, collections.namedtuple(
   __slots__ = ()
 
 
-class PyOptFuncDefMinimal(typed_tuple.Eq, collections.namedtuple(
-    'PyOptFuncDefMinimal', ['name'])):
-  """Like PyOptFuncDef, but without params etc."""
+class MinimalFunction(typed_tuple.Eq, collections.namedtuple(
+    'MinimalFunction', ['name'])):
+  """Like Function, but without params etc."""
   __slots__ = ()
 
   def ExpandTemplates(self, unused_rev_templates):
     return self
 
 
-class PyOptException(typed_tuple.Eq, collections.namedtuple(
-    'PyOptException', ['containing_type'])):
+class ExceptionDef(typed_tuple.Eq, collections.namedtuple(
+    'ExceptionDef', ['containing_type'])):
   """Represents an exception.
 
   Attributes:
@@ -124,8 +121,8 @@ class PyOptException(typed_tuple.Eq, collections.namedtuple(
         containing_type=self.containing_type.ExpandTemplates(rev_templates))
 
 
-class PyOptParam(typed_tuple.Eq, collections.namedtuple(
-    'PyOptParam', ['name', 'type'])):
+class Parameter(typed_tuple.Eq, collections.namedtuple(
+    'Parameter', ['name', 'type'])):
   """Represents a parameter of a function definition.
 
   Attributes:
@@ -138,8 +135,8 @@ class PyOptParam(typed_tuple.Eq, collections.namedtuple(
     return self._replace(type=self.type.ExpandTemplates(rev_templates))
 
 
-class PyTemplateItem(typed_tuple.Eq, collections.namedtuple(
-    'PyTemplateItem', ['name', 'within_type', 'level'])):
+class TemplateItem(typed_tuple.Eq, collections.namedtuple(
+    'TemplateItem', ['name', 'within_type', 'level'])):
   """Represents "template name <= bounded_type".
 
   This can be either the result of the 'template' in the parser (e.g.,

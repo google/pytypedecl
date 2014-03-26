@@ -190,7 +190,7 @@ class PyParser(object):
     #        This will require handling indent/exdent and/or allowing {...}.
     #        Also requires supporting INDENT/DEDENT because otherwise it's
     #        ambiguous on the meaning of a funcdef after a classdef
-    p[0] = ast.PyOptTypeDeclUnit(p[3], p[2], p[1]).ExpandTemplates([])
+    p[0] = ast.TypeDeclUnit(p[3], p[2], p[1]).ExpandTemplates([])
 
   def p_classdefs(self, p):
     """classdefs : classdefs classdef"""
@@ -207,7 +207,7 @@ class PyParser(object):
     """classdef : CLASS template NAME parents COLON class_funcs"""
     #             1     2        3    4       5     6
     # TODO: do name lookups for template within class_funcs
-    p[0] = ast.PyOptClassDef(name=p[3], parents=p[4], funcs=p[6], template=p[2])
+    p[0] = ast.Class(name=p[3], parents=p[4], funcs=p[6], template=p[2])
 
   def p_class_funcs(self, p):
     """class_funcs : funcdefs"""
@@ -230,7 +230,7 @@ class PyParser(object):
     """interfacedef : INTERFACE template NAME parents COLON interface_attrs"""
     #                 1         2        3    4       5     6
     # TODO: do name lookups for template within interface_attrs
-    p[0] = ast.PyOptInterfaceDef(
+    p[0] = ast.Interface(
         name=p[3], parents=p[4], attrs=p[6], template=p[2])
 
   def p_parents(self, p):
@@ -268,20 +268,20 @@ class PyParser(object):
 
   def p_template_item(self, p):
     """template_item : NAME"""
-    p[0] = ast.PyTemplateItem(p[1], typing.BasicType('object'), 0)
+    p[0] = ast.TemplateItem(p[1], typing.BasicType('object'), 0)
 
   def p_template_item_subclss(self, p):
     """template_item : NAME SUBCLASS compound_type"""
-    p[0] = ast.PyTemplateItem(p[1], p[3], 0)
+    p[0] = ast.TemplateItem(p[1], p[3], 0)
 
   # TODO(raoulDoc): support signatures in interfaces
   def p_interface_attrs(self, p):
     """interface_attrs : interface_attrs DEF NAME"""
-    p[0] = p[1] + [ast.PyOptFuncDefMinimal(name=p[3])]
+    p[0] = p[1] + [ast.MinimalFunction(name=p[3])]
 
   def p_interface_attrs_null(self, p):
     """interface_attrs : DEF NAME"""
-    p[0] = [ast.PyOptFuncDefMinimal(name=p[2])]
+    p[0] = [ast.MinimalFunction(name=p[2])]
 
   def p_funcdefs_func(self, p):
     """funcdefs : funcdefs funcdef"""
@@ -304,7 +304,7 @@ class PyParser(object):
     """funcdef : provenance DEF template NAME LPAREN params RPAREN return raise signature"""
     #            1          2   3        4     5     6      7      8      9     10
     # TODO: do name lookups for template within params, return, raise
-    p[0] = ast.PyOptFuncDef(name=p[4], params=p[6], return_type=p[8],
+    p[0] = ast.Function(name=p[4], params=p[6], return_type=p[8],
                             exceptions=p[9], template=p[3], provenance=p[1],
                             signature=p[10])
 
@@ -322,11 +322,11 @@ class PyParser(object):
 
   def p_arg(self, p):
     """arg : ASTERISK param"""
-    p[0] = ast.PyOptParam(p[2].name, typing.VarArgType())
+    p[0] = ast.Parameter(p[2].name, typing.VarArgType())
 
   def p_kwarg(self, p):
     """kwarg : ASTERISK ASTERISK param"""
-    p[0] = ast.PyOptParam(p[3].name, typing.VarKeywordArgType())
+    p[0] = ast.Parameter(p[3].name, typing.VarKeywordArgType())
 
   def p_params_arg(self, p):
     """params : params COMMA arg"""
@@ -363,16 +363,16 @@ class PyParser(object):
   def p_param(self, p):
     """param : NAME"""
     # type can be optional if we don't want to typecheck
-    p[0] = ast.PyOptParam(p[1], typing.UnknownType())
+    p[0] = ast.Parameter(p[1], typing.UnknownType())
 
   def p_param_optional(self, p):
     """param : NAME QUESTION"""
     # We treat optional params as if they don't have a type.
-    p[0] = ast.PyOptParam(p[1], typing.OptionalUnknownType())
+    p[0] = ast.Parameter(p[1], typing.OptionalUnknownType())
 
   def p_param_and_type(self, p):
     """param : NAME COLON compound_type"""
-    p[0] = ast.PyOptParam(p[1], p[3])
+    p[0] = ast.Parameter(p[1], p[3])
 
   def p_raise(self, p):
     """raise : RAISE exceptions"""
@@ -392,7 +392,7 @@ class PyParser(object):
 
   def p_exception(self, p):
     """exception : compound_type"""
-    p[0] = ast.PyOptException(p[1])
+    p[0] = ast.ExceptionDef(p[1])
 
   def p_identifier_name_optional(self, p):
     """identifier : NAME QUESTION"""

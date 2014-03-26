@@ -36,9 +36,9 @@ class TestCheckerInterface(unittest.TestCase):
         "ReadStuff",
         "r",
         interface.FakeOpenable,
-        typing.StructType([ast.PyOptFuncDefMinimal("Open"),
-                           ast.PyOptFuncDefMinimal("Read"),
-                           ast.PyOptFuncDefMinimal("Close")]))
+        typing.StructType([ast.MinimalFunction("Open"),
+                           ast.MinimalFunction("Read"),
+                           ast.MinimalFunction("Close")]))
 
     expected_e = checker.ExceptionTypeErrorMsg("ReadStuff",
                                                AttributeError,
@@ -47,7 +47,7 @@ class TestCheckerInterface(unittest.TestCase):
     self.assertEquals(expected_p, actual_p)
     self.assertEquals(expected_e, actual_e)
 
-  # TODO: reinstate this test, probably with PyOptInterfaceDef
+  # TODO: reinstate this test, probably with Interface
   def testReturnInterface(self):
     """Function returning an object matching an Interface.
     """
@@ -58,9 +58,9 @@ class TestCheckerInterface(unittest.TestCase):
     expected_r = checker.ReturnTypeErrorMsg(
         "GetWritable",
         interface.NoGoodWritable,
-        typing.StructType([ast.PyOptFuncDefMinimal("Open"),
-                           ast.PyOptFuncDefMinimal("Write"),
-                           ast.PyOptFuncDefMinimal("Close")]))
+        typing.StructType([ast.MinimalFunction("Open"),
+                           ast.MinimalFunction("Write"),
+                           ast.MinimalFunction("Close")]))
 
     [actual_r] = context.exception.args[0]
     self.assertEquals(expected_r, actual_r)

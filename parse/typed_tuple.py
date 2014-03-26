@@ -34,7 +34,7 @@ class Eq(object):
   collections.namedtuple (this is *not* verified).
 
   collections.namedtuple.__eq__ is implicitly tuple equality (which makes two
-  tuples equal if all their values are recurisvely equal), but that allows two
+  tuples equal if all their values are recursively equal), but that allows two
   objects to be the same if they happen to have the same field values. To avoid
   this problem, you can mixin TupleEq, which adds the check that the two
   objects' classes are equal (this might be too strong, in which case you'd need
@@ -45,11 +45,14 @@ class Eq(object):
   """
 
   def __eq__(self, other):
-    if self.__class__ is not other.__class__:
+    if self.__class__ is other.__class__:
+      return tuple.__eq__(self, other)
+    else:
       return NotImplemented
-    return tuple.__eq__(self, other)
 
   def __ne__(self, other):
     if self.__class__ is other.__class__:
       return tuple.__ne__(self, other)
-    return True
+    else:
+      # TODO: This is inconsistent with __eq__ (NoImplemented <-> True)
+      return True
