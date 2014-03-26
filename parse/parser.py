@@ -124,6 +124,7 @@ class PyLexer(object):
     (r"""'([^']|\\')*'|"""
      r'"([^"]|\\")*"')
     # TODO: full Python string syntax (e.g., """...""", r"...")
+    # TODO: use something like devtools/python/library_types/ast.py _ParseLiteral
     t.value = eval(t.value)
     return t
 

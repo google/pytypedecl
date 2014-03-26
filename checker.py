@@ -91,6 +91,7 @@ def GeneratorGenericTypeErrorMsg(func_name, gen_to_wrap,
 
 
 def _EvalWithModuleContext(expr, module):
+  # TODO: use something like devtools/python/library_types/ast.py _ParseLiteral
   return eval(expr, module.__dict__)
 
 
