@@ -19,7 +19,6 @@ import textwrap
 import unittest
 from pytypedecl import pytd
 from pytypedecl.parse import parser
-from pytypedecl.parse import typed_tuple
 from pytypedecl.parse import node
 
 
@@ -262,66 +261,6 @@ class TestASTGeneration(unittest.TestCase):
     self.assertEquals(f2.return_type.name, "T")
     self.assertEquals(len(f2.exceptions), 1)
     self.assertEquals(len(f2.template), 2)
-
-
-class C1(typed_tuple.Eq, collections.namedtuple("C1", ["a", "b"])):
-
-  def Total(self):
-    return sum(self)  # sum(tuple(self)) or sum(iter(self))
-
-  def Total2(self):
-    return self.a + self.b
-
-
-class C2(typed_tuple.Eq, collections.namedtuple("C2", ["x", "y"])):
-  pass
-
-
-# class C2b has same fields as C2
-class C2b(typed_tuple.Eq, collections.namedtuple("C2b", ["x", "y"])):
-  pass
-
-
-class TestTupleEq(unittest.TestCase):
-  """Test typed_tupe.Eq (which is heavily used in other tests."""
-
-  def testDeepEq1(self):
-    c1a = C1(a=1, b=2)
-    self.assertEqual(c1a.Total(), 3)
-    self.assertEqual(c1a.Total2(), 3)
-    c1b = C1(a=1, b=2)
-    self.assertTrue(c1a == c1b)  # explicitly test __eq__
-    self.assertFalse(c1a != c1b)  # explicitly test __ne__
-    self.assertEqual(c1a, c1b)
-    c2a = C2(x="foo", y=c1a)
-    c2b = C2(x="foo", y=c1b)
-    self.assertTrue(c2a == c2b)  # explicitly test __eq__
-    self.assertFalse(c2a != c2b)  # explicitly test __ne__
-    self.assertEqual(c1a, c1b)
-
-  def testDeepEq2(self):
-    c1a = C1(a=1, b=2)
-    c1b = C1(a=1, b=3)
-    self.assertFalse(c1a == c1b)  # explicitly test __eq__
-    self.assertTrue(c1a != c1b)  # explicitly test __ne__
-    self.assertNotEqual(c1a, c1b)
-    c2a = C2(x="foo", y=c1a)
-    c2b = C2(x="foo", y=c1b)
-    self.assertFalse(c2a == c2b)  # explicitly test __eq__
-    self.assertTrue(c2a != c2b)  # explicitly test __ne__
-    self.assertNotEqual(c1a, c1b)
-
-  def testImmutable(self):
-    c1a = C1(a=1, b=2)
-    c2a = C2(x="foo", y=c1a)
-    c2b = C2b(x="foo", y=c1a)
-    with self.assertRaises(AttributeError):
-      c2a.x = "bar"
-    with self.assertRaises(AttributeError):
-      c2a.y.b = 999
-    self.assertFalse(c2a == c2b)  # explicitly test __eq__
-    self.assertTrue(c2a != c2b)  # explicitly test __ne__
-    self.assertNotEqual(c2a, c2b)
 
 
 class Node1(node.Node("a", "b")):

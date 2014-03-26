@@ -49,15 +49,14 @@ of templates in reverse order (most recent one first).
 
 
 import collections
-from pytypedecl.parse import typed_tuple
+from pytypedecl.parse import node
 
 
 # TODO: Implement a proper visitor interface, instead of having both
 #              ExpandTemplates() and Process()
 
 
-class TypeDeclUnit(typed_tuple.Eq, collections.namedtuple(
-    'TypeDeclUnit', ['constants', 'classes', 'functions'])):
+class TypeDeclUnit(node.Node('constants', 'classes', 'functions')):
   """Top level node. Holds a list of Function nodes.
 
   Attributes:
@@ -82,16 +81,14 @@ class TypeDeclUnit(typed_tuple.Eq, collections.namedtuple(
         functions=[f.ExpandTemplates(rev_templates) for f in self.functions])
 
 
-class Constant(typed_tuple.Eq, collections.namedtuple(
-    'Constant', ['name', 'type'])):
+class Constant(node.Node('name', 'type')):
   __slots__ = ()
 
   def ExpandTemplates(self, rev_t):
     return self._replace(type=self.type.ExpandTemplates(rev_t))
 
 
-class Class(typed_tuple.Eq, collections.namedtuple(
-    'Class', ['name', 'parents', 'methods', 'constants', 'template'])):
+class Class(node.Node('name', 'parents', 'methods', 'constants', 'template')):
   """A Python class. Corresponds to a class in a *.py file."""
 
   def Lookup(self, name):
@@ -108,8 +105,7 @@ class Class(typed_tuple.Eq, collections.namedtuple(
     return self._replace(type=self.type.ExpandTemplates(rev_t))
 
 
-class Class(typed_tuple.Eq, collections.namedtuple(
-    'Class', ['name', 'parents', 'methods', 'constants', 'template'])):
+class Class(node.Node('name', 'parents', 'methods', 'constants', 'template')):
 
   def Lookup(self, name):
     """Convenience function: Look up a given name in the global namespace."""
@@ -129,8 +125,7 @@ class Class(typed_tuple.Eq, collections.namedtuple(
                                     for c in self.constants])
 
 
-class Function(typed_tuple.Eq, collections.namedtuple(
-    'Function', ['name', 'signatures'])):
+class Function(node.Node('name', 'signatures')):
   """A function or a method.
 
   Attributes:
@@ -144,9 +139,8 @@ class Function(typed_tuple.Eq, collections.namedtuple(
                                      for f in self.signatures])
 
 
-class Signature(typed_tuple.Eq, collections.namedtuple(
-    'Signature', ['params', 'return_type', 'exceptions', 'template',
-                  'provenance'])):
+class Signature(node.Node('params', 'return_type', 'exceptions', 'template',
+                          'provenance')):
   """Represents an individual signature of a function.
 
   For overloaded functions, this is one specific combination of parameters.
@@ -178,13 +172,11 @@ class Signature(typed_tuple.Eq, collections.namedtuple(
         exceptions=[e.ExpandTemplates(rev_t) for e in self.exceptions])
 
 
-class ConstantDef(typed_tuple.Eq, collections.namedtuple(
-    'ConstantDef', ['name', 'type'])):
+class ConstantDef(node.Node('name', 'type')):
   __slots__ = ()
 
 
-class MinimalFunction(typed_tuple.Eq, collections.namedtuple(
-    'MinimalFunction', ['name'])):
+class MinimalFunction(node.Node('name')):
   """Like Function, but without params etc."""
   __slots__ = ()
 
@@ -192,8 +184,7 @@ class MinimalFunction(typed_tuple.Eq, collections.namedtuple(
     return self
 
 
-class ExceptionDef(typed_tuple.Eq, collections.namedtuple(
-    'ExceptionDef', ['containing_type'])):
+class ExceptionDef(node.Node('containing_type')):
   """Represents an exception.
 
   Attributes:
@@ -206,8 +197,7 @@ class ExceptionDef(typed_tuple.Eq, collections.namedtuple(
         containing_type=self.containing_type.ExpandTemplates(rev_templates))
 
 
-class Parameter(typed_tuple.Eq, collections.namedtuple(
-    'Parameter', ['name', 'type'])):
+class Parameter(node.Node('name', 'type')):
   """Represents a parameter of a function definition.
 
   Attributes:
@@ -220,8 +210,7 @@ class Parameter(typed_tuple.Eq, collections.namedtuple(
     return self._replace(type=self.type.ExpandTemplates(rev_templates))
 
 
-class TemplateItem(typed_tuple.Eq, collections.namedtuple(
-    'TemplateItem', ['name', 'within_type', 'level'])):
+class TemplateItem(node.Node('name', 'within_type', 'level')):
   """Represents "template name <= bounded_type".
 
   This can be either the result of the 'template' in the parser (e.g.,
@@ -246,8 +235,7 @@ class TemplateItem(typed_tuple.Eq, collections.namedtuple(
     return processor.ProcessTemplateItem(self)
 
 
-class BasicType(typed_tuple.Eq, collections.namedtuple(
-    'BasicType', ['containing_type'])):
+class BasicType(node.Node('containing_type')):
   """A wrapper for a type. Deprecated."""
   __slots__ = ()
 
@@ -266,8 +254,7 @@ class BasicType(typed_tuple.Eq, collections.namedtuple(
     return processor.ProcessBasicType(self)
 
 
-class ConstType(typed_tuple.Eq, collections.namedtuple(
-    'ConstType', ['value'])):
+class ConstType(node.Node('value')):
   __slots__ = ()
 
   def ExpandTemplates(self, unused_rev_templates):
@@ -277,8 +264,7 @@ class ConstType(typed_tuple.Eq, collections.namedtuple(
     return processor.ProcessConstType(self)
 
 
-class NoneAbleType(typed_tuple.Eq, collections.namedtuple(
-    'NoneAbleType', ['base_type'])):
+class NoneAbleType(node.Node('base_type')):
   __slots__ = ()
 
   def ExpandTemplates(self, unused_rev_templates):
@@ -288,8 +274,7 @@ class NoneAbleType(typed_tuple.Eq, collections.namedtuple(
     return processor.ProcessNonableType(self)
 
 
-class UnionType(typed_tuple.Eq, collections.namedtuple(
-    'UnionType', ['type_list'])):
+class UnionType(node.Node('type_list')):
   __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
@@ -300,8 +285,7 @@ class UnionType(typed_tuple.Eq, collections.namedtuple(
     return processor.ProcessUnionType(self)
 
 
-class IntersectionType(typed_tuple.Eq, collections.namedtuple(
-    'IntersectionType', ['type_list'])):
+class IntersectionType(node.Node('type_list')):
   __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
@@ -312,8 +296,7 @@ class IntersectionType(typed_tuple.Eq, collections.namedtuple(
     return processor.ProcessIntersectionType(self)
 
 
-class GenericType1(typed_tuple.Eq, collections.namedtuple(
-    'GenericType1', ['base_type', 'type1'])):
+class GenericType1(node.Node('base_type', 'type1')):
   __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
@@ -325,8 +308,7 @@ class GenericType1(typed_tuple.Eq, collections.namedtuple(
     return processor.ProcessGenericType1(self)
 
 
-class GenericType2(typed_tuple.Eq, collections.namedtuple(
-    'GenericType2', ['base_type', 'type1', 'type2'])):
+class GenericType2(node.Node('base_type', 'type1', 'type2')):
   """Constructor for types taking two type arguments.
 
   Attributes:
@@ -346,7 +328,7 @@ class GenericType2(typed_tuple.Eq, collections.namedtuple(
     return processor.ProcessGenericType2(self)
 
 
-class UnknownType(typed_tuple.Eq, collections.namedtuple('UnknownType', '')):
+class UnknownType(node.Node()):
   __slots__ = ()
 
   def ExpandTemplates(self, unused_rev_templatesn):
@@ -356,8 +338,7 @@ class UnknownType(typed_tuple.Eq, collections.namedtuple('UnknownType', '')):
     return processor.ProcessUnknownType(self)
 
 
-class OptionalUnknownType(typed_tuple.Eq,
-                          collections.namedtuple('OptionalUnknownType', '')):
+class OptionalUnknownType(node.Node()):
   __slots__ = ()
 
   def ExpandTemplates(self, unused_rev_templatesn):
