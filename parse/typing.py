@@ -52,6 +52,7 @@ from pytypedecl.parse import typed_tuple
 
 class BasicType(typed_tuple.Eq, collections.namedtuple(
     'BasicType', ['containing_type'])):
+  __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
     for level, templ in enumerate(rev_templates):
@@ -67,6 +68,7 @@ class BasicType(typed_tuple.Eq, collections.namedtuple(
 
 class ConstType(typed_tuple.Eq, collections.namedtuple(
     'ConstType', ['value'])):
+  __slots__ = ()
 
   def ExpandTemplates(self, unused_rev_templates):
     return self
@@ -77,6 +79,7 @@ class ConstType(typed_tuple.Eq, collections.namedtuple(
 
 class NoneAbleType(typed_tuple.Eq, collections.namedtuple(
     'NoneAbleType', ['base_type'])):
+  __slots__ = ()
 
   def ExpandTemplates(self, unused_rev_templates):
     return self
@@ -87,6 +90,7 @@ class NoneAbleType(typed_tuple.Eq, collections.namedtuple(
 
 class UnionType(typed_tuple.Eq, collections.namedtuple(
     'UnionType', ['type_list'])):
+  __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
     return self._replace(
@@ -98,6 +102,7 @@ class UnionType(typed_tuple.Eq, collections.namedtuple(
 
 class IntersectionType(typed_tuple.Eq, collections.namedtuple(
     'IntersectionType', ['type_list'])):
+  __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
     return self._replace(
@@ -109,6 +114,7 @@ class IntersectionType(typed_tuple.Eq, collections.namedtuple(
 
 class StructType(typed_tuple.Eq, collections.namedtuple(
     'StructType', ['ops'])):
+  __slots__ = ()
 
   # There's no ExpandTemplates method because StructType isn't
   # created by the parser.
@@ -125,6 +131,7 @@ class StructType(typed_tuple.Eq, collections.namedtuple(
 
 class GenericType1(typed_tuple.Eq, collections.namedtuple(
     'GenericType1', ['base_type', 'type1'])):
+  __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
     return self._replace(
@@ -144,6 +151,7 @@ class GenericType2(typed_tuple.Eq, collections.namedtuple(
     type1: first type parameter. E.g. dict[type1, type2]
     type2: second type parameter. E.g. dict[type1, type2]
   """
+  __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
     return self._replace(
@@ -156,6 +164,7 @@ class GenericType2(typed_tuple.Eq, collections.namedtuple(
 
 
 class UnknownType(typed_tuple.Eq, collections.namedtuple('UnknownType', '')):
+  __slots__ = ()
 
   def ExpandTemplates(self, unused_rev_templatesn):
     return self
@@ -166,9 +175,18 @@ class UnknownType(typed_tuple.Eq, collections.namedtuple('UnknownType', '')):
 
 class OptionalUnknownType(typed_tuple.Eq,
                           collections.namedtuple('OptionalUnknownType', '')):
+  __slots__ = ()
 
   def ExpandTemplates(self, unused_rev_templatesn):
     return self
 
   def Process(self, processor):
     return processor.ProcessOptionalUnknownType(self)
+
+class VarArgType(OptionalUnknownType):
+  "*args"
+  __slots__ = ()
+
+class VarKeywordArgType(OptionalUnknownType):
+  "**kwargs"
+  __slots__ = ()

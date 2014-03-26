@@ -23,6 +23,9 @@
 import collections
 from pytypedecl.parse import typed_tuple
 
+# TODO: Get rid of all the various "PyOpt" and "Py" prefixes. They
+# don't seem to mean anything.
+
 
 class PyOptTypeDeclUnit(typed_tuple.Eq, collections.namedtuple(
     'PyOptTypeDeclUnit', ['interfacedefs', 'classdefs', 'funcdefs'])):
@@ -33,6 +36,7 @@ class PyOptTypeDeclUnit(typed_tuple.Eq, collections.namedtuple(
     interfacedefs: A list of interfaces defined in this type decl unit.
     classdefs: A list of interfaces defined in this type decl unit.
   """
+  __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
     return self._replace(
@@ -44,6 +48,7 @@ class PyOptTypeDeclUnit(typed_tuple.Eq, collections.namedtuple(
 
 class PyOptInterfaceDef(typed_tuple.Eq, collections.namedtuple(
     'PyOptInterfaceDef', ['name', 'parents', 'attrs', 'template'])):
+  __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
     rev_t = [self.template] + rev_templates
@@ -52,6 +57,7 @@ class PyOptInterfaceDef(typed_tuple.Eq, collections.namedtuple(
 
 class PyOptClassDef(typed_tuple.Eq, collections.namedtuple(
     'PyOptClassDef', ['name', 'parents', 'funcs', 'template'])):
+  __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
     rev_t = [self.template] + rev_templates
@@ -80,6 +86,7 @@ class PyOptFuncDef(typed_tuple.Eq, collections.namedtuple(
                      (nothing) programmer-approved
   # TODO: implement signature
   """
+  __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
     rev_t = [self.template] + rev_templates
@@ -89,9 +96,15 @@ class PyOptFuncDef(typed_tuple.Eq, collections.namedtuple(
         exceptions=[e.ExpandTemplates(rev_t) for e in self.exceptions])
 
 
+class ConstantDef(typed_tuple.Eq, collections.namedtuple(
+    'ConstantDef', ['name', 'type'])):
+  __slots__ = ()
+
+
 class PyOptFuncDefMinimal(typed_tuple.Eq, collections.namedtuple(
     'PyOptFuncDefMinimal', ['name'])):
   """Like PyOptFuncDef, but without params etc."""
+  __slots__ = ()
 
   def ExpandTemplates(self, unused_rev_templates):
     return self
@@ -104,6 +117,7 @@ class PyOptException(typed_tuple.Eq, collections.namedtuple(
   Attributes:
     name: The exception typ.
   """
+  __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
     return self._replace(
@@ -118,6 +132,7 @@ class PyOptParam(typed_tuple.Eq, collections.namedtuple(
     name: The name of the parameter.
     type: The type of the parameter.
   """
+  __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
     return self._replace(type=self.type.ExpandTemplates(rev_templates))
@@ -140,6 +155,7 @@ class PyTemplateItem(typed_tuple.Eq, collections.namedtuple(
                def [U] bar(t: T, u: U)
            in the definition of 'bar', T has level=1 and U has level=0
   """
+  __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
     return self._replace(self.within_type.ExpandTemplates(rev_templates))

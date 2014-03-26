@@ -53,6 +53,7 @@ class PyLexer(object):
     self.filename = filename
 
   t_ARROW = r'->'
+  t_ASTERISK = r'\*'
   t_AT = r'@'
   t_CLASS = r'class'
   t_COLON = r':'
@@ -83,6 +84,7 @@ class PyLexer(object):
 
   tokens = [
       'ARROW',
+      'ASTERISK',
       'AT',
       'COLON',
       'COMMA',
@@ -107,13 +109,12 @@ class PyLexer(object):
   t_ignore = ' \t'
 
   def t_NAME(self, t):
-    (r"""([*]{0,2}[a-zA-Z_][a-zA-Z0-9_\.]*)|"""
+    (r"""([a-zA-Z_][a-zA-Z0-9_\.]*)|"""
      r"""(`[^`]*`)""")
-    # TODO(kramm): *args, **kwargs might better be handled in the grammar
-    # This defines a token of the form `...`, to allow names that are keywords
-    # in pytd syntax.
     if t.value[0] == r'`':
-      assert t.value[-1] == r'`'  # from regexp
+      # Permit token names to be enclosed by backticks (``), to allow for names
+      # that are keywords in pytd syntax.
+      assert t.value[-1] == r'`'
       t.value = t.value[1:-1]
       t.type = 'NAME'
     else:
@@ -209,15 +210,11 @@ class PyParser(object):
     p[0] = ast.PyOptClassDef(name=p[3], parents=p[4], funcs=p[6], template=p[2])
 
   def p_class_funcs(self, p):
-    """class_funcs : class_funcs funcdef"""
-    p[0] = p[1] + [p[2]]
+    """class_funcs : funcdefs"""
+    p[0] = p[1]
 
   def p_class_funcs_pass(self, p):
     """class_funcs : PASS"""
-    p[0] = []
-
-  def p_class_funcs_null(self, p):
-    """class_funcs :"""
     p[0] = []
 
   def p_interfacedefs(self, p):
@@ -286,14 +283,22 @@ class PyParser(object):
     """interface_attrs : DEF NAME"""
     p[0] = [ast.PyOptFuncDefMinimal(name=p[2])]
 
-  def p_funcdefs(self, p):
+  def p_funcdefs_func(self, p):
     """funcdefs : funcdefs funcdef"""
     p[0] = p[1] + [p[2]]
+
+  def p_funcdefs_constant(self, p):
+    """funcdefs : funcdefs constantdef"""
+    p[0] = p[1]  # TODO: store constants
 
   # TODO(raoulDoc): doesn't support nested functions
   def p_funcdefs_null(self, p):
     """funcdefs :"""
     p[0] = []
+
+  def p_constantdef(self, p):
+    """constantdef : NAME COLON compound_type"""
+    p[0] = ast.ConstantDef(p[1], p[2])
 
   def p_funcdef(self, p):
     """funcdef : provenance DEF template NAME LPAREN params RPAREN return raise signature"""
@@ -314,6 +319,38 @@ class PyParser(object):
   def p_params_multi(self, p):
     """params : params COMMA param"""
     p[0] = p[1] + [p[3]]
+
+  def p_arg(self, p):
+    """arg : ASTERISK param"""
+    p[0] = ast.PyOptParam(p[2].name, typing.VarArgType())
+
+  def p_kwarg(self, p):
+    """kwarg : ASTERISK ASTERISK param"""
+    p[0] = ast.PyOptParam(p[3].name, typing.VarKeywordArgType())
+
+  def p_params_arg(self, p):
+    """params : params COMMA arg"""
+    p[0] = p[1] + [p[3]]
+
+  def p_params_kwarg(self, p):
+    """params : params COMMA kwarg"""
+    p[0] = p[1] + [p[3]]
+
+  def p_params_arg_kwarg(self, p):
+    """params : params COMMA arg COMMA kwarg"""
+    p[0] = p[1] + [p[3], p[5]]
+
+  def p_params_only_arg(self, p):
+    """params : arg"""
+    p[0] = [p[1]]
+
+  def p_params_only_kwarg(self, p):
+    """params : kwarg"""
+    p[0] = [p[1]]
+
+  def p_params_only_arg_kwarg(self, p):
+    """params : arg COMMA kwarg"""
+    p[0] = [p[1], p[3]]
 
   def p_params_1(self, p):
     """params : param"""
