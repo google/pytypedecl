@@ -110,9 +110,6 @@ def ConvertToType(module, type_node):
   Raises:
     TypeError: if the type node passed is not supported/unknown
   """
-  # unknown type can be passed through
-  if isinstance(type_node, pytd.UnknownType):
-    return type_node
   # clean up str
   if isinstance(type_node, pytd.BasicType):
     if type_node.containing_type == "None":
@@ -123,10 +120,6 @@ def ConvertToType(module, type_node):
       res = _EvalWithModuleContext(type_node.containing_type, module)
       assert isinstance(res, type), (type_node.containing_type, repr(res))
       return res
-
-  elif isinstance(type_node, pytd.NoneAbleType):
-    return pytd.NoneAbleType(ConvertToType(module,
-                                           type_node.base_type))
 
   elif isinstance(type_node, pytd.UnionType):
     return pytd.UnionType([ConvertToType(module, t)
@@ -190,12 +183,6 @@ def IsCompatibleType(actual, formal):
     TypeError: if a generic type is not supported
   """
 
-  if isinstance(formal, pytd.UnknownType):
-    # we don't type check unknown type, let python deal with it
-    return True
-  if isinstance(formal, pytd.NoneAbleType):
-    return (IsCompatibleType(actual, types.NoneType)
-            or IsCompatibleType(actual, formal.base_type))
   if isinstance(formal, pytd.UnionType):
     for t in formal.type_list:
       if IsCompatibleType(actual, t):

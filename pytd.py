@@ -172,23 +172,12 @@ class Signature(node.Node('params', 'return_type', 'exceptions', 'template',
         exceptions=[e.ExpandTemplates(rev_t) for e in self.exceptions])
 
 
-class ConstantDef(node.Node('name', 'type')):
-  __slots__ = ()
-
-
-class MinimalFunction(node.Node('name')):
-  """Like Function, but without params etc."""
-  __slots__ = ()
-
-  def ExpandTemplates(self, unused_rev_templates):
-    return self
-
-
 class ExceptionDef(node.Node('containing_type')):
+  # TODO: remove this. We can just point to the type directly.
   """Represents an exception.
 
   Attributes:
-    name: The exception typ.
+    containing_type: The exception type.
   """
   __slots__ = ()
 
@@ -236,7 +225,8 @@ class TemplateItem(node.Node('name', 'within_type', 'level')):
 
 
 class BasicType(node.Node('containing_type')):
-  """A wrapper for a type. Deprecated."""
+  """A wrapper for a type. """
+  # TODO: Rename to "NamedType"
   __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
@@ -254,24 +244,10 @@ class BasicType(node.Node('containing_type')):
     return processor.ProcessBasicType(self)
 
 
-class ConstType(node.Node('value')):
+class Scalar(node.Node('value')):
   __slots__ = ()
-
   def ExpandTemplates(self, unused_rev_templates):
     return self
-
-  def Process(self, processor):
-    return processor.ProcessConstType(self)
-
-
-class NoneAbleType(node.Node('base_type')):
-  __slots__ = ()
-
-  def ExpandTemplates(self, unused_rev_templates):
-    return self
-
-  def Process(self, processor):
-    return processor.ProcessNonableType(self)
 
 
 class UnionType(node.Node('type_list')):
@@ -297,6 +273,7 @@ class IntersectionType(node.Node('type_list')):
 
 
 class GenericType1(node.Node('base_type', 'type1')):
+  # TODO: rewrite this to allow arbitrary length arguments
   __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
@@ -328,31 +305,3 @@ class GenericType2(node.Node('base_type', 'type1', 'type2')):
     return processor.ProcessGenericType2(self)
 
 
-class UnknownType(node.Node()):
-  __slots__ = ()
-
-  def ExpandTemplates(self, unused_rev_templatesn):
-    return self
-
-  def Process(self, processor):
-    return processor.ProcessUnknownType(self)
-
-
-class OptionalUnknownType(node.Node()):
-  __slots__ = ()
-
-  def ExpandTemplates(self, unused_rev_templatesn):
-    return self
-
-  def Process(self, processor):
-    return processor.ProcessOptionalUnknownType(self)
-
-
-class VarArgType(OptionalUnknownType):
-  """Representation of *args (variable number of arguments). Deprecated."""
-  __slots__ = ()
-
-
-class VarKeywordArgType(OptionalUnknownType):
-  """Representation of *kwargs (variable number of keyword args). Deprecated."""
-  __slots__ = ()

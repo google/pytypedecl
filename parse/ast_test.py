@@ -88,16 +88,16 @@ class TestASTGeneration(unittest.TestCase):
     """Test parsing of a function with unions, noneable etc."""
 
     data1 = textwrap.dedent("""
-        def foo(a: int?, b: int or float or None, c: Foo and s.Bar and Zot) -> int? raises Bad
+        def foo(a: int, b: int or float or None, c: Foo and s.Bar and Zot) -> int raises Bad
     """)
     data2 = textwrap.dedent("""
-        def foo(a: int?, b: int or (float or None), c: Foo and (s.Bar and Zot)) -> int? raises Bad
+        def foo(a: int, b: int or (float or None), c: Foo and (s.Bar and Zot)) -> int raises Bad
     """)
     data3 = textwrap.dedent("""
-        def foo(a: int?, b: (int or float) or None, c: (Foo and s.Bar) and Zot) -> int? raises Bad
+        def foo(a: int, b: (int or float) or None, c: (Foo and s.Bar) and Zot) -> int raises Bad
     """)
     data4 = textwrap.dedent("""
-        def foo(a: int?, b: ((((int or float)) or ((None)))), c: (((Foo) and s.Bar and (Zot)))) -> int? raises Bad
+        def foo(a: int, b: ((((int or float)) or ((None)))), c: (((Foo) and s.Bar and (Zot)))) -> int raises Bad
     """)
 
     result1 = self.parser.Parse(data1)
@@ -114,9 +114,8 @@ class TestASTGeneration(unittest.TestCase):
                     params=[
                         pytd.Parameter(
                             name="a",
-                            type=pytd.NoneAbleType(
-                                base_type=pytd.BasicType(
-                                    "int"))),
+                            type=pytd.BasicType(
+                                "int")),
                         pytd.Parameter(
                             name="b",
                             type=pytd.UnionType(
@@ -131,9 +130,8 @@ class TestASTGeneration(unittest.TestCase):
                                     pytd.BasicType("Foo"),
                                     pytd.BasicType("s.Bar"),
                                     pytd.BasicType("Zot")]))],
-                    return_type=pytd.NoneAbleType(
-                        base_type=pytd.BasicType(
-                            "int")),
+                    return_type=pytd.BasicType(
+                            "int"),
                     exceptions=[
                         pytd.ExceptionDef(pytd.BasicType("Bad"))],
                     template=[], provenance="")])])
@@ -190,13 +188,13 @@ class TestASTGeneration(unittest.TestCase):
                 signatures=[pytd.Signature(
                     params=[
                         pytd.Parameter(name="abcde",
-                                       type=pytd.ConstType(value="xyz")),
+                                       type=pytd.Scalar(value="xyz")),
                         pytd.Parameter(name="foo",
-                                       type=pytd.ConstType(value='a"b')),
+                                       type=pytd.Scalar(value='a"b')),
                         pytd.Parameter(name="b",
-                                       type=pytd.ConstType(value=-1.0)),
+                                       type=pytd.Scalar(value=-1.0)),
                         pytd.Parameter(name="c",
-                                       type=pytd.ConstType(value=666))],
+                                       type=pytd.Scalar(value=666))],
                     return_type=pytd.BasicType("int"),
                     exceptions=[],
                     template=[], provenance="")])])

@@ -27,15 +27,15 @@ from pytypedecl import checker
 from tests import simple
 
 
-# def StrToInt(i :str?) -> int
-def StrToInt(i):
-  if i is None:
+# def StrToInt(s : str or None) -> int
+def StrToInt(s):
+  if s is None:
     return 0
-  return int(i)
+  return int(s)
 
 
-# def Add(a: int?, b: int?) -> int?
-# def Add(a: float?, b: float?) -> float?
+# def Add(a: int or None, b: int or None) -> int or None
+# def Add(a: float or None, b: float or None) -> float or None
 def Add(a, b):
   if a is None or b is None:
     return None
@@ -69,7 +69,7 @@ class Writable(object):
     pass
 
 
-# def DoSomeIOStuff(f : Readable & Writable) -> str
+# def DoSomeIOStuff(f : Readable and Writable) -> str
 def DoSomeIOStuff(f):
   return "cool"
 

@@ -15,9 +15,9 @@
 # limitations under the License.
 
 
-def StrToInt(i :str?) -> int
-def Add(a: int?, b: int?) -> int?
-def Add(a: float?, b: float?) -> float?
+def StrToInt(s : str or None) -> int
+def Add(a: int or None, b: int or None) -> int or None
+def Add(a: float or None, b: float or None) -> float or None
 def IntOrFloat(a: int or float, b: int or float) -> float
 def IntOrNone(a : int or None) -> int or None
 def DoSomeIOStuff(f : Readable and Writable) -> str

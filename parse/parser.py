@@ -17,11 +17,6 @@
 
 """Parser & Lexer for type declaration language."""
 
-# NOTE(raoulDoc): the naming scheme of 'tokens' and 'states', 't_*', 'p_*'
-# variables/functions below are specially required by ply.yacc and ply.lex. We
-# have to give up Google Python coding style in order to use them.
-# Also, must use backslash-continuation to combine docstrings
-
 # TODO: look at https://github.com/JetBrains/python-skeletons
 #                  for an alternative syntax (e.g. T <= Foo for T such
 #                  that it's Foo or subclass) ... doesn't have interfaces
@@ -54,8 +49,8 @@ class PyLexer(object):
     self.data = data
     self.filename = filename
 
+  # The ply parsing library expects class members to be named in a specific way.
   t_ARROW = r'->'
-  t_ASTERISK = r'\*'
   t_AT = r'@'
   t_COLON = r':'
   t_COMMA = r','
@@ -64,7 +59,6 @@ class PyLexer(object):
   t_LPAREN = r'\('
   t_MINUS = r'-'
   t_PLUS = r'\+'
-  t_QUESTION = r'\?'
   t_RBRACKET = r'\>'
   t_RPAREN = r'\)'
 
@@ -84,7 +78,6 @@ class PyLexer(object):
 
   tokens = [
       'ARROW',
-      'ASTERISK',
       'AT',
       'COLON',
       'COMMA',
@@ -96,7 +89,6 @@ class PyLexer(object):
       'NAME',
       'NUMBER',
       'PLUS',
-      'QUESTION',
       'RBRACKET',
       'RPAREN',
       'STRING',
@@ -192,7 +184,7 @@ class PyParser(object):
     #        Also requires supporting INDENT/DEDENT because otherwise it's
     #        ambiguous on the meaning of a funcdef after a classdef
     funcdefs = [x for x in p[1] if isinstance(x, optimize.NameAndSignature)]
-    constants = [x for x in p[1] if isinstance(x, pytd.ConstantDef)]
+    constants = [x for x in p[1] if isinstance(x, pytd.Constant)]
     if (set(f.name for f in funcdefs) | set(c.name for c in constants) !=
         set(d.name for d in p[1])):
       # TODO: raise a syntax error right when the identifier is defined.
@@ -216,7 +208,7 @@ class PyParser(object):
     #             1     2        3    4       5     6
     # TODO: do name lookups for template within class_funcs
     funcdefs = [x for x in p[6] if isinstance(x, optimize.NameAndSignature)]
-    constants = [x for x in p[6] if isinstance(x, pytd.ConstantDef)]
+    constants = [x for x in p[6] if isinstance(x, pytd.Constant)]
     if (set(f.name for f in funcdefs) | set(c.name for c in constants) !=
         set(d.name for d in p[6])):
       # TODO: raise a syntax error right when the identifier is defined.
@@ -289,7 +281,7 @@ class PyParser(object):
 
   def p_constantdef(self, p):
     """constantdef : NAME COLON compound_type"""
-    p[0] = pytd.ConstantDef(p[1], p[2])
+    p[0] = pytd.Constant(p[1], p[2])
 
   def p_funcdef(self, p):
     """funcdef : provenance DEF template NAME LPAREN params RPAREN return raises signature"""
@@ -311,38 +303,6 @@ class PyParser(object):
     """params : params COMMA param"""
     p[0] = p[1] + [p[3]]
 
-  def p_arg(self, p):
-    """arg : ASTERISK param"""
-    p[0] = pytd.Parameter(p[2].name, pytd.VarArgType())
-
-  def p_kwarg(self, p):
-    """kwarg : ASTERISK ASTERISK param"""
-    p[0] = pytd.Parameter(p[3].name, pytd.VarKeywordArgType())
-
-  def p_params_arg(self, p):
-    """params : params COMMA arg"""
-    p[0] = p[1] + [p[3]]
-
-  def p_params_kwarg(self, p):
-    """params : params COMMA kwarg"""
-    p[0] = p[1] + [p[3]]
-
-  def p_params_arg_kwarg(self, p):
-    """params : params COMMA arg COMMA kwarg"""
-    p[0] = p[1] + [p[3], p[5]]
-
-  def p_params_only_arg(self, p):
-    """params : arg"""
-    p[0] = [p[1]]
-
-  def p_params_only_kwarg(self, p):
-    """params : kwarg"""
-    p[0] = [p[1]]
-
-  def p_params_only_arg_kwarg(self, p):
-    """params : arg COMMA kwarg"""
-    p[0] = [p[1], p[3]]
-
   def p_params_1(self, p):
     """params : param"""
     p[0] = [p[1]]
@@ -353,13 +313,8 @@ class PyParser(object):
 
   def p_param(self, p):
     """param : NAME"""
-    # type can be optional if we don't want to typecheck
-    p[0] = pytd.Parameter(p[1], pytd.UnknownType())
-
-  def p_param_optional(self, p):
-    """param : NAME QUESTION"""
-    # We treat optional params as if they don't have a type.
-    p[0] = pytd.Parameter(p[1], pytd.OptionalUnknownType())
+    # type is optional and defaults to "object"
+    p[0] = pytd.Parameter(p[1], pytd.BasicType("object"))
 
   def p_param_and_type(self, p):
     """param : NAME COLON compound_type"""
@@ -385,21 +340,17 @@ class PyParser(object):
     """exception : compound_type"""
     p[0] = pytd.ExceptionDef(p[1])
 
-  def p_identifier_name_optional(self, p):
-    """identifier : NAME QUESTION"""
-    p[0] = pytd.NoneAbleType(pytd.BasicType(p[1]))
-
   def p_identifier_name(self, p):
     """identifier : NAME"""
     p[0] = pytd.BasicType(p[1])
 
   def p_identifier_string(self, p):
     """identifier : STRING"""
-    p[0] = pytd.ConstType(p[1])
+    p[0] = pytd.Scalar(p[1])
 
   def p_identifier_number(self, p):
     """identifier : NUMBER"""
-    p[0] = pytd.ConstType(p[1])
+    p[0] = pytd.Scalar(p[1])
 
   def p_compound_type_and(self, p):
     """compound_type : compound_type AND compound_type"""

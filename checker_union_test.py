@@ -34,9 +34,9 @@ class TestCheckerUnion(unittest.TestCase):
       union.StrToInt(10)  # can only pass str? so this should be an error
 
     expected = checker.ParamTypeErrorMsg("StrToInt",
-                                         "i",
+                                         "s",
                                          int,
-                                         pytd.NoneAbleType(str))
+                                         pytd.UnionType([str, type(None)]))
 
     [actual] = context.exception.args[0]
     self.assertEquals(expected, actual)
