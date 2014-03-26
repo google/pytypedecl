@@ -130,6 +130,8 @@ def Node(*child_names):
       called for all nodes in the tree. Note that nodes are also allowed to
       be stored in lists and as the values of dictionaries, as long as these
       lists/dictionaries are stored in the named fields of the Node class.
+      It's possible to overload the Visit function on Nodes, to do your own
+      processing.
 
       Arguments:
         visitor: An instance of a visitor for this tree. For every node type you
@@ -145,7 +147,8 @@ def Node(*child_names):
       Returns:
         Transformed version of this node.
       """
-      return _VisitNode(self, visitor, *args, **kwargs)
+      pass  # overwritten in the next line
+    Visit = _VisitNode  # pylint: disable=invalid-name
 
   return NamedTupleNode
 
@@ -172,11 +175,13 @@ def _VisitNode(node, visitor, *args, **kwargs):
     The transformed Node.
   """
 
-  visit_function = "Visit" + node.__class__.__name__
-  if isinstance(node, tuple):
+  if hasattr(node, "Visit") and node.Visit.im_func != _VisitNode:
+    # Node with an overloaded Visit() function. It'll do its own processing.
+    return node.Visit(visitor, *args, **kwargs)
+  elif isinstance(node, tuple):
     new_children = [(_VisitNode(child, visitor, *args, **kwargs) or child)
                     for child in node]
-    if any(id(c1) != id(c2) for c1, c2 in zip(new_children, node)):
+    if any(c1 is not c2 for c1, c2 in zip(new_children, node)):
       if isinstance(node, tuple):
         # Reinitialize tuple because we changed some of the children,
         # but with our current old class. The constructor of namedtuple()
@@ -191,6 +196,7 @@ def _VisitNode(node, visitor, *args, **kwargs):
 
     # Now call the user supplied visitor, if it exists. Notice we only do this
     # for tuples.
+    visit_function = "Visit" + node.__class__.__name__
     if hasattr(visitor, visit_function):
       return getattr(visitor, visit_function)(new_node, *args, **kwargs)
     else:
