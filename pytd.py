@@ -54,22 +54,32 @@ from pytypedecl.parse import typed_tuple
 
 
 class TypeDeclUnit(typed_tuple.Eq, collections.namedtuple(
-    'TypeDeclUnit', ['interfacedefs', 'classdefs', 'funcdefs'])):
+    'TypeDeclUnit', ['constants', 'interfaces', 'classes', 'functions'])):
   """Top level node. Holds a list of Function nodes.
 
   Attributes:
-    funcdefs: A list of functions defined in this type decl unit.
-    interfacedefs: A list of interfaces defined in this type decl unit.
-    classdefs: A list of interfaces defined in this type decl unit.
+    constants: List of module-level constants.
+    functions: List of functions defined in this type decl unit.
+    interfaces: List of interfaces defined in this type decl unit.
+    classes: List of interfaces defined in this type decl unit.
   """
-  __slots__ = ()
+
+  def Lookup(self, name):
+    """Convenience function: Look up a given name in the global namespace."""
+    try:
+      return self._name2item[name]
+    except AttributeError:
+      self._name2item = {}
+      for x in self.constants + self.functions + self.interfaces + self.classes:
+        self._name2item[x.name] = x
+      return self._name2item[name]
 
   def ExpandTemplates(self, rev_templates):
     return self._replace(
-        interfacedefs=[i.ExpandTemplates(rev_templates)
-                       for i in self.interfacedefs],
-        classdefs=[c.ExpandTemplates(rev_templates) for c in self.classdefs],
-        funcdefs=[f.ExpandTemplates(rev_templates) for f in self.funcdefs])
+        interfaces=[i.ExpandTemplates(rev_templates)
+                       for i in self.interfaces],
+        classes=[c.ExpandTemplates(rev_templates) for c in self.classes],
+        functions=[f.ExpandTemplates(rev_templates) for f in self.functions])
 
 
 class Interface(typed_tuple.Eq, collections.namedtuple(
@@ -81,28 +91,64 @@ class Interface(typed_tuple.Eq, collections.namedtuple(
     return self._replace(attrs=[a.ExpandTemplates(rev_t) for a in self.attrs])
 
 
-class Class(typed_tuple.Eq, collections.namedtuple(
-    'Class', ['name', 'parents', 'funcs', 'template'])):
+class Constant(typed_tuple.Eq, collections.namedtuple(
+    'Constant', ['name', 'type'])):
   __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
+    return self._replace(type=self.type.ExpandTemplates(rev_t))
+
+
+class Class(typed_tuple.Eq, collections.namedtuple(
+    'Class', ['name', 'parents', 'methods', 'constants', 'template'])):
+
+  def Lookup(self, name):
+    """Convenience function: Look up a given name in the global namespace."""
+    try:
+      return self._name2item[name]
+    except AttributeError:
+      self._name2item = {}
+      for x in self.methods + self.constants:
+        self._name2item[x.name] = x
+      return self._name2item[name]
+
+  def ExpandTemplates(self, rev_templates):
     rev_t = [self.template] + rev_templates
-    return self._replace(funcs=[f.ExpandTemplates(rev_t) for f in self.funcs])
+    return self._replace(methods=[f.ExpandTemplates(rev_t)
+                                  for f in self.methods],
+                         constants=[c.ExpandTemplates(rev_t)
+                                    for c in self.constants])
 
 
 class Function(typed_tuple.Eq, collections.namedtuple(
-    'Function', ['name', 'params', 'return_type', 'exceptions', 'template',
-                 'provenance', 'signature'])):
-  """Represents a function definition.
+    'Function', ['name', 'signatures'])):
+  """A function or a method.
+
+  Attributes:
+    name: The name of this function.
+    signatures: Possible list of parameter type combinations for this function.
+  """
+  __slots__ = ()
+
+  def ExpandTemplates(self, rev_t):
+    return self._replace(signatures=[f.ExpandTemplates(rev_t)
+                                     for f in self.signatures])
+
+
+class Signature(typed_tuple.Eq, collections.namedtuple(
+    'Signature', ['params', 'return_type', 'exceptions', 'template',
+                 'provenance'])):
+  """Represents an individual signature of a function. For overloaded functions,
+     this is one specific combination of parameters. For non-overloaded
+     functions, there is a 1:1 correspondence between function and signature.
 
   Attributes:
     name: The name of this function.
     params: The list of parameters for this function definition.
     return_type: The return type of this function.
-    exceptions: A list of exceptions for this function definition.
+    exceptions: List of exceptions for this function definition.
     template: names for bindings for bounded types in params/return_type
     provenance: TBD
-    signature: TBD
 
   # TODO: define/implement provenance:
                      ... inferred
@@ -110,7 +156,6 @@ class Function(typed_tuple.Eq, collections.namedtuple(
                      +++ locked (no need to look inside it ... all declarations
                          for this function must be marked with +++ or ---
                      (nothing) programmer-approved
-  # TODO: implement signature
   """
   __slots__ = ()
 
@@ -331,4 +376,5 @@ class VarArgType(OptionalUnknownType):
 
 class VarKeywordArgType(OptionalUnknownType):
   """**kwargs"""
+
   __slots__ = ()

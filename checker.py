@@ -244,22 +244,23 @@ def IsCompatibleType(actual, formal):
   return isinstance(actual, formal)
 
 
-def _GetParamTypeErrors(module, interfaces, func_sig, args):
+def _GetParamTypeErrors(module, interfaces, func_name, func_sig, args):
   """Helper for checking actual params vs formal params signature.
 
   Args:
     module: The module to look up symbols/types
     interfaces: A list of declared interfaces
-    func_sig: function definition (Function)
+    func_name: function name
+    func_sig: function definition (Signature)
     args: actual arguments passed to the function
 
   Returns:
     A list of potential type errors
   """
   params = ((p.name, p.type) for p in func_sig.params)
-  param_cmp_types = ((name, args[i], ConvertToType(module, interfaces, t))
-                     for i, (name, t) in enumerate(params))
-  params_type_error_list = [ParamTypeErrorMsg(func_sig.name, n, type(p), t)
+  param_cmp_types = ((func_name, args[i], ConvertToType(module, interfaces, t))
+                     for i, (func_name, t) in enumerate(params))
+  params_type_error_list = [ParamTypeErrorMsg(func_name, n, type(p), t)
                             for n, p, t in param_cmp_types
                             if not IsCompatibleType(p, t)]
 
@@ -281,7 +282,7 @@ def _GetExceptionsTupleFromFuncSig(module, interfaces, func_sig):
                for e in func_sig.exceptions)
 
 
-def TypeCheck(module, interfaces, func, func_sigs):
+def TypeCheck(module, interfaces, func_name, func, func_sigs):
   """Decorator for typechecking a function.
 
   Args:
@@ -334,7 +335,7 @@ def TypeCheck(module, interfaces, func, func_sigs):
             # we check if we already created a decorated version
             # for cases such as foo(same_gen, same_gen)
             if actual not in cache_of_generators:
-              new_gen = _WrapGenWithTypeCheck(func_sig.name,
+              new_gen = _WrapGenWithTypeCheck(func_name,
                                               actual,
                                               resolved_type.type1)
               cache_of_generators[actual] = new_gen
@@ -349,6 +350,7 @@ def TypeCheck(module, interfaces, func, func_sigs):
       # checking params
       type_error_list = _GetParamTypeErrors(module,
                                             interfaces,
+                                            func_name,
                                             func_sig,
                                             args)
 
@@ -371,7 +373,7 @@ def TypeCheck(module, interfaces, func, func_sigs):
         if (not isinstance(e, CheckTypeAnnotationError) and
             not IsCompatibleType(e, exception_tuple)):
           type_error_list.append(ExceptionTypeErrorMsg(
-              func_sig.name, type(e), exception_tuple))
+              func_name, type(e), exception_tuple))
 
           raise CheckTypeAnnotationError(type_error_list, e)
         raise  # rethrow exception to preserve program semantics
@@ -382,7 +384,7 @@ def TypeCheck(module, interfaces, func, func_sigs):
                                              func_sig.return_type)
         if not IsCompatibleType(res, expected_return_type):
           type_error_list.append(ReturnTypeErrorMsg(
-              func_sig.name, type(res), expected_return_type))
+              func_name, type(res), expected_return_type))
 
         if type_error_list:
           raise CheckTypeAnnotationError(type_error_list)
@@ -395,6 +397,7 @@ def TypeCheck(module, interfaces, func, func_sigs):
       param_sig_checked = ((func_sig,
                             _GetParamTypeErrors(module,
                                                 interfaces,
+                                                func_name,
                                                 func_sig,
                                                 args))
                            for func_sig in func_sigs)
@@ -406,7 +409,7 @@ def TypeCheck(module, interfaces, func, func_sigs):
       # nothing? this means no good signatures: overloading error
       if not func_sig_candidates:
         raise CheckTypeAnnotationError(
-            [OverloadingTypeErrorMsg(func_sigs[0].name)])
+            [OverloadingTypeErrorMsg(func_name)])
 
       # need to check return type and exceptions
       try:
@@ -421,7 +424,7 @@ def TypeCheck(module, interfaces, func, func_sigs):
             raise
 
         raise CheckTypeAnnotationError(
-            [OverloadingTypeErrorMsg(func_sigs[0].name)])
+            [OverloadingTypeErrorMsg(func_name)])
       else:
         # Is the return type valid with at least one func sig?
         for func_sig in func_sig_candidates:
@@ -432,7 +435,7 @@ def TypeCheck(module, interfaces, func, func_sigs):
             return res
 
         raise CheckTypeAnnotationError(
-            [OverloadingTypeErrorMsg(func_sigs[0].name)])
+            [OverloadingTypeErrorMsg(func_name)])
 
   Wrapped.__name__ = func.__name__
   Wrapped.__doc__ = func.__doc__
@@ -463,40 +466,42 @@ def _PrintWarning(msg):
   print("(Warning)", msg, "not annotated", file=sys.stderr)
 
 
-def _Check(module, interfaces, classes, functions):
+def _Check(module, interfaces_to_check, classes_to_check, functions_to_check):
   """TypeChecks a module.
 
   Args:
     module: the module to typecheck
-    interfaces: list of interfaces parsed from the type declarations
-    classes: list of classes parsed from the type declarations
-    functions: list of functions parsed from the type declarations
+    interfaces_to_check: list of interfaces parsed from the type declarations
+    classes_to_check: list of classes_to_check parsed from the type declarations
+    functions_to_check: list of functions parsed from the type declarations
   """
 
   # typecheck functions in module
   for f_name, f_def in Functions(module):
-    if f_name in functions:
+    allowed_signatures = functions_to_check.get(f_name, None)
+    if allowed_signatures is not None:
       module.__dict__[f_name] = TypeCheck(module,
-                                          interfaces,
+                                          interfaces_to_check,
+                                          f_name,
                                           f_def,
-                                          functions[f_name])
+                                          allowed_signatures)
     else:
       _PrintWarning(f_name)
 
   # typecheck methods in classes
   for c_name, c_def in Classes(module):
-    if c_name in classes:
-      functions_in_class = {f_name: list(g) for f_name, g
-                            in itertools.groupby(
-                                classes[c_name].funcs,
-                                lambda f: f.name)}
+    if c_name in classes_to_check:
+      class_methods_to_check = {f.name: f.signatures
+                                for f in classes_to_check[c_name].methods}
 
       for f_name, f_def in MethodsForClass(c_def):
-        if f_name in functions_in_class:
+        allowed_signatures = class_methods_to_check.get(f_name, None)
+        if allowed_signatures is not None:
           setattr(c_def, f_name, TypeCheck(module,
-                                           interfaces,
+                                           interfaces_to_check,
+                                           f_name,
                                            f_def,
-                                           functions_in_class[f_name]))
+                                           allowed_signatures))
         else:
           _PrintWarning(c_name + "." + f_name)
     else:

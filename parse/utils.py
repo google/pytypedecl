@@ -64,18 +64,15 @@ class ParserUtils(object):
       traceback.print_exception(sys.exc_type, sys.exc_value, None)
       sys.exit(1)
 
-    functions_by_name = {f_name: list(g) for f_name, g
-                         in itertools.groupby(
-                             type_decl_unit.funcdefs,
-                             lambda f: f.name)}
+    functions_by_name = {f.name: f.signatures for f in type_decl_unit.functions}
 
-    interface_by_name = {i.name: i for i in type_decl_unit.interfacedefs}
+    interfaces_by_name = {i.name: i for i in type_decl_unit.interfaces}
 
-    class_by_name = {c.name: c for c in type_decl_unit.classdefs}
+    classes_by_name = {c.name: c for c in type_decl_unit.classes}
 
     return InterfacesClassesFuncsByName(
-        interfaces=interface_by_name,
-        classes=class_by_name,
+        interfaces=interfaces_by_name,
+        classes=classes_by_name,
         funcs=functions_by_name)
 
   def LoadTypeDeclarationFromFile(self, type_decl_path):

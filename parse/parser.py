@@ -35,6 +35,7 @@
 from ply import lex
 from ply import yacc
 from pytypedecl import pytd
+from pytypedecl import optimize
 
 
 class PyLexer(object):
@@ -151,6 +152,8 @@ class PyLexer(object):
 class PyParser(object):
   """Parser for type declaration language."""
 
+  # TODO: Check for name clashes.
+
   def __init__(self, **kwargs):
     # TODO: Don't generate the lex/yacc tables each time. This should
     #                  be done by a separate program that imports this module
@@ -179,10 +182,11 @@ class PyParser(object):
   precedence = (
       ('left', 'UNION'),
       ('left', 'INTERSECT'),
+      ('left', 'COMMA'),
   )
 
   def p_defs(self, p):
-    """defs : funcdefs classdefs interfacedefs
+    """defs : funcdefs classes interfaces
     """
     # TODO: change the definition of defs to:
     #            defs : defs def | defs
@@ -190,14 +194,22 @@ class PyParser(object):
     #        This will require handling indent/exdent and/or allowing {...}.
     #        Also requires supporting INDENT/DEDENT because otherwise it's
     #        ambiguous on the meaning of a funcdef after a classdef
-    p[0] = pytd.TypeDeclUnit(p[3], p[2], p[1]).ExpandTemplates([])
+    funcdefs = [x for x in p[1] if isinstance(x, optimize.NameAndSignature)]
+    constants = [x for x in p[1] if isinstance(x, pytd.ConstantDef)]
+    if (set(f.name for f in funcdefs) | set(c.name for c in constants) !=
+        set(d.name for d in p[1])):
+      # TODO: raise a syntax error right when the identifier is defined.
+      raise make_syntax_error(self, 'Duplicate identifier(s)', p)
+    p[0] = pytd.TypeDeclUnit(constants=constants,
+                             functions=optimize.MergeSignatures(funcdefs),
+                             classes=p[2], interfaces=p[3]).ExpandTemplates([])
 
-  def p_classdefs(self, p):
-    """classdefs : classdefs classdef"""
+  def p_classes(self, p):
+    """classes : classes classdef"""
     p[0] = p[1] + [p[2]]
 
-  def p_classdefs_null(self, p):
-    """classdefs :"""
+  def p_classes_null(self, p):
+    """classes :"""
     p[0] = []
 
   # TODO(raoulDoc): doesn't support nested classes
@@ -207,7 +219,15 @@ class PyParser(object):
     """classdef : CLASS template NAME parents COLON class_funcs"""
     #             1     2        3    4       5     6
     # TODO: do name lookups for template within class_funcs
-    p[0] = pytd.Class(name=p[3], parents=p[4], funcs=p[6], template=p[2])
+    funcdefs = [x for x in p[6] if isinstance(x, optimize.NameAndSignature)]
+    constants = [x for x in p[6] if isinstance(x, pytd.ConstantDef)]
+    if (set(f.name for f in funcdefs) | set(c.name for c in constants) !=
+        set(d.name for d in p[6])):
+      # TODO: raise a syntax error right when the identifier is defined.
+      raise make_syntax_error(self, 'Duplicate identifier(s)', p)
+    p[0] = pytd.Class(name=p[3], parents=p[4],
+                      methods=optimize.MergeSignatures(funcdefs),
+                      constants=constants, template=p[2])
 
   def p_class_funcs(self, p):
     """class_funcs : funcdefs"""
@@ -217,13 +237,13 @@ class PyParser(object):
     """class_funcs : PASS"""
     p[0] = []
 
-  def p_interfacedefs(self, p):
-    """interfacedefs : interfacedefs interfacedef
+  def p_interfaces(self, p):
+    """interfaces : interfaces interfacedef
     """
     p[0] = p[1] + [p[2]]
 
-  def p_interfacedefs_null(self, p):
-    """interfacedefs :"""
+  def p_interfaces_null(self, p):
+    """interfaces :"""
     p[0] = []
 
   def p_interfacedef(self, p):
@@ -289,7 +309,7 @@ class PyParser(object):
 
   def p_funcdefs_constant(self, p):
     """funcdefs : funcdefs constantdef"""
-    p[0] = p[1]  # TODO: store constants
+    p[0] = p[1] + [p[2]]
 
   # TODO(raoulDoc): doesn't support nested functions
   def p_funcdefs_null(self, p):
@@ -304,9 +324,9 @@ class PyParser(object):
     """funcdef : provenance DEF template NAME LPAREN params RPAREN return raise signature"""
     #            1          2   3        4     5     6      7      8      9     10
     # TODO: do name lookups for template within params, return, raise
-    p[0] = pytd.Function(name=p[4], params=p[6], return_type=p[8],
-                            exceptions=p[9], template=p[3], provenance=p[1],
-                            signature=p[10])
+    signature = pytd.Signature(params=p[6], return_type=p[8], exceptions=p[9],
+                               template=p[3], provenance=p[1])
+    p[0] = optimize.NameAndSignature(name=p[4], signature=signature)
 
   def p_return(self, p):
     """return : ARROW compound_type"""
