@@ -37,22 +37,9 @@ found in the **/tests/** folder.
 Here’s an example of a type declaration file that mixes several features:
 ```python
 class Logger:
-  def log(messages: list[str], buffer: Readable & Writeable) raise IOException
-  def log(messages: list[str]) -> None
+  def log(messages: list<str>, buffer: Readable & Writeable) raises IOException
+  def log(messages: list<str>) -> None
   def setStatus(status: int | str)
-
-interface Writeable(Openable, Closeable):
-  def write
-  def flush
-
-interface Readable(Openable, Closeable):
-  def read
-
-interface Openable:
-  def open
-
-interface Closeable:
-  def close
 ```
 
 
@@ -72,16 +59,6 @@ might throw.
 This is not supported in the Python 3 function annotation syntax but is
 supported by pytypedecl.
 
-* **Interfaces**: An interface describes a set of operations that a
-type must support. It can be seen as defining a structural type with
-an additional name to refer to that structure. Interfaces can also be
-multiply inherited like in Java. The `Logger` example above declares
-four interfaces: `Writeable` and `Readable` both inherit from the
-interfaces `Openable` and `Closeable`. This means that in addition to
-the operations they define, `Writeable` and `Readable` implicitly
-support the operations defined by `Openable` and `Closeable`: `open`
-and `close`.
-
 * **None-able types**: A none-able type can represent the range of values for
 its value type plus an additional None value. We use a trailing `?` to indicate
 that a type is none-able. For example, a parameter of type `int?` can accept an
@@ -100,7 +77,7 @@ intersection type `Readable & Writeable` describes a type that
 supports the operations `open`, `close`, `read`, and `write`. As a
 consequence, the intersection type `int & float` wouldn’t make much
 sense because there isn’t a value in Python that is both an `int` and a
-`float`. Typically, interesction types are used for interfaces.
+`float`.
 
 * **Generics**: A type can be parameterised with a set of type arguments,
 similarly to Java generics. For example, `generator[str]` describes a generator

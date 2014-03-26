@@ -22,7 +22,6 @@
 from __future__ import print_function
 
 import inspect
-import itertools
 import sys
 import types
 from pytypedecl import pytd
@@ -91,16 +90,15 @@ def GeneratorGenericTypeErrorMsg(func_name, gen_to_wrap,
 
 
 def _EvalWithModuleContext(expr, module):
-  # TODO: use something like devtools/python/library_types/ast.py _ParseLiteral
+  # TODO: use something like library_types/ast.py:_ParseLiteral
   return eval(expr, module.__dict__)
 
 
-def ConvertToType(module, interfaces, type_node):
+def ConvertToType(module, type_node):
   """Helper for converting a type node to a valid Python type.
 
   Args:
     module: The module to look up symbols/types
-    interfaces: A dict of declared interfaces
     type_node: A type node to convert into a python type
 
   Returns:
@@ -121,45 +119,36 @@ def ConvertToType(module, interfaces, type_node):
       return types.NoneType
     elif type_node.containing_type == "generator":
       return types.GeneratorType
-    elif type_node.containing_type in interfaces:
-      ops = _GetListOpsForInterface(interfaces[type_node.containing_type],
-                                    interfaces)
-      return pytd.StructType(ops)
     else:
       res = _EvalWithModuleContext(type_node.containing_type, module)
       assert isinstance(res, type), (type_node.containing_type, repr(res))
       return res
 
   elif isinstance(type_node, pytd.NoneAbleType):
-    return pytd.NoneAbleType(ConvertToType(module, interfaces,
-                                             type_node.base_type))
+    return pytd.NoneAbleType(ConvertToType(module,
+                                           type_node.base_type))
 
   elif isinstance(type_node, pytd.UnionType):
-    return pytd.UnionType([ConvertToType(module, interfaces, t)
-                             for t in type_node.type_list])
+    return pytd.UnionType([ConvertToType(module, t)
+                           for t in type_node.type_list])
 
   elif isinstance(type_node, pytd.IntersectionType):
-    return pytd.IntersectionType([ConvertToType(module, interfaces, t)
-                                    for t in type_node.type_list])
+    return pytd.IntersectionType([ConvertToType(module, t)
+                                  for t in type_node.type_list])
 
   elif isinstance(type_node, pytd.GenericType1):
     return pytd.GenericType1(ConvertToType(module,
-                                             interfaces,
-                                             type_node.base_type),
-                               ConvertToType(module,
-                                             interfaces,
-                                             type_node.type1))
+                                           type_node.base_type),
+                             ConvertToType(module,
+                                           type_node.type1))
 
   elif isinstance(type_node, pytd.GenericType2):
     return pytd.GenericType2(ConvertToType(module,
-                                             interfaces,
-                                             type_node.base_type),
-                               ConvertToType(module,
-                                             interfaces,
-                                             type_node.type1),
-                               ConvertToType(module,
-                                             interfaces,
-                                             type_node.type2))
+                                           type_node.base_type),
+                             ConvertToType(module,
+                                           type_node.type1),
+                             ConvertToType(module,
+                                           type_node.type2))
   else:
     raise TypeError("Unknown type of type_node: {!r}".format(type_node))
 
@@ -204,11 +193,6 @@ def IsCompatibleType(actual, formal):
   if isinstance(formal, pytd.UnknownType):
     # we don't type check unknown type, let python deal with it
     return True
-  if isinstance(formal, pytd.StructType):
-    # we check that all the interface operations are supported in actual
-    actual_ops = dir(actual)
-    # TODO: this assumes all the entries are MinimalFunction:
-    return all(o.name in actual_ops for o in formal.ops)
   if isinstance(formal, pytd.NoneAbleType):
     return (IsCompatibleType(actual, types.NoneType)
             or IsCompatibleType(actual, formal.base_type))
@@ -244,12 +228,11 @@ def IsCompatibleType(actual, formal):
   return isinstance(actual, formal)
 
 
-def _GetParamTypeErrors(module, interfaces, func_name, func_sig, args):
+def _GetParamTypeErrors(module, func_name, func_sig, args):
   """Helper for checking actual params vs formal params signature.
 
   Args:
     module: The module to look up symbols/types
-    interfaces: A list of declared interfaces
     func_name: function name
     func_sig: function definition (Signature)
     args: actual arguments passed to the function
@@ -258,7 +241,7 @@ def _GetParamTypeErrors(module, interfaces, func_name, func_sig, args):
     A list of potential type errors
   """
   params = ((p.name, p.type) for p in func_sig.params)
-  param_cmp_types = ((func_name, args[i], ConvertToType(module, interfaces, t))
+  param_cmp_types = ((func_name, args[i], ConvertToType(module, t))
                      for i, (func_name, t) in enumerate(params))
   params_type_error_list = [ParamTypeErrorMsg(func_name, n, type(p), t)
                             for n, p, t in param_cmp_types
@@ -267,27 +250,26 @@ def _GetParamTypeErrors(module, interfaces, func_name, func_sig, args):
   return params_type_error_list
 
 
-def _GetExceptionsTupleFromFuncSig(module, interfaces, func_sig):
+def _GetExceptionsTupleFromFuncSig(module, func_sig):
   """Helper for extracting exceptions from a function definition.
 
   Args:
       module: The module to look up symbols/types
-      interfaces: A list of declared interfaces
       func_sig: function definition
 
   Returns:
       a tuple of exceptions from the function definition
   """
-  return tuple(ConvertToType(module, interfaces, e.containing_type)
+  return tuple(ConvertToType(module, e.containing_type)
                for e in func_sig.exceptions)
 
 
-def TypeCheck(module, interfaces, func_name, func, func_sigs):
+def TypeCheck(module, func_name, func, func_sigs):
   """Decorator for typechecking a function.
 
   Args:
     module: The module associated with the function to typecheck
-    interfaces: A list of declared interfaces
+    func_name: Name of the function that's being checked.
     func: A function to typecheck
     func_sigs: signatures of the function (Function)
 
@@ -325,7 +307,6 @@ def TypeCheck(module, interfaces, func_name, func, func_sigs):
         if isinstance(actual, types.GeneratorType):
           # resolve the param signature at the formal position i
           resolved_type = ConvertToType(module,
-                                        interfaces,
                                         func_sig.params[i].type)
           # Was the generator defined as generic-typed?
           # TODO(raoulDoc): formal  may be a union, so need to extract
@@ -349,13 +330,11 @@ def TypeCheck(module, interfaces, func_name, func, func_sigs):
       # type checking starts here
       # checking params
       type_error_list = _GetParamTypeErrors(module,
-                                            interfaces,
                                             func_name,
                                             func_sig,
                                             args)
 
       exception_tuple = _GetExceptionsTupleFromFuncSig(module,
-                                                       interfaces,
                                                        func_sig)
       # checking exceptions
       # semantic is "may raise": function doesn't have to throw
@@ -380,7 +359,6 @@ def TypeCheck(module, interfaces, func_name, func, func_sigs):
       else:
         # checking return type
         expected_return_type = ConvertToType(module,
-                                             interfaces,
                                              func_sig.return_type)
         if not IsCompatibleType(res, expected_return_type):
           type_error_list.append(ReturnTypeErrorMsg(
@@ -396,7 +374,6 @@ def TypeCheck(module, interfaces, func_name, func, func_sigs):
       # TODO(raoulDoc): support for overloaded typed generators
       param_sig_checked = ((func_sig,
                             _GetParamTypeErrors(module,
-                                                interfaces,
                                                 func_name,
                                                 func_sig,
                                                 args))
@@ -419,7 +396,6 @@ def TypeCheck(module, interfaces, func_name, func, func_sigs):
 
         for func_sig in func_sig_candidates:
           if IsCompatibleType(e, _GetExceptionsTupleFromFuncSig(module,
-                                                                interfaces,
                                                                 func_sig)):
             raise
 
@@ -430,7 +406,6 @@ def TypeCheck(module, interfaces, func_name, func, func_sigs):
         for func_sig in func_sig_candidates:
           if IsCompatibleType(res,
                               ConvertToType(module,
-                                            interfaces,
                                             func_sig.return_type)):
             return res
 
@@ -443,35 +418,16 @@ def TypeCheck(module, interfaces, func_name, func, func_sigs):
   return classmethod(Wrapped) if(_IsClassMethod(func)) else Wrapped
 
 
-def _GetListOpsForInterface(interface, interfaces_dict):
-  """Returns the list of operations of an interface (with inheritance).
-
-  Args:
-    interface: the interface name to look up
-    interfaces_dict: a dictionary of interface name to Interface
-
-  Returns:
-    a set of operations supported by the interface (with inherited ops)
-  """
-  ops = list(interface.attrs)
-  if interface.parents:
-    for parent_name in interface.parents:
-      ops.extend(_GetListOpsForInterface(interfaces_dict[parent_name],
-                                         interfaces_dict))
-  return frozenset(ops)
-
-
 # TODO(raoulDoc): attach line number of functions/classes
 def _PrintWarning(msg):
   print("(Warning)", msg, "not annotated", file=sys.stderr)
 
 
-def _Check(module, interfaces_to_check, classes_to_check, functions_to_check):
+def _Check(module, classes_to_check, functions_to_check):
   """TypeChecks a module.
 
   Args:
     module: the module to typecheck
-    interfaces_to_check: list of interfaces parsed from the type declarations
     classes_to_check: list of classes_to_check parsed from the type declarations
     functions_to_check: list of functions parsed from the type declarations
   """
@@ -481,7 +437,6 @@ def _Check(module, interfaces_to_check, classes_to_check, functions_to_check):
     allowed_signatures = functions_to_check.get(f_name, None)
     if allowed_signatures is not None:
       module.__dict__[f_name] = TypeCheck(module,
-                                          interfaces_to_check,
                                           f_name,
                                           f_def,
                                           allowed_signatures)
@@ -498,7 +453,6 @@ def _Check(module, interfaces_to_check, classes_to_check, functions_to_check):
         allowed_signatures = class_methods_to_check.get(f_name, None)
         if allowed_signatures is not None:
           setattr(c_def, f_name, TypeCheck(module,
-                                           interfaces_to_check,
                                            f_name,
                                            f_def,
                                            allowed_signatures))
@@ -510,9 +464,9 @@ def _Check(module, interfaces_to_check, classes_to_check, functions_to_check):
 
 def CheckFromFile(module, path):
   by_name = _parse_utils.LoadTypeDeclarationFromFile(path)
-  _Check(module, by_name.interfaces, by_name.classes, by_name.funcs)
+  _Check(module, by_name.classes, by_name.funcs)
 
 
 def CheckFromData(module, data):
-  interfaces, classes, funcs = _parse_utils.LoadTypeDeclaration(data)
-  _Check(module, interfaces, classes, funcs)
+  classes, funcs = _parse_utils.LoadTypeDeclaration(data)
+  _Check(module, classes, funcs)

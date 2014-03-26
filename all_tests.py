@@ -19,7 +19,6 @@ import unittest
 from parse import ast_test
 import checker_classes_test
 import checker_generics_test
-import checker_interface_test
 import checker_overloading_test
 import checker_test
 import checker_union_test
@@ -35,13 +34,12 @@ def suite():
     # checker tests
     classes = unittest.TestLoader().loadTestsFromTestCase(checker_classes_test.TestCheckerClasses)
     generics = unittest.TestLoader().loadTestsFromTestCase(checker_generics_test.TestCheckerGenerics)
-    interface = unittest.TestLoader().loadTestsFromTestCase(checker_interface_test.TestCheckerInterface)
     overloading = unittest.TestLoader().loadTestsFromTestCase(checker_overloading_test.TestCheckerOverloading)
     simple = unittest.TestLoader().loadTestsFromTestCase(checker_test.TestChecker)
     union = unittest.TestLoader().loadTestsFromTestCase(checker_union_test.TestCheckerUnion)
 
 
-    all_tests = [ast_generation, tuple_eq, classes, generics, interface, overloading,
+    all_tests = [ast_generation, tuple_eq, classes, generics, overloading,
                  simple, union]
 
     return unittest.TestSuite(all_tests)

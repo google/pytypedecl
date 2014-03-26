@@ -31,13 +31,12 @@ class TestASTGeneration(unittest.TestCase):
     """Test parsing of a single function definition."""
     data = textwrap.dedent("""
         # a function def with two params
-        def foo(a : int, c : bool) -> int raise Test, Foo
+        def foo(a : int, c : bool) -> int raises Test, Foo
         """)
 
     result = self.parser.Parse(data)
     expect = pytd.TypeDeclUnit(
         constants=[],
-        interfaces=[],
         classes=[],
         functions=[
             pytd.Function(
@@ -62,7 +61,7 @@ class TestASTGeneration(unittest.TestCase):
 
     data = textwrap.dedent("""
         # several function defs with different sigs
-        def foo(a : int, c : bool) -> int raise Test, Foo
+        def foo(a : int, c : bool) -> int raises Test, Foo
         def foo() -> None
         def add(x : int, y : int) -> int
         """)
@@ -89,16 +88,16 @@ class TestASTGeneration(unittest.TestCase):
     """Test parsing of a function with unions, noneable etc."""
 
     data1 = textwrap.dedent("""
-        def foo(a: int?, b: int | float | None, c: Foo & s.Bar & Zot) -> int? raise Bad
+        def foo(a: int?, b: int or float or None, c: Foo and s.Bar and Zot) -> int? raises Bad
     """)
     data2 = textwrap.dedent("""
-        def foo(a: int?, b: int | (float | None), c: Foo & (s.Bar & Zot)) -> int? raise Bad
+        def foo(a: int?, b: int or (float or None), c: Foo and (s.Bar and Zot)) -> int? raises Bad
     """)
     data3 = textwrap.dedent("""
-        def foo(a: int?, b: (int | float) | None, c: (Foo & s.Bar) & Zot) -> int? raise Bad
+        def foo(a: int?, b: (int or float) or None, c: (Foo and s.Bar) and Zot) -> int? raises Bad
     """)
     data4 = textwrap.dedent("""
-        def foo(a: int?, b: ((((int | float)) | ((None)))), c: (((Foo) & s.Bar & (Zot)))) -> int? raise Bad
+        def foo(a: int?, b: ((((int or float)) or ((None)))), c: (((Foo) and s.Bar and (Zot)))) -> int? raises Bad
     """)
 
     result1 = self.parser.Parse(data1)
@@ -107,7 +106,6 @@ class TestASTGeneration(unittest.TestCase):
     result4 = self.parser.Parse(data4)
     expect = pytd.TypeDeclUnit(
         constants=[],
-        interfaces=[],
         classes=[],
         functions=[
             pytd.Function(
@@ -147,13 +145,12 @@ class TestASTGeneration(unittest.TestCase):
   def testComplexCombinedType(self):
     """Test parsing a type with both union and intersection."""
 
-    data1 = r"def foo(a: Foo | Bar & Zot)"
-    data2 = r"def foo(a: Foo | (Bar & Zot))"
+    data1 = r"def foo(a: Foo or Bar and Zot)"
+    data2 = r"def foo(a: Foo or (Bar and Zot))"
     result1 = self.parser.Parse(data1)
     result2 = self.parser.Parse(data2)
     expect = pytd.TypeDeclUnit(
         constants=[],
-        interfaces=[],
         classes=[],
         functions=[
             pytd.Function(
@@ -176,68 +173,16 @@ class TestASTGeneration(unittest.TestCase):
     self.assertEqual(expect, result1)
     self.assertEqual(expect, result2)
 
-  def testInterfaceComplex(self):
-    """Test parsing of interfaces with parents."""
-
-    data = textwrap.dedent("""
-        def foo() -> None
-
-        interface Openable:
-          def Open
-
-        interface Closable:
-          def Close
-
-        interface Readable(Openable, Closable):
-          def Read
-
-        interface Writable(Openable, Closable):
-          def Write
-        """)
-
-    result = self.parser.Parse(data)
-    expect = pytd.TypeDeclUnit(
-        constants=[],
-        interfaces=[
-            pytd.Interface(
-                name="Openable",
-                parents=[], template=[],
-                attrs=[pytd.MinimalFunction("Open")]),
-            pytd.Interface(
-                name="Closable",
-                parents=[], template=[],
-                attrs=[pytd.MinimalFunction("Close")]),
-            pytd.Interface(
-                name="Readable", template=[],
-                parents=["Openable", "Closable"],
-                attrs=[pytd.MinimalFunction("Read")]),
-            pytd.Interface(
-                name="Writable", template=[],
-                parents=["Openable", "Closable"],
-                attrs=[pytd.MinimalFunction("Write")])],
-        classes=[],
-        functions=[
-            pytd.Function(
-                name="foo",
-                signatures=[pytd.Signature(
-                    params=[],
-                    return_type=pytd.BasicType("None"),
-                    exceptions=[],
-                    template=[], provenance="")])])
-    self.assertEqual(expect, result)
-
   def testTokens(self):
     """Test various token forms (int, float, n"...", etc.)."""
     # TODO: a test with '"' or "'" in a string
     data = textwrap.dedent("""
-        # "interface" is a reserved word in annotation language
         def `interface`(abcde: "xyz", foo: 'a"b', b: -1.0, c: 666) -> int
         """)
 
     result = self.parser.Parse(data)
     expect = pytd.TypeDeclUnit(
         constants=[],
-        interfaces=[],
         classes=[],
         functions=[
             pytd.Function(
@@ -267,7 +212,6 @@ class TestASTGeneration(unittest.TestCase):
     result2 = self.parser.Parse(data2)
     expect = pytd.TypeDeclUnit(
         constants=[],
-        interfaces=[],
         classes=[],
         functions=[
             pytd.Function(
@@ -281,100 +225,42 @@ class TestASTGeneration(unittest.TestCase):
     self.assertEqual(result1, result2)  # redundant test
  
   def testTemplates(self):
-    """Test the template name lookup."""
+    """Test template parsing."""
 
     return  # TODO: re-enable this test
 
     data = textwrap.dedent("""
-        class [C <= Cbase] MyClass:
-          def f1(c: C)
-          def[T,U] f2(c: C, t1: T, t2: dict[C, C|T|int]) -> T raise Error[T]
+        class<C extends Cbase> MyClass:
+          def f1(p1: C)
+          def<T,U> f2(p1: C, p2: T, p3: dict<C, C or T or int>) -> T raises Error<T>
         """)
 
     result = self.parser.Parse(data)
-    expect = pytd.TypeDeclUnit(
-        interfacedefs=[],
-        classdefs=[pytd.Class(
-            name="MyClass",
-            parents=[],
-            funcs=[
-                pytd.Function(
-                    name="f1",
-                    params=[
-                        pytd.Parameter(
-                            name="c",
-                            type=pytd.TemplateItem(
-                                name="C",
-                                within_type=pytd.BasicType("Cbase"),
-                                level=1))],
-                    return_type=pytd.BasicType("None"),
-                    exceptions=[],
-                    template=[],
-                    provenance="",
-                    signature=None),
-                pytd.Function(
-                    name="f2",
-                    params=[
-                        pytd.Parameter(
-                            name="c",
-                            type=pytd.TemplateItem(
-                                name="C",
-                                within_type=pytd.BasicType("Cbase"),
-                                level=1)),
-                        pytd.Parameter(
-                            name="t1",
-                            type=pytd.TemplateItem(
-                                name="T",
-                                within_type=pytd.BasicType("object"),
-                                level=0)),
-                        pytd.Parameter(
-                            name="t2",
-                            type=pytd.GenericType2(
-                                base_type=pytd.BasicType("dict"),
-                                type1=pytd.TemplateItem(
-                                        name='C',
-                                        within_type=pytd.BasicType('Cbase'),
-                                        level=1),
-                                type2=pytd.UnionType([
-                                    pytd.TemplateItem(
-                                        name='C',
-                                        within_type=pytd.BasicType('Cbase'),
-                                        level=1),
-                                    pytd.TemplateItem(
-                                        name='T',
-                                        within_type=pytd.BasicType('object'),
-                                        level=0),
-                                    pytd.BasicType('int')])))],
-                    return_type=pytd.TemplateItem(
-                        name="T",
-                        within_type=pytd.BasicType("object"),
-                        level=0),
-                    exceptions=[
-                        pytd.ExceptionDef(
-                            pytd.GenericType1(
-                                base_type=pytd.BasicType("Error"),
-                                type1=pytd.TemplateItem(
-                                    name="T",
-                                    within_type=pytd.BasicType("object"),
-                                    level=0)))],
-                    template=[
-                        pytd.TemplateItem(
-                            name="T",
-                            within_type=pytd.BasicType("object"),
-                            level=0),
-                        pytd.TemplateItem(
-                            name="U",
-                            within_type=pytd.BasicType("object"),
-                            level=0)],
-                    provenance="",
-                    signature=None)],
-            template=[
-                pytd.TemplateItem(
-                    name="C",
-                    within_type=pytd.BasicType("Cbase"),
-                    level=0)])],
-        funcdefs=[])
-    self.assertEqual(expect, result)
+    myclass = result.Lookup("MyClass")
+    self.assertEquals({t.name for t in myclass.template}, {"C"})
+
+    f1 = myclass.Lookup("f1").signatures[0]
+    param = f1.params[0]
+    self.assertEquals(param.name, "p1")
+    self.assertIsInstance(param.type, pytd.TemplateItem)
+    template = param.type
+    self.assertEquals(str(template.within_type), "Cbase")
+
+    f2 = myclass.Lookup("f2").signatures[0]
+    self.assertEquals([p.name for p in f2.params], ["p1", "p2", "p3"])
+    self.assertEquals({t.name for t in f2.template}, {"T", "U"})
+    p1, p2, p3 = f2.params
+    t1, t2, t3 = p1.type, p2.type, p3.type
+    self.assertIsInstance(t1, pytd.TemplateItem)
+    self.assertIsInstance(t2, pytd.TemplateItem)
+    self.assertNotIsInstance(t3, pytd.TemplateItem)
+    self.assertEquals(str(t1.within_type), "Cbase")
+    self.assertEquals(str(t2.within_type), "object")
+    self.assertEquals(str(t3.base_type), "dict")
+    self.assertIsInstance(f2.return_type, pytd.TemplateItem)
+    self.assertEquals(f2.return_type.name, "T")
+    self.assertEquals(len(f2.exceptions), 1)
+    self.assertEquals(len(f2.template), 2)
 
 
 class C1(typed_tuple.Eq, collections.namedtuple("C1", ["a", "b"])):

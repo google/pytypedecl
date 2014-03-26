@@ -31,9 +31,11 @@
 # pylint: disable=g-doc-args, g-no-space-after-docstring-summary
 # pylint: disable=g-space-before-docstring-summary
 # pylint: disable=g-backslash-continuation
+# pylint: disable=line-too-long
 
 from ply import lex
 from ply import yacc
+from pytypedecl import optimize
 from pytypedecl import pytd
 from pytypedecl import optimize
 
@@ -55,32 +57,30 @@ class PyLexer(object):
   t_ARROW = r'->'
   t_ASTERISK = r'\*'
   t_AT = r'@'
-  t_CLASS = r'class'
   t_COLON = r':'
   t_COMMA = r','
-  t_DEF = r'def'
   t_DOT = r'\.'
-  t_INTERFACE = r'interface'
-  t_INTERSECT = r'&'
-  t_LBRACKET = r'\['
+  t_LBRACKET = r'\<'
   t_LPAREN = r'\('
   t_MINUS = r'-'
-  t_PASS = r'pass'
   t_PLUS = r'\+'
   t_QUESTION = r'\?'
-  t_RAISE = r'raise'
-  t_RBRACKET = r'\]'
+  t_RBRACKET = r'\>'
   t_RPAREN = r'\)'
-  t_SUBCLASS = r'<='  # or '<:' - notation from Scala, type theory
-  t_UNION = r'\|'
 
-  reserved = {
-      t_CLASS: 'CLASS',
-      t_DEF: 'DEF',
-      t_INTERFACE: 'INTERFACE',
-      t_PASS: 'PASS',
-      t_RAISE: 'RAISE',
-  }
+  reserved = [
+      'class',
+      'def',
+      'pass',
+      'raises',
+      'extends',
+      'and',
+      'or',
+  ]
+
+  # Define keyword tokens, so parser knows about them.
+  # We generate them in t_NAME.
+  locals().update({'t_' + id.upper(): id for id in reserved})
 
   tokens = [
       'ARROW',
@@ -90,7 +90,6 @@ class PyLexer(object):
       'COMMA',
       # 'COMMENT',  # Not used in the grammar; only used to discard comments
       'DOT',
-      'INTERSECT',
       'LBRACKET',
       'LPAREN',
       'MINUS',
@@ -101,9 +100,7 @@ class PyLexer(object):
       'RBRACKET',
       'RPAREN',
       'STRING',
-      'SUBCLASS',
-      'UNION',
-  ] + list(reserved.values())
+  ] + [id.upper() for id in reserved]
 
   # Ignored characters
   t_ignore = ' \t'
@@ -117,8 +114,8 @@ class PyLexer(object):
       assert t.value[-1] == r'`'
       t.value = t.value[1:-1]
       t.type = 'NAME'
-    else:
-      t.type = self.reserved.get(t.value, 'NAME')
+    elif t.value in self.reserved:
+      t.type = t.value.upper()
     return t
 
   def t_STRING(self, t):
@@ -180,17 +177,17 @@ class PyParser(object):
     return self.parser.parse(data, **kwargs)
 
   precedence = (
-      ('left', 'UNION'),
-      ('left', 'INTERSECT'),
+      ('left', 'OR'),
+      ('left', 'AND'),
       ('left', 'COMMA'),
   )
 
   def p_defs(self, p):
-    """defs : funcdefs classes interfaces
+    """defs : funcdefs classes
     """
     # TODO: change the definition of defs to:
     #            defs : defs def | defs
-    #            def : funcdef | classdef | interfacedef
+    #            def : funcdef | classdef
     #        This will require handling indent/exdent and/or allowing {...}.
     #        Also requires supporting INDENT/DEDENT because otherwise it's
     #        ambiguous on the meaning of a funcdef after a classdef
@@ -202,7 +199,7 @@ class PyParser(object):
       raise make_syntax_error(self, 'Duplicate identifier(s)', p)
     p[0] = pytd.TypeDeclUnit(constants=constants,
                              functions=optimize.MergeSignatures(funcdefs),
-                             classes=p[2], interfaces=p[3]).ExpandTemplates([])
+                             classes=p[2]).ExpandTemplates([])
 
   def p_classes(self, p):
     """classes : classes classdef"""
@@ -214,7 +211,6 @@ class PyParser(object):
 
   # TODO(raoulDoc): doesn't support nested classes
   # TODO: parents is redundant -- should match what's in .py file
-  #                  but is here for compatibility with INTERFACE
   def p_classdef(self, p):
     """classdef : CLASS template NAME parents COLON class_funcs"""
     #             1     2        3    4       5     6
@@ -236,22 +232,6 @@ class PyParser(object):
   def p_class_funcs_pass(self, p):
     """class_funcs : PASS"""
     p[0] = []
-
-  def p_interfaces(self, p):
-    """interfaces : interfaces interfacedef
-    """
-    p[0] = p[1] + [p[2]]
-
-  def p_interfaces_null(self, p):
-    """interfaces :"""
-    p[0] = []
-
-  def p_interfacedef(self, p):
-    """interfacedef : INTERFACE template NAME parents COLON interface_attrs"""
-    #                 1         2        3    4       5     6
-    # TODO: do name lookups for template within interface_attrs
-    p[0] = pytd.Interface(
-        name=p[3], parents=p[4], attrs=p[6], template=p[2])
 
   def p_parents(self, p):
     """parents : LPAREN parent_list RPAREN"""
@@ -291,17 +271,8 @@ class PyParser(object):
     p[0] = pytd.TemplateItem(p[1], pytd.BasicType('object'), 0)
 
   def p_template_item_subclss(self, p):
-    """template_item : NAME SUBCLASS compound_type"""
+    """template_item : NAME EXTENDS compound_type"""
     p[0] = pytd.TemplateItem(p[1], p[3], 0)
-
-  # TODO(raoulDoc): support signatures in interfaces
-  def p_interface_attrs(self, p):
-    """interface_attrs : interface_attrs DEF NAME"""
-    p[0] = p[1] + [pytd.MinimalFunction(name=p[3])]
-
-  def p_interface_attrs_null(self, p):
-    """interface_attrs : DEF NAME"""
-    p[0] = [pytd.MinimalFunction(name=p[2])]
 
   def p_funcdefs_func(self, p):
     """funcdefs : funcdefs funcdef"""
@@ -321,9 +292,9 @@ class PyParser(object):
     p[0] = pytd.ConstantDef(p[1], p[2])
 
   def p_funcdef(self, p):
-    """funcdef : provenance DEF template NAME LPAREN params RPAREN return raise signature"""
+    """funcdef : provenance DEF template NAME LPAREN params RPAREN return raises signature"""
     #            1          2   3        4     5     6      7      8      9     10
-    # TODO: do name lookups for template within params, return, raise
+    # TODO: do name lookups for template within params, return, raises
     signature = pytd.Signature(params=p[6], return_type=p[8], exceptions=p[9],
                                template=p[3], provenance=p[1])
     p[0] = optimize.NameAndSignature(name=p[4], signature=signature)
@@ -395,11 +366,11 @@ class PyParser(object):
     p[0] = pytd.Parameter(p[1], p[3])
 
   def p_raise(self, p):
-    """raise : RAISE exceptions"""
+    """raises : RAISES exceptions"""
     p[0] = p[2]
 
   def p_raise_null(self, p):
-    """raise :"""
+    """raises :"""
     p[0] = []
 
   def p_exceptions_1(self, p):
@@ -430,8 +401,8 @@ class PyParser(object):
     """identifier : NUMBER"""
     p[0] = pytd.ConstType(p[1])
 
-  def p_compound_type_intersect(self, p):
-    """compound_type : compound_type INTERSECT compound_type"""
+  def p_compound_type_and(self, p):
+    """compound_type : compound_type AND compound_type"""
     # This rule depends on precedence specification
     if (isinstance(p[1], pytd.IntersectionType) and
         isinstance(p[3], pytd.BasicType)):
@@ -443,8 +414,8 @@ class PyParser(object):
     else:
       p[0] = pytd.IntersectionType([p[1], p[3]])
 
-  def p_compound_type_union(self, p):
-    """compound_type : compound_type UNION compound_type"""
+  def p_compound_type_or(self, p):
+    """compound_type : compound_type OR compound_type"""
     # This rule depends on precedence specification
     if (isinstance(p[1], pytd.UnionType) and
         isinstance(p[3], pytd.BasicType)):
@@ -467,7 +438,7 @@ class PyParser(object):
   #                  compound_type[...] but insist on identifier[...] ... this
   #                  is because the grammar would be ambiguous, but for some
   #                  reason PLY didn't come up with a shift/reduce conflict but
-  #                  just quietly promoted UNION and INTERSECT above LBRACKET
+  #                  just quietly promoted OR and AND above LBRACKET
   #                  (or, at least, that's what I think happened). Probably best
   #                  to not use precedence and write everything out fully, even
   #                  if it's a more verbose grammar.

@@ -21,8 +21,8 @@ def GoodRet() -> int
 def BadRet() -> int
 def NoneRet() -> None
 def AppleRet() -> Apple
-def FooFail() -> None raise FooException
-def WrongFail() -> None raise FooException, WrongException
-def BadFail() -> None raise FooException, WrongException
-def MultiFail(a : Apple) -> None raise FooException
+def FooFail() -> None raises FooException
+def WrongFail() -> None raises FooException, WrongException
+def BadFail() -> None raises FooException, WrongException
+def MultiFail(a : Apple) -> None raises FooException
 def MultiArgsNoType(a: int, b, c, d: str, e) -> int

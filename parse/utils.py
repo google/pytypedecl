@@ -25,9 +25,9 @@ import traceback
 from pytypedecl.parse import parser
 
 
-InterfacesClassesFuncsByName = collections.namedtuple(
-    'InterfacesClassesFuncsByName',
-    ['interfaces', 'classes', 'funcs'])
+ClassesFuncsByName = collections.namedtuple(
+    'ClassesFuncsByName',
+    ['classes', 'funcs'])
 
 
 class ParserUtils(object):
@@ -47,16 +47,14 @@ class ParserUtils(object):
       filename: name of the file whose content is in 'content'
 
     Returns:
-      A tuple of interfaces dict[str, Interface],
-                 classes    dict[str, Class],
+      A tuple of classes    dict[str, Class],
                  functions  dict[str, PyOptFuncdef]
     """
     # TODO: There is an inconsistency here ... the functions are
     #                  grouped by named but this isn't done for the functions
-    #                  (methods) inside a class or interface.  Add grouping to
-    #                  class/interface and change the pytd-to-constraints
-    #                  compiler to use this for detecting polymorphic functions
-    #                  and methods.
+    #                  (methods) inside a class.  Add grouping to class
+    #                  and change the pytd-to-constraints compiler to use this
+    #                  for detecting polymorphic functions and methods.
     try:
       type_decl_unit = self._parser.Parse(content, filename)
     except SyntaxError as unused_exception:
@@ -66,12 +64,9 @@ class ParserUtils(object):
 
     functions_by_name = {f.name: f.signatures for f in type_decl_unit.functions}
 
-    interfaces_by_name = {i.name: i for i in type_decl_unit.interfaces}
-
     classes_by_name = {c.name: c for c in type_decl_unit.classes}
 
-    return InterfacesClassesFuncsByName(
-        interfaces=interfaces_by_name,
+    return ClassesFuncsByName(
         classes=classes_by_name,
         funcs=functions_by_name)
 
@@ -82,8 +77,7 @@ class ParserUtils(object):
       type_decl_path: type declaration to parse
 
     Returns:
-      A tuple of interfaces dict[str, Interface],
-                 classes    dict[str, Class],
+      A tuple of classes    dict[str, Class],
                  functions  dict[str, PyOptFuncdef]
     """
     with open(type_decl_path) as f:

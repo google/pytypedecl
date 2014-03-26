@@ -26,7 +26,7 @@ import sys
 from pytypedecl import checker
 
 
-# def Length(l : list[int]) -> int
+# def Length(l : list<int>) -> int
 def Length(l):
   return len(l)
 
@@ -42,12 +42,12 @@ class Box(object):
     return iter([self.data])
 
 
-# def UnwrapBox(b: Box[int]) -> int
+# def UnwrapBox(b: Box<int>) -> int
 def UnwrapBox(b):
   return b.Get()
 
 
-# def FindInCache(cache: dict[str, int], k: str) -> int
+# def FindInCache(cache: dict<str, int>, k: str) -> int
 def FindInCache(cache, k):
   return cache[k]
 
@@ -59,7 +59,7 @@ def _BadGen():
     yield num
 
 
-# def ConvertGenToList(g: generator[int]) -> list[int]
+# def ConvertGenToList(g: generator<int>) -> list<int>
 def ConvertGenToList(g):
   return list(g)
 

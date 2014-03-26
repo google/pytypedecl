@@ -15,9 +15,9 @@
 # limitations under the License.
 
 
-def Length(l : list[int]) -> int
-def UnwrapBox(b: Box[int]) -> int
+def Length(l : list<int>) -> int
+def UnwrapBox(b: Box<int>) -> int
 def _BadGen() -> generator
-def FindInCache(cache: dict[str, int], k: str) -> int
-def ConvertGenToList(g: generator[int]) -> list[int]
-def ConsumeDoubleGenerator(g1: generator[int], g2: generator[int]) -> list
+def FindInCache(cache: dict<str, int>, k: str) -> int
+def ConvertGenToList(g: generator<int>) -> list<int>
+def ConsumeDoubleGenerator(g1: generator<int>, g2: generator<int>) -> list

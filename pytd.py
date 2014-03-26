@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Our way of using namedtuple is confusing pylint.
+# pylint: disable=no-member
+# pylint: disable=protected-access
 
 """AST representation of a pytd file.
 
@@ -54,14 +57,13 @@ from pytypedecl.parse import typed_tuple
 
 
 class TypeDeclUnit(typed_tuple.Eq, collections.namedtuple(
-    'TypeDeclUnit', ['constants', 'interfaces', 'classes', 'functions'])):
+    'TypeDeclUnit', ['constants', 'classes', 'functions'])):
   """Top level node. Holds a list of Function nodes.
 
   Attributes:
     constants: List of module-level constants.
     functions: List of functions defined in this type decl unit.
-    interfaces: List of interfaces defined in this type decl unit.
-    classes: List of interfaces defined in this type decl unit.
+    classes: List of classes defined in this type decl unit.
   """
 
   def Lookup(self, name):
@@ -70,30 +72,37 @@ class TypeDeclUnit(typed_tuple.Eq, collections.namedtuple(
       return self._name2item[name]
     except AttributeError:
       self._name2item = {}
-      for x in self.constants + self.functions + self.interfaces + self.classes:
+      for x in self.constants + self.functions + self.classes:
         self._name2item[x.name] = x
       return self._name2item[name]
 
   def ExpandTemplates(self, rev_templates):
     return self._replace(
-        interfaces=[i.ExpandTemplates(rev_templates)
-                       for i in self.interfaces],
         classes=[c.ExpandTemplates(rev_templates) for c in self.classes],
         functions=[f.ExpandTemplates(rev_templates) for f in self.functions])
-
-
-class Interface(typed_tuple.Eq, collections.namedtuple(
-    'Interface', ['name', 'parents', 'attrs', 'template'])):
-  __slots__ = ()
-
-  def ExpandTemplates(self, rev_templates):
-    rev_t = [self.template] + rev_templates
-    return self._replace(attrs=[a.ExpandTemplates(rev_t) for a in self.attrs])
 
 
 class Constant(typed_tuple.Eq, collections.namedtuple(
     'Constant', ['name', 'type'])):
   __slots__ = ()
+
+  def ExpandTemplates(self, rev_t):
+    return self._replace(type=self.type.ExpandTemplates(rev_t))
+
+
+class Class(typed_tuple.Eq, collections.namedtuple(
+    'Class', ['name', 'parents', 'methods', 'constants', 'template'])):
+  """A Python class. Corresponds to a class in a *.py file."""
+
+  def Lookup(self, name):
+    """Convenience function: Look up a given name in the global namespace."""
+    try:
+      return self._name2item[name]
+    except AttributeError:
+      self._name2item = {}
+      for x in self.methods + self.constants:
+        self._name2item[x.name] = x
+      return self._name2item[name]
 
   def ExpandTemplates(self, rev_templates):
     return self._replace(type=self.type.ExpandTemplates(rev_t))
@@ -137,10 +146,12 @@ class Function(typed_tuple.Eq, collections.namedtuple(
 
 class Signature(typed_tuple.Eq, collections.namedtuple(
     'Signature', ['params', 'return_type', 'exceptions', 'template',
-                 'provenance'])):
-  """Represents an individual signature of a function. For overloaded functions,
-     this is one specific combination of parameters. For non-overloaded
-     functions, there is a 1:1 correspondence between function and signature.
+                  'provenance'])):
+  """Represents an individual signature of a function.
+
+  For overloaded functions, this is one specific combination of parameters.
+  For non-overloaded functions, there is a 1:1 correspondence between function
+  and signature.
 
   Attributes:
     name: The name of this function.
@@ -237,6 +248,7 @@ class TemplateItem(typed_tuple.Eq, collections.namedtuple(
 
 class BasicType(typed_tuple.Eq, collections.namedtuple(
     'BasicType', ['containing_type'])):
+  """A wrapper for a type. Deprecated."""
   __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
@@ -244,8 +256,11 @@ class BasicType(typed_tuple.Eq, collections.namedtuple(
       for t in templ:
         if self.containing_type == t.name:
           return t._replace(level=level)  # TemplateItem
-    else:
+    else:  # pylint: disable=useless-else-on-loop
       return self
+
+  def __str__(self):
+    return str(self.containing_type)
 
   def Process(self, processor):
     return processor.ProcessBasicType(self)
@@ -295,23 +310,6 @@ class IntersectionType(typed_tuple.Eq, collections.namedtuple(
 
   def Process(self, processor):
     return processor.ProcessIntersectionType(self)
-
-
-class StructType(typed_tuple.Eq, collections.namedtuple(
-    'StructType', ['ops'])):
-  __slots__ = ()
-
-  # There's no ExpandTemplates method because StructType isn't
-  # created by the parser.
-
-  def Process(self, processor):
-    return processor.ProcessStructType(self)
-
-  # Extra initialization ... see
-  # http://stackoverflow.com/questions/3624753/how-to-provide-additional-initialization-for-a-subclass-of-namedtuple
-
-  def __new__(cls, ops):
-    return super(StructType, cls).__new__(cls, sorted(set(ops)))
 
 
 class GenericType1(typed_tuple.Eq, collections.namedtuple(
@@ -370,11 +368,10 @@ class OptionalUnknownType(typed_tuple.Eq,
 
 
 class VarArgType(OptionalUnknownType):
-  """*args"""
+  """Representation of *args (variable number of arguments). Deprecated."""
   __slots__ = ()
 
 
 class VarKeywordArgType(OptionalUnknownType):
-  """**kwargs"""
-
+  """Representation of *kwargs (variable number of keyword args). Deprecated."""
   __slots__ = ()
