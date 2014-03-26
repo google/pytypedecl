@@ -48,12 +48,11 @@ of templates in reverse order (most recent one first).
 """
 
 
-import collections
 from pytypedecl.parse import node
+from pytypedecl.parse import visitors
 
 
-# TODO: Implement a proper visitor interface, instead of having both
-#              ExpandTemplates() and Process()
+# TODO: Make ExpandTemplates() and Process() use visitors.
 
 
 class TypeDeclUnit(node.Node('constants', 'classes', 'functions')):
@@ -66,7 +65,20 @@ class TypeDeclUnit(node.Node('constants', 'classes', 'functions')):
   """
 
   def Lookup(self, name):
-    """Convenience function: Look up a given name in the global namespace."""
+    """Convenience function: Look up a given name in the global namespace.
+
+    Tries to find a constant, function or class by this name.
+
+    Args:
+      name: Name to look up.
+
+    Returns:
+      A Constant, Function or Class.
+
+    Raises:
+      KeyError: if this identifier doesn't exist.
+    """
+    # TODO: Remove. Change constants, classes and functions to dict.
     try:
       return self._name2item[name]
     except AttributeError:
@@ -89,26 +101,23 @@ class Constant(node.Node('name', 'type')):
 
 
 class Class(node.Node('name', 'parents', 'methods', 'constants', 'template')):
-  """A Python class. Corresponds to a class in a *.py file."""
+  """Represents a class declaration."""
 
   def Lookup(self, name):
-    """Convenience function: Look up a given name in the global namespace."""
-    try:
-      return self._name2item[name]
-    except AttributeError:
-      self._name2item = {}
-      for x in self.methods + self.constants:
-        self._name2item[x.name] = x
-      return self._name2item[name]
+    """Convenience function: Look up a given name in the class namespace.
 
-  def ExpandTemplates(self, rev_templates):
-    return self._replace(type=self.type.ExpandTemplates(rev_t))
+    Tries to find a method or constant by this name in the class.
 
+    Args:
+      name: Name to look up.
 
-class Class(node.Node('name', 'parents', 'methods', 'constants', 'template')):
+    Returns:
+      A Constant or Function instance.
 
-  def Lookup(self, name):
-    """Convenience function: Look up a given name in the global namespace."""
+    Raises:
+      KeyError: if this identifier doesn't exist in this class.
+    """
+    # TODO: Remove this. Make methods and constants dictionaries.
     try:
       return self._name2item[name]
     except AttributeError:
@@ -140,7 +149,7 @@ class Function(node.Node('name', 'signatures')):
 
 
 class Signature(node.Node('params', 'return_type', 'exceptions', 'template',
-                          'provenance')):
+                          'has_optional', 'provenance')):
   """Represents an individual signature of a function.
 
   For overloaded functions, this is one specific combination of parameters.
@@ -172,20 +181,6 @@ class Signature(node.Node('params', 'return_type', 'exceptions', 'template',
         exceptions=[e.ExpandTemplates(rev_t) for e in self.exceptions])
 
 
-class ExceptionDef(node.Node('containing_type')):
-  # TODO: remove this. We can just point to the type directly.
-  """Represents an exception.
-
-  Attributes:
-    containing_type: The exception type.
-  """
-  __slots__ = ()
-
-  def ExpandTemplates(self, rev_templates):
-    return self._replace(
-        containing_type=self.containing_type.ExpandTemplates(rev_templates))
-
-
 class Parameter(node.Node('name', 'type')):
   """Represents a parameter of a function definition.
 
@@ -200,7 +195,7 @@ class Parameter(node.Node('name', 'type')):
 
 
 class TemplateItem(node.Node('name', 'within_type', 'level')):
-  """Represents "template name <= bounded_type".
+  """Represents "template name extends bounded_type".
 
   This can be either the result of the 'template' in the parser (e.g.,
     funcdef : provenance DEF template NAME LPAREN params RPAREN ...)
@@ -225,7 +220,7 @@ class TemplateItem(node.Node('name', 'within_type', 'level')):
 
 
 class BasicType(node.Node('containing_type')):
-  """A wrapper for a type. """
+  """A wrapper for a type."""
   # TODO: Rename to "NamedType"
   __slots__ = ()
 
@@ -246,6 +241,7 @@ class BasicType(node.Node('containing_type')):
 
 class Scalar(node.Node('value')):
   __slots__ = ()
+
   def ExpandTemplates(self, unused_rev_templates):
     return self
 
@@ -272,36 +268,32 @@ class IntersectionType(node.Node('type_list')):
     return processor.ProcessIntersectionType(self)
 
 
-class GenericType1(node.Node('base_type', 'type1')):
-  # TODO: rewrite this to allow arbitrary length arguments
+class HomogeneousContainerType(node.Node('base_type', 'element_type')):
   __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
     return self._replace(
         base_type=self.base_type.ExpandTemplates(rev_templates),
-        type1=self.type1.ExpandTemplates(rev_templates))
+        element_type=self.element_type.ExpandTemplates(rev_templates))
 
   def Process(self, processor):
-    return processor.ProcessGenericType1(self)
+    return processor.ProcessHomogeneousContainerType(self)
 
 
-class GenericType2(node.Node('base_type', 'type1', 'type2')):
-  """Constructor for types taking two type arguments.
-
-  Attributes:
-    base_type: type that is parameterized. E.g. dict
-    type1: first type parameter. E.g. dict[type1, type2]
-    type2: second type parameter. E.g. dict[type1, type2]
-  """
+class GenericType(node.Node('base_type', 'parameters')):
   __slots__ = ()
 
   def ExpandTemplates(self, rev_templates):
     return self._replace(
         base_type=self.base_type.ExpandTemplates(rev_templates),
-        type1=self.type1.ExpandTemplates(rev_templates),
-        type2=self.type2.ExpandTemplates(rev_templates))
+        parameters=[p.ExpandTemplates(rev_templates) for p in self.parameters])
 
   def Process(self, processor):
-    return processor.ProcessGenericType2(self)
+    return processor.ProcessGenericType(self)
 
+
+def Print(n):
+  """Convert a PYTD node to a string."""
+  v = visitors.PrintVisitor()
+  return n.Visit(v)
 

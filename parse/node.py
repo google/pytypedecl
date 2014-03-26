@@ -90,7 +90,7 @@ def Node(*child_names):
         True or False.
       """
       # This comparison blows up if "other" is an old-style class (not:
-      # instance). That's fine, because trying to compare a tuple a class is
+      # instance). That's fine, because trying to compare a tuple to a class is
       # almost certainly a programming error, and blowing up is better than
       # silently returning False.
       if self.__class__ is other.__class__:
@@ -156,15 +156,15 @@ def Node(*child_names):
 def _VisitNode(node, visitor, *args, **kwargs):
   """Transform a node an all its children using a visitor.
 
-  This will iterate over all children of this node, and also process things
-  that are not nodes. The latter are either other types of containers (lists,
-  dictionaries), which will be scanned for nodes regardless, or primitive types,
-  which will be return as-is.
+  This will iterate over all children of this node, and also process certain
+  things that are not nodes. The latter are either other supported types of
+  containers (right now, lists and dictionaries), which will be scanned for
+  nodes regardless, or primitive types, which will be return as-is.
 
   Args:
     node: The node to transform. Either an actual "instance" of Node, or an
-          other type of container found while scanning a node tree, or any
-          other type (which will be returned unmodified).
+          other type of container (lists, dicts) found while scanning a node
+          tree, or any other type (which will be returned unmodified).
     visitor: The visitor to apply. If this visitor has a "Visit<Name>" method,
           with <Name> the name of the Node class, a callback will be triggered,
           and the transformed version of this node will be whatever the
@@ -196,6 +196,8 @@ def _VisitNode(node, visitor, *args, **kwargs):
 
     # Now call the user supplied visitor, if it exists. Notice we only do this
     # for tuples.
+    # TODO: Do we need the Visit prefix? It would be nicer to just
+    #              have functions called after the class name.
     visit_function = "Visit" + node.__class__.__name__
     if hasattr(visitor, visit_function):
       return getattr(visitor, visit_function)(new_node, *args, **kwargs)

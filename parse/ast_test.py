@@ -27,6 +27,12 @@ class TestASTGeneration(unittest.TestCase):
   def setUp(self):
     self.parser = parser.PyParser()
 
+  def TestRoundTrip(self, src, old_src=None):
+    """Compile a string, and convert the result back to a string. Compare."""
+    tree = self.parser.Parse(src)
+    new_src = pytd.Print(tree)
+    self.assertEquals(old_src or src, new_src)
+
   def testOneFunction(self):
     """Test parsing of a single function definition."""
     data = textwrap.dedent("""
@@ -50,11 +56,46 @@ class TestASTGeneration(unittest.TestCase):
                             name="c",
                             type=pytd.BasicType("bool"))],
                     return_type=pytd.BasicType("int"),
-                    template=[], provenance="",
+                    template=[], has_optional=False, provenance="",
                     exceptions=[
-                        pytd.ExceptionDef(pytd.BasicType("Test")),
-                        pytd.ExceptionDef(pytd.BasicType("Foo"))])])])
+                        pytd.BasicType("Test"),
+                        pytd.BasicType("Foo")])])])
     self.assertEqual(expect, result)
+
+  def testOnlyOptional(self):
+    """Test parsing of optional parameters"""
+    src = textwrap.dedent("""
+        def foo(...) -> int
+    """).strip()
+    self.TestRoundTrip(src)
+
+  def testOptional1(self):
+    """Test parsing of optional parameters"""
+    src = textwrap.dedent("""
+        def foo(a: int, ...) -> int
+    """).strip()
+    self.TestRoundTrip(src)
+
+  def testOptional2(self):
+    """Test parsing of optional parameters"""
+    src = textwrap.dedent("""
+        def foo(a: int, c: bool, ...) -> int
+    """).strip()
+    self.TestRoundTrip(src)
+
+  def testOptionalWithSpaces(self):
+    """Test parsing of ... with spaces."""
+    # Python supports this, so we do, too.
+    self.TestRoundTrip("def foo(a: int, c: bool, . . .) -> int",
+                       "def foo(a: int, c: bool, ...) -> int")
+
+  def testConstants(self):
+    """Test parsing of constants"""
+    src = textwrap.dedent("""
+      a: int
+      b: int or float
+    """).strip()
+    self.TestRoundTrip(src)
 
   def testMultiFunction(self):
     """Test parsing of multiple function defs including overloaded version."""
@@ -133,8 +174,8 @@ class TestASTGeneration(unittest.TestCase):
                     return_type=pytd.BasicType(
                             "int"),
                     exceptions=[
-                        pytd.ExceptionDef(pytd.BasicType("Bad"))],
-                    template=[], provenance="")])])
+                        pytd.BasicType("Bad")],
+                    template=[], has_optional=False, provenance="")])])
     self.assertEqual(expect, result1)
     self.assertEqual(expect, result2)
     self.assertEqual(expect, result3)
@@ -166,7 +207,7 @@ class TestASTGeneration(unittest.TestCase):
                                           pytd.BasicType("Zot")])]))
                         ],
                     return_type=pytd.BasicType("None"),
-                    template=[], provenance="",
+                    template=[], has_optional=False, provenance="",
                     exceptions=[])])])
     self.assertEqual(expect, result1)
     self.assertEqual(expect, result2)
@@ -197,7 +238,7 @@ class TestASTGeneration(unittest.TestCase):
                                        type=pytd.Scalar(value=666))],
                     return_type=pytd.BasicType("int"),
                     exceptions=[],
-                    template=[], provenance="")])])
+                    template=[], has_optional=False, provenance="")])])
     self.assertEqual(expect, result)
 
   def testNoReturnType(self):
@@ -217,7 +258,7 @@ class TestASTGeneration(unittest.TestCase):
                 signatures=[pytd.Signature(
                     params=[],
                     return_type=pytd.BasicType("None"),
-                    template=[], provenance="", exceptions=[])])])
+                    template=[], has_optional=False, provenance="", exceptions=[])])])
     self.assertEqual(result1, expect)
     self.assertEqual(result2, expect)
     self.assertEqual(result1, result2)  # redundant test

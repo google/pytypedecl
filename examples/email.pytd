@@ -16,6 +16,6 @@
 
 
 class Emailer:
-  def MakeAnnoucement(cls, emails:list[str]) -> None
+  def MakeAnnouncement(cls, emails:list[str]) -> None
   def SendEmail(cls, addr:str) -> None
   def Bonjour(self) -> str

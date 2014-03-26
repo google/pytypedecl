@@ -22,11 +22,6 @@ import collections
 from pytypedecl import pytd
 
 
-class NameAndSignature(collections.namedtuple("_", ["name", "signature"])):
-  """Created during parsing, to store intermediate results."""
-  __slots__ = ()
-
-
 def MergeSignatures(names_and_signatures):
   """Given a list of pytd function signature declarations, group them by name.
 
@@ -34,11 +29,13 @@ def MergeSignatures(names_and_signatures):
   signatures by name).
 
   Arguments:
-    names_and_signatures: A list of NameAndSignature instances.
+    names_and_signatures: A list of tuples (name, signature).
 
   Returns:
     A list of instances of pytd.Function.
   """
+  # TODO: move this code into parse/parser.py
+
   name_to_signatures = collections.defaultdict(list)
 
   for name, signature in names_and_signatures:

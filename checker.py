@@ -110,6 +110,8 @@ def ConvertToType(module, type_node):
   Raises:
     TypeError: if the type node passed is not supported/unknown
   """
+  # TODO: Convert this to a visitor.
+
   # clean up str
   if isinstance(type_node, pytd.BasicType):
     if type_node.containing_type == "None":
@@ -129,19 +131,17 @@ def ConvertToType(module, type_node):
     return pytd.IntersectionType([ConvertToType(module, t)
                                   for t in type_node.type_list])
 
-  elif isinstance(type_node, pytd.GenericType1):
-    return pytd.GenericType1(ConvertToType(module,
-                                           type_node.base_type),
-                             ConvertToType(module,
-                                           type_node.type1))
+  elif isinstance(type_node, pytd.GenericType):
+    return pytd.GenericType(ConvertToType(module,
+                                          type_node.base_type),
+                            type_node.parameters)
 
-  elif isinstance(type_node, pytd.GenericType2):
-    return pytd.GenericType2(ConvertToType(module,
-                                           type_node.base_type),
-                             ConvertToType(module,
-                                           type_node.type1),
-                             ConvertToType(module,
-                                           type_node.type2))
+  elif isinstance(type_node, pytd.HomogeneousContainerType):
+    return pytd.HomogeneousContainerType(ConvertToType(module,
+                                                       type_node.base_type),
+                                         ConvertToType(module,
+                                                       type_node.element_type))
+
   else:
     raise TypeError("Unknown type of type_node: {!r}".format(type_node))
 
@@ -193,25 +193,21 @@ def IsCompatibleType(actual, formal):
       if not IsCompatibleType(actual, t):
         return False
     return True
-  # check if base type matches
-  # then check that all elements match too (e.g. a list[int])
-  if isinstance(formal, pytd.GenericType1):
-    if isinstance(actual, formal.base_type):
-      # we don't consume decorators, rather their elements are
-      # typechecked on demand. See _Check function
-      if not isinstance(actual, types.GeneratorType):
-        return all(
-            isinstance(e, formal.type1) for e in actual)
-      return True
-    return False
-  # TODO(raoulDoc): GenericType2, assume only dict for now
-  if isinstance(formal, pytd.GenericType2):
-    if not isinstance(actual, dict):
-      raise TypeError("Only dict is supported for types with 2 type params")
-    return all(
-        isinstance(k, formal.type1) and isinstance(v, formal.type2)
-        for k, v in actual.items())
-  # Basic Type
+
+  if isinstance(formal, pytd.GenericType):
+    # We do NOT check parameters. There is no generic way to know what they
+    # they mean.
+    return isinstance(actual, formal.base_type)
+  elif isinstance(formal, pytd.HomogeneousContainerType):
+    if not isinstance(actual, formal.base_type):
+      return False
+    if hasattr(actual, "__len__"):
+      # We can't iterate over the entire list, for performance reasons. (We
+      # would have to do this every single time a function is called!).
+      # But we can at least check the very first element.
+      return len(actual) == 0 or isinstance(actual[0], formal.element_type)
+    return True
+
   return isinstance(actual, formal)
 
 
@@ -247,8 +243,7 @@ def _GetExceptionsTupleFromFuncSig(module, func_sig):
   Returns:
       a tuple of exceptions from the function definition
   """
-  return tuple(ConvertToType(module, e.containing_type)
-               for e in func_sig.exceptions)
+  return tuple(ConvertToType(module, e) for e in func_sig.exceptions)
 
 
 def TypeCheck(module, func_name, func, func_sigs):
@@ -298,14 +293,14 @@ def TypeCheck(module, func_name, func, func_sigs):
           # Was the generator defined as generic-typed?
           # TODO(raoulDoc): formal  may be a union, so need to extract
           # generator signature
-          if isinstance(resolved_type, pytd.GenericType1):
+          if isinstance(resolved_type, pytd.HomogeneousContainerType):
             # if yes replace generator with a decorated version
             # we check if we already created a decorated version
             # for cases such as foo(same_gen, same_gen)
             if actual not in cache_of_generators:
               new_gen = _WrapGenWithTypeCheck(func_name,
                                               actual,
-                                              resolved_type.type1)
+                                              resolved_type.element_type)
               cache_of_generators[actual] = new_gen
             # get generator from cache
             mod_args.append(cache_of_generators[actual])

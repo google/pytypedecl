@@ -28,7 +28,7 @@ from pytypedecl import checker
 
 class Emailer(object):
 
-  def MakeAnnoucement(self, emails):
+  def MakeAnnouncement(self, emails):
     for addr in emails:
       self.SendEmail(addr)
 

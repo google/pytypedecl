@@ -26,7 +26,7 @@ class Emailer(object):
   """
 
   @classmethod
-  def MakeAnnoucement(cls, emails):
+  def MakeAnnouncement(cls, emails):
     for addr in emails:
       cls.SendEmail(addr)
 

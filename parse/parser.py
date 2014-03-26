@@ -28,11 +28,11 @@
 # pylint: disable=g-backslash-continuation
 # pylint: disable=line-too-long
 
+import collections
 from ply import lex
 from ply import yacc
 from pytypedecl import optimize
 from pytypedecl import pytd
-from pytypedecl import optimize
 
 
 class PyLexer(object):
@@ -137,6 +137,8 @@ class PyLexer(object):
   def t_error(self, t):
     raise make_syntax_error(self, "Illegal character '%s'" % t.value[0], t)
 
+Params = collections.namedtuple("Params", ["required", "has_optional"])
+NameAndSig = collections.namedtuple("NameAndSig", ["name", "signature"])
 
 class PyParser(object):
   """Parser for type declaration language."""
@@ -183,7 +185,7 @@ class PyParser(object):
     #        This will require handling indent/exdent and/or allowing {...}.
     #        Also requires supporting INDENT/DEDENT because otherwise it's
     #        ambiguous on the meaning of a funcdef after a classdef
-    funcdefs = [x for x in p[1] if isinstance(x, optimize.NameAndSignature)]
+    funcdefs = [x for x in p[1] if isinstance(x, NameAndSig)]
     constants = [x for x in p[1] if isinstance(x, pytd.Constant)]
     if (set(f.name for f in funcdefs) | set(c.name for c in constants) !=
         set(d.name for d in p[1])):
@@ -207,7 +209,7 @@ class PyParser(object):
     """classdef : CLASS template NAME parents COLON class_funcs"""
     #             1     2        3    4       5     6
     # TODO: do name lookups for template within class_funcs
-    funcdefs = [x for x in p[6] if isinstance(x, optimize.NameAndSignature)]
+    funcdefs = [x for x in p[6] if isinstance(x, NameAndSig)]
     constants = [x for x in p[6] if isinstance(x, pytd.Constant)]
     if (set(f.name for f in funcdefs) | set(c.name for c in constants) !=
         set(d.name for d in p[6])):
@@ -281,15 +283,16 @@ class PyParser(object):
 
   def p_constantdef(self, p):
     """constantdef : NAME COLON compound_type"""
-    p[0] = pytd.Constant(p[1], p[2])
+    p[0] = pytd.Constant(p[1], p[3])
 
   def p_funcdef(self, p):
     """funcdef : provenance DEF template NAME LPAREN params RPAREN return raises signature"""
     #            1          2   3        4     5     6      7      8      9     10
     # TODO: do name lookups for template within params, return, raises
-    signature = pytd.Signature(params=p[6], return_type=p[8], exceptions=p[9],
-                               template=p[3], provenance=p[1])
-    p[0] = optimize.NameAndSignature(name=p[4], signature=signature)
+    signature = pytd.Signature(params=p[6].required, return_type=p[8],
+                               exceptions=p[9], template=p[3],
+                               has_optional=p[6].has_optional, provenance=p[1])
+    p[0] = NameAndSig(name=p[4], signature=signature)
 
   def p_return(self, p):
     """return : ARROW compound_type"""
@@ -301,15 +304,23 @@ class PyParser(object):
 
   def p_params_multi(self, p):
     """params : params COMMA param"""
-    p[0] = p[1] + [p[3]]
+    p[0] = Params(p[1].required + [p[3]], has_optional=False)
+
+  def p_params_ellipsis(self, p):
+    """params : params COMMA DOT DOT DOT"""
+    p[0] = Params(p[1].required, has_optional=True)
 
   def p_params_1(self, p):
     """params : param"""
-    p[0] = [p[1]]
+    p[0] = Params([p[1]], has_optional=False)
+
+  def p_params_only_ellipsis(self, p):
+    """params : DOT DOT DOT"""
+    p[0] = Params([], has_optional=True)
 
   def p_params_null(self, p):
     """params :"""
-    p[0] = []
+    p[0] = Params([], has_optional=False)
 
   def p_param(self, p):
     """param : NAME"""
@@ -338,7 +349,7 @@ class PyParser(object):
 
   def p_exception(self, p):
     """exception : compound_type"""
-    p[0] = pytd.ExceptionDef(p[1])
+    p[0] = p[1]
 
   def p_identifier_name(self, p):
     """identifier : NAME"""
@@ -381,12 +392,10 @@ class PyParser(object):
   # This is parameterized type
   # TODO(raoulDoc): support data types in future?
   # data  Tree a  =  Leaf a | Branch (Tree a) (Tree a)
-  # TODO(raoulDoc): restricted to 2 params on purpose
-  # might want to extend in future if there are use cases
   # TODO(raoulDoc): should we consider nested generics?
 
   # TODO: for generic types, we explicitly don't allow
-  #                  compound_type[...] but insist on identifier[...] ... this
+  #                  compound_type<...> but insist on identifier<...> ... this
   #                  is because the grammar would be ambiguous, but for some
   #                  reason PLY didn't come up with a shift/reduce conflict but
   #                  just quietly promoted OR and AND above LBRACKET
@@ -394,13 +403,17 @@ class PyParser(object):
   #                  to not use precedence and write everything out fully, even
   #                  if it's a more verbose grammar.
 
-  def p_compound_type_generic_1(self, p):
-    """compound_type : identifier LBRACKET compound_type RBRACKET"""
-    p[0] = pytd.GenericType1(base_type=p[1], type1=p[3])
+  def p_compound_type_homogeneous(self, p):
+    """compound_type : identifier LBRACKET parameter RBRACKET"""
+    p[0] = pytd.HomogeneousContainerType(base_type=p[1], element_type=p[3])
 
-  def p_compound_type_generic_2(self, p):
-    """compound_type : identifier LBRACKET compound_type COMMA compound_type RBRACKET"""
-    p[0] = pytd.GenericType2(base_type=p[1], type1=p[3], type2=p[5])
+  def p_compound_type_generic_1(self, p):
+    """compound_type : identifier LBRACKET parameter COMMA RBRACKET"""
+    p[0] = pytd.GenericType(base_type=p[1], parameters=[p[3]])
+
+  def p_compound_type_generic(self, p):
+    """compound_type : identifier LBRACKET many_parameters RBRACKET"""
+    p[0] = pytd.GenericType(base_type=p[1], parameters=p[3])
 
   def p_compound_type_paren(self, p):
     """compound_type : LPAREN compound_type RPAREN"""
@@ -408,6 +421,22 @@ class PyParser(object):
 
   def p_compound_type_identifier(self, p):
     """compound_type : identifier"""
+    p[0] = p[1]
+
+  def p_parameters_1(self, p):
+    """parameters : parameter"""
+    p[0] = [p[1]]
+
+  def p_parameters_multi(self, p):
+    """parameters : parameters COMMA parameter"""
+    p[0] = p[1] + [p[3]]
+
+  def p_many_parameters(self, p):
+    """many_parameters : parameters COMMA parameter"""
+    p[0] = p[1] + [p[3]]
+
+  def p_parameter(self, p):
+    """parameter : compound_type"""
     p[0] = p[1]
 
   def p_provenance_approved(self, p):

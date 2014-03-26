@@ -16,7 +16,7 @@
 
 
 class Emailer:
-  def MakeAnnoucement(self, emails: list<str>) -> None
+  def MakeAnnouncement(self, emails: list<str>) -> None
   def SendEmail(self, addr) -> str
   def GetServerInfo(cls, port: int) -> str
 

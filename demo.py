@@ -18,5 +18,5 @@
 from examples import email
 
 e = email.Emailer()
-email.Emailer.MakeAnnoucement("nobody@example.com")
+email.Emailer.MakeAnnouncement("nobody@example.com")
 e.Bonjour()
