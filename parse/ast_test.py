@@ -20,6 +20,7 @@ import unittest
 from pytypedecl import pytd
 from pytypedecl.parse import parser
 from pytypedecl.parse import typed_tuple
+from pytypedecl.parse import node
 
 
 class TestASTGeneration(unittest.TestCase):
@@ -321,6 +322,135 @@ class TestTupleEq(unittest.TestCase):
     self.assertFalse(c2a == c2b)  # explicitly test __eq__
     self.assertTrue(c2a != c2b)  # explicitly test __ne__
     self.assertNotEqual(c2a, c2b)
+
+
+class Node1(node.Node("a", "b")):
+  def Total(self):
+    return sum(self)  # sum(tuple(self)) or sum(iter(self))
+
+  def Total2(self):
+    return self.a + self.b
+
+
+class Node2(node.Node("x", "y")):
+  pass
+
+
+# class Node2b has same fields as Node2
+class Node2b(node.Node("x", "y")):
+  pass
+
+
+class Data(node.Node("d1", "d2", "d3")):
+  pass
+
+
+class V(node.Node("x")):
+  pass
+
+
+class X(node.Node("a", "b")):
+  pass
+
+
+class Y(node.Node("c", "d")):
+  pass
+
+
+class XY(node.Node("x", "y")):
+  pass
+
+
+class Visitor1(object):
+  def VisitData(self, node):
+    return node._replace(d3=-1)
+
+
+class Visitor2(object):
+  def VisitData(self, node, r):
+    return XY(r, r)
+
+  def VisitV(self, node, r):
+    return X(V(r), V(r))
+
+  def VisitY(self, node):
+    # change Y to X
+    return X(*node)
+
+
+class TestTupleEq(unittest.TestCase):
+  """Test typed_tupe.Eq (which is heavily used in other tests."""
+
+  def testDeepEq1(self):
+    c1a = Node1(a=1, b=2)
+    self.assertEqual(c1a.Total(), 3)
+    self.assertEqual(c1a.Total2(), 3)
+    c1b = Node1(a=1, b=2)
+    self.assertTrue(c1a == c1b)  # explicitly test __eq__
+    self.assertFalse(c1a != c1b)  # explicitly test __ne__
+    self.assertEqual(c1a, c1b)
+    c2a = Node2(x="foo", y=c1a)
+    c2b = Node2(x="foo", y=c1b)
+    self.assertTrue(c2a == c2b)  # explicitly test __eq__
+    self.assertFalse(c2a != c2b)  # explicitly test __ne__
+    self.assertEqual(c1a, c1b)
+
+  def testDeepEq2(self):
+    c1a = Node1(a=1, b=2)
+    c1b = Node1(a=1, b=3)
+    self.assertFalse(c1a == c1b)  # explicitly test __eq__
+    self.assertTrue(c1a != c1b)  # explicitly test __ne__
+    self.assertNotEqual(c1a, c1b)
+    c2a = Node2(x="foo", y=c1a)
+    c2b = Node2(x="foo", y=c1b)
+    self.assertFalse(c2a == c2b)  # explicitly test __eq__
+    self.assertTrue(c2a != c2b)  # explicitly test __ne__
+    self.assertNotEqual(c1a, c1b)
+
+  def testImmutable(self):
+    c1a = Node1(a=1, b=2)
+    c2a = Node2(x="foo", y=c1a)
+    c2b = Node2b(x="foo", y=c1a)
+    with self.assertRaises(AttributeError):
+      c2a.x = "bar"
+    with self.assertRaises(AttributeError):
+      c2a.y.b = 999
+    self.assertFalse(c2a == c2b)  # explicitly test __eq__
+    self.assertTrue(c2a != c2b)  # explicitly test __ne__
+    self.assertNotEqual(c2a, c2b)
+
+  def testVisitor1(self):
+    data = Data(42, 43, 44)
+    x = X(1, [1, 2])
+    y = Y([V(1)], {"bla": data})
+    xy = XY(x, y)
+    xy_expected = "XY(X(1, [1, 2]), Y([V(1)], {'bla': Data(42, 43, 44)}))"
+    self.assertEquals(repr(xy), xy_expected)
+    v = Visitor1()
+    new_xy = xy.Visit(v)
+    self.assertEquals(repr(new_xy),
+                      "XY(X(1, [1, 2]), Y([V(1)], {'bla': Data(42, 43, -1)}))")
+    self.assertEquals(repr(xy), xy_expected) # check that xy is unchanged
+
+
+  def testVisitor2(self):
+    xy = XY(V(1), Data(1, 2, 3))
+    xy_expected = "XY(V(1), Data(1, 2, 3))"
+    self.assertEquals(repr(xy), xy_expected)
+    v = Visitor2()
+    new_xy = xy.Visit(v, 42)
+    self.assertEquals(repr(new_xy), "XY(X(V(42), V(42)), XY(42, 42))")
+    self.assertEquals(repr(xy), xy_expected) # check that xy is unchanged
+
+
+  def testRecursion(self):
+    y =Y(Y(1, 2), Y(3, Y(4, 5)))
+    y_expected = "Y(Y(1, 2), Y(3, Y(4, 5)))"
+    self.assertEquals(repr(y), y_expected)
+    v = Visitor2()
+    new_y = y.Visit(v)
+    self.assertEquals(repr(new_y), y_expected.replace("Y", "X"))
+    self.assertEquals(repr(y), y_expected) # check that original is unchanged
 
 
 if __name__ == "__main__":
