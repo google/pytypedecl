@@ -64,6 +64,7 @@ class PyLexer(object):
   t_LBRACKET = r'\['
   t_LPAREN = r'\('
   t_MINUS = r'-'
+  t_PASS = r'pass'
   t_PLUS = r'\+'
   t_QUESTION = r'\?'
   t_RAISE = r'raise'
@@ -76,6 +77,7 @@ class PyLexer(object):
       t_CLASS: 'CLASS',
       t_DEF: 'DEF',
       t_INTERFACE: 'INTERFACE',
+      t_PASS: 'PASS',
       t_RAISE: 'RAISE',
   }
 
@@ -104,12 +106,10 @@ class PyLexer(object):
   # Ignored characters
   t_ignore = ' \t'
 
-  # Start symbol
-  start = 'defs'
-
   def t_NAME(self, t):
-    r"""([a-zA-Z_][a-zA-Z0-9_\.]*)|""" \
-    r"""(`[^`]*`)"""
+    (r"""([*]{0,2}[a-zA-Z_][a-zA-Z0-9_\.]*)|"""
+     r"""(`[^`]*`)""")
+    # TODO(kramm): *args, **kwargs might better be handled in the grammar
     # This defines a token of the form `...`, to allow names that are keywords
     # in pytd syntax.
     if t.value[0] == r'`':
@@ -121,8 +121,8 @@ class PyLexer(object):
     return t
 
   def t_STRING(self, t):
-    r"""'([^']|\\')*'|""" \
-    r'"([^"]|\\")*"'
+    (r"""'([^']|\\')*'|"""
+     r'"([^"]|\\")*"')
     # TODO: full Python string syntax (e.g., """...""", r"...")
     t.value = eval(t.value)
     return t
@@ -162,6 +162,7 @@ class PyParser(object):
     self.lexer = PyLexer()
     self.tokens = self.lexer.tokens
     self.parser = yacc.yacc(
+        start='defs',
         module=self,
         debug=False,
         # debuglog=yacc.PlyLogger(sys.stderr),
@@ -210,6 +211,10 @@ class PyParser(object):
   def p_class_funcs(self, p):
     """class_funcs : class_funcs funcdef"""
     p[0] = p[1] + [p[2]]
+
+  def p_class_funcs_pass(self, p):
+    """class_funcs : PASS"""
+    p[0] = []
 
   def p_class_funcs_null(self, p):
     """class_funcs :"""
@@ -322,6 +327,11 @@ class PyParser(object):
     """param : NAME"""
     # type can be optional if we don't want to typecheck
     p[0] = ast.PyOptParam(p[1], typing.UnknownType())
+
+  def p_param_optional(self, p):
+    """param : NAME QUESTION"""
+    # We treat optional params as if they don't have a type.
+    p[0] = ast.PyOptParam(p[1], typing.OptionalUnknownType())
 
   def p_param_and_type(self, p):
     """param : NAME COLON compound_type"""

@@ -162,3 +162,13 @@ class UnknownType(typed_tuple.Eq, collections.namedtuple('UnknownType', '')):
 
   def Process(self, processor):
     return processor.ProcessUnknownType(self)
+
+
+class OptionalUnknownType(typed_tuple.Eq,
+                          collections.namedtuple('OptionalUnknownType', '')):
+
+  def ExpandTemplates(self, unused_rev_templatesn):
+    return self
+
+  def Process(self, processor):
+    return processor.ProcessOptionalUnknownType(self)
