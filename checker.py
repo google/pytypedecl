@@ -25,7 +25,7 @@ import inspect
 import itertools
 import sys
 import types
-from pytypedecl.parse import typing
+from pytypedecl import pytd
 from pytypedecl.parse import utils
 
 _parse_utils = utils.ParserUtils()
@@ -112,10 +112,10 @@ def ConvertToType(module, interfaces, type_node):
     TypeError: if the type node passed is not supported/unknown
   """
   # unknown type can be passed through
-  if isinstance(type_node, typing.UnknownType):
+  if isinstance(type_node, pytd.UnknownType):
     return type_node
   # clean up str
-  if isinstance(type_node, typing.BasicType):
+  if isinstance(type_node, pytd.BasicType):
     if type_node.containing_type == "None":
       return types.NoneType
     elif type_node.containing_type == "generator":
@@ -123,34 +123,34 @@ def ConvertToType(module, interfaces, type_node):
     elif type_node.containing_type in interfaces:
       ops = _GetListOpsForInterface(interfaces[type_node.containing_type],
                                     interfaces)
-      return typing.StructType(ops)
+      return pytd.StructType(ops)
     else:
       res = _EvalWithModuleContext(type_node.containing_type, module)
       assert isinstance(res, type), (type_node.containing_type, repr(res))
       return res
 
-  elif isinstance(type_node, typing.NoneAbleType):
-    return typing.NoneAbleType(ConvertToType(module, interfaces,
+  elif isinstance(type_node, pytd.NoneAbleType):
+    return pytd.NoneAbleType(ConvertToType(module, interfaces,
                                              type_node.base_type))
 
-  elif isinstance(type_node, typing.UnionType):
-    return typing.UnionType([ConvertToType(module, interfaces, t)
+  elif isinstance(type_node, pytd.UnionType):
+    return pytd.UnionType([ConvertToType(module, interfaces, t)
                              for t in type_node.type_list])
 
-  elif isinstance(type_node, typing.IntersectionType):
-    return typing.IntersectionType([ConvertToType(module, interfaces, t)
+  elif isinstance(type_node, pytd.IntersectionType):
+    return pytd.IntersectionType([ConvertToType(module, interfaces, t)
                                     for t in type_node.type_list])
 
-  elif isinstance(type_node, typing.GenericType1):
-    return typing.GenericType1(ConvertToType(module,
+  elif isinstance(type_node, pytd.GenericType1):
+    return pytd.GenericType1(ConvertToType(module,
                                              interfaces,
                                              type_node.base_type),
                                ConvertToType(module,
                                              interfaces,
                                              type_node.type1))
 
-  elif isinstance(type_node, typing.GenericType2):
-    return typing.GenericType2(ConvertToType(module,
+  elif isinstance(type_node, pytd.GenericType2):
+    return pytd.GenericType2(ConvertToType(module,
                                              interfaces,
                                              type_node.base_type),
                                ConvertToType(module,
@@ -200,30 +200,30 @@ def IsCompatibleType(actual, formal):
     TypeError: if a generic type is not supported
   """
 
-  if isinstance(formal, typing.UnknownType):
+  if isinstance(formal, pytd.UnknownType):
     # we don't type check unknown type, let python deal with it
     return True
-  if isinstance(formal, typing.StructType):
+  if isinstance(formal, pytd.StructType):
     # we check that all the interface operations are supported in actual
     actual_ops = dir(actual)
     # TODO: this assumes all the entries are MinimalFunction:
     return all(o.name in actual_ops for o in formal.ops)
-  if isinstance(formal, typing.NoneAbleType):
+  if isinstance(formal, pytd.NoneAbleType):
     return (IsCompatibleType(actual, types.NoneType)
             or IsCompatibleType(actual, formal.base_type))
-  if isinstance(formal, typing.UnionType):
+  if isinstance(formal, pytd.UnionType):
     for t in formal.type_list:
       if IsCompatibleType(actual, t):
         return True
     return False
-  if isinstance(formal, typing.IntersectionType):
+  if isinstance(formal, pytd.IntersectionType):
     for t in formal.type_list:
       if not IsCompatibleType(actual, t):
         return False
     return True
   # check if base type matches
   # then check that all elements match too (e.g. a list[int])
-  if isinstance(formal, typing.GenericType1):
+  if isinstance(formal, pytd.GenericType1):
     if isinstance(actual, formal.base_type):
       # we don't consume decorators, rather their elements are
       # typechecked on demand. See _Check function
@@ -233,7 +233,7 @@ def IsCompatibleType(actual, formal):
       return True
     return False
   # TODO(raoulDoc): GenericType2, assume only dict for now
-  if isinstance(formal, typing.GenericType2):
+  if isinstance(formal, pytd.GenericType2):
     if not isinstance(actual, dict):
       raise TypeError("Only dict is supported for types with 2 type params")
     return all(
@@ -328,7 +328,7 @@ def TypeCheck(module, interfaces, func, func_sigs):
           # Was the generator defined as generic-typed?
           # TODO(raoulDoc): formal  may be a union, so need to extract
           # generator signature
-          if isinstance(resolved_type, typing.GenericType1):
+          if isinstance(resolved_type, pytd.GenericType1):
             # if yes replace generator with a decorated version
             # we check if we already created a decorated version
             # for cases such as foo(same_gen, same_gen)

@@ -17,7 +17,7 @@
 
 import unittest
 from pytypedecl import checker
-from pytypedecl.parse import typing
+from pytypedecl import pytd
 from tests import generics
 
 
@@ -35,7 +35,7 @@ class TestCheckerGenerics(unittest.TestCase):
     expected = checker.ParamTypeErrorMsg("Length",
                                          "l",
                                          list,
-                                         typing.GenericType1(list, int))
+                                         pytd.GenericType1(list, int))
     [actual] = context.exception.args[0]
     self.assertEquals(expected, actual)
 
@@ -45,7 +45,7 @@ class TestCheckerGenerics(unittest.TestCase):
     expected = checker.ParamTypeErrorMsg("Length",
                                          "l",
                                          list,
-                                         typing.GenericType1(list, int))
+                                         pytd.GenericType1(list, int))
 
     [actual] = context.exception.args[0]
     self.assertEquals(expected, actual)
@@ -61,7 +61,7 @@ class TestCheckerGenerics(unittest.TestCase):
     expected_p = checker.ParamTypeErrorMsg("UnwrapBox",
                                            "b",
                                            generics.Box,
-                                           typing.GenericType1(
+                                           pytd.GenericType1(
                                                generics.Box, int))
 
     expected_r = checker.ReturnTypeErrorMsg("UnwrapBox",

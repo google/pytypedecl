@@ -17,7 +17,7 @@
 
 import unittest
 from pytypedecl import checker
-from pytypedecl.parse import typing
+from pytypedecl import pytd
 from tests import simple
 from tests import union
 
@@ -36,7 +36,7 @@ class TestCheckerUnion(unittest.TestCase):
     expected = checker.ParamTypeErrorMsg("StrToInt",
                                          "i",
                                          int,
-                                         typing.NoneAbleType(str))
+                                         pytd.NoneAbleType(str))
 
     [actual] = context.exception.args[0]
     self.assertEquals(expected, actual)
@@ -74,7 +74,7 @@ class TestCheckerUnion(unittest.TestCase):
     expected = checker.ParamTypeErrorMsg("IntOrFloat",
                                          "a",
                                          str,
-                                         typing.UnionType([int, float]))
+                                         pytd.UnionType([int, float]))
 
     [actual] = context.exception.args[0]
     self.assertEquals(expected, actual)
@@ -91,12 +91,12 @@ class TestCheckerUnion(unittest.TestCase):
     expected_param = checker.ParamTypeErrorMsg("IntOrNone",
                                                "a",
                                                str,
-                                               typing.UnionType([int,
+                                               pytd.UnionType([int,
                                                                  type(None)]))
 
     expected_ret = checker.ReturnTypeErrorMsg("IntOrNone",
                                               str,
-                                              typing.UnionType([int,
+                                              pytd.UnionType([int,
                                                                 type(None)]))
 
     [actual_param, actual_ret] = context.exception.args[0]
@@ -117,7 +117,7 @@ class TestCheckerUnion(unittest.TestCase):
     expected = checker.ParamTypeErrorMsg("AppleOrBananaOrOrange",
                                          "f",
                                          int,
-                                         typing.UnionType([simple.Apple,
+                                         pytd.UnionType([simple.Apple,
                                                            simple.Banana,
                                                            simple.Orange]))
 
@@ -137,7 +137,7 @@ class TestCheckerUnion(unittest.TestCase):
 
     expected = checker.ReturnTypeErrorMsg("UnionReturnError",
                                           tuple,
-                                          typing.UnionType([int, list]))
+                                          pytd.UnionType([int, list]))
 
     [actual] = context.exception.args[0]
     self.assertEquals(expected, actual)
@@ -156,7 +156,7 @@ class TestCheckerUnion(unittest.TestCase):
     expected = checker.ParamTypeErrorMsg("DoSomeIOStuff",
                                          "f",
                                          union.Readable,
-                                         typing.IntersectionType(
+                                         pytd.IntersectionType(
                                              [union.Readable,
                                               union.Writable]))
 

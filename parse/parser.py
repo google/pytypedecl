@@ -34,8 +34,7 @@
 
 from ply import lex
 from ply import yacc
-from pytypedecl.parse import ast
-from pytypedecl.parse import typing
+from pytypedecl import pytd
 
 
 class PyLexer(object):
@@ -190,7 +189,7 @@ class PyParser(object):
     #        This will require handling indent/exdent and/or allowing {...}.
     #        Also requires supporting INDENT/DEDENT because otherwise it's
     #        ambiguous on the meaning of a funcdef after a classdef
-    p[0] = ast.TypeDeclUnit(p[3], p[2], p[1]).ExpandTemplates([])
+    p[0] = pytd.TypeDeclUnit(p[3], p[2], p[1]).ExpandTemplates([])
 
   def p_classdefs(self, p):
     """classdefs : classdefs classdef"""
@@ -207,7 +206,7 @@ class PyParser(object):
     """classdef : CLASS template NAME parents COLON class_funcs"""
     #             1     2        3    4       5     6
     # TODO: do name lookups for template within class_funcs
-    p[0] = ast.Class(name=p[3], parents=p[4], funcs=p[6], template=p[2])
+    p[0] = pytd.Class(name=p[3], parents=p[4], funcs=p[6], template=p[2])
 
   def p_class_funcs(self, p):
     """class_funcs : funcdefs"""
@@ -230,7 +229,7 @@ class PyParser(object):
     """interfacedef : INTERFACE template NAME parents COLON interface_attrs"""
     #                 1         2        3    4       5     6
     # TODO: do name lookups for template within interface_attrs
-    p[0] = ast.Interface(
+    p[0] = pytd.Interface(
         name=p[3], parents=p[4], attrs=p[6], template=p[2])
 
   def p_parents(self, p):
@@ -268,20 +267,20 @@ class PyParser(object):
 
   def p_template_item(self, p):
     """template_item : NAME"""
-    p[0] = ast.TemplateItem(p[1], typing.BasicType('object'), 0)
+    p[0] = pytd.TemplateItem(p[1], pytd.BasicType('object'), 0)
 
   def p_template_item_subclss(self, p):
     """template_item : NAME SUBCLASS compound_type"""
-    p[0] = ast.TemplateItem(p[1], p[3], 0)
+    p[0] = pytd.TemplateItem(p[1], p[3], 0)
 
   # TODO(raoulDoc): support signatures in interfaces
   def p_interface_attrs(self, p):
     """interface_attrs : interface_attrs DEF NAME"""
-    p[0] = p[1] + [ast.MinimalFunction(name=p[3])]
+    p[0] = p[1] + [pytd.MinimalFunction(name=p[3])]
 
   def p_interface_attrs_null(self, p):
     """interface_attrs : DEF NAME"""
-    p[0] = [ast.MinimalFunction(name=p[2])]
+    p[0] = [pytd.MinimalFunction(name=p[2])]
 
   def p_funcdefs_func(self, p):
     """funcdefs : funcdefs funcdef"""
@@ -298,13 +297,13 @@ class PyParser(object):
 
   def p_constantdef(self, p):
     """constantdef : NAME COLON compound_type"""
-    p[0] = ast.ConstantDef(p[1], p[2])
+    p[0] = pytd.ConstantDef(p[1], p[2])
 
   def p_funcdef(self, p):
     """funcdef : provenance DEF template NAME LPAREN params RPAREN return raise signature"""
     #            1          2   3        4     5     6      7      8      9     10
     # TODO: do name lookups for template within params, return, raise
-    p[0] = ast.Function(name=p[4], params=p[6], return_type=p[8],
+    p[0] = pytd.Function(name=p[4], params=p[6], return_type=p[8],
                             exceptions=p[9], template=p[3], provenance=p[1],
                             signature=p[10])
 
@@ -314,7 +313,7 @@ class PyParser(object):
 
   def p_return_null(self, p):
     """return :"""
-    p[0] = typing.BasicType('None')
+    p[0] = pytd.BasicType('None')
 
   def p_params_multi(self, p):
     """params : params COMMA param"""
@@ -322,11 +321,11 @@ class PyParser(object):
 
   def p_arg(self, p):
     """arg : ASTERISK param"""
-    p[0] = ast.Parameter(p[2].name, typing.VarArgType())
+    p[0] = pytd.Parameter(p[2].name, pytd.VarArgType())
 
   def p_kwarg(self, p):
     """kwarg : ASTERISK ASTERISK param"""
-    p[0] = ast.Parameter(p[3].name, typing.VarKeywordArgType())
+    p[0] = pytd.Parameter(p[3].name, pytd.VarKeywordArgType())
 
   def p_params_arg(self, p):
     """params : params COMMA arg"""
@@ -363,16 +362,16 @@ class PyParser(object):
   def p_param(self, p):
     """param : NAME"""
     # type can be optional if we don't want to typecheck
-    p[0] = ast.Parameter(p[1], typing.UnknownType())
+    p[0] = pytd.Parameter(p[1], pytd.UnknownType())
 
   def p_param_optional(self, p):
     """param : NAME QUESTION"""
     # We treat optional params as if they don't have a type.
-    p[0] = ast.Parameter(p[1], typing.OptionalUnknownType())
+    p[0] = pytd.Parameter(p[1], pytd.OptionalUnknownType())
 
   def p_param_and_type(self, p):
     """param : NAME COLON compound_type"""
-    p[0] = ast.Parameter(p[1], p[3])
+    p[0] = pytd.Parameter(p[1], p[3])
 
   def p_raise(self, p):
     """raise : RAISE exceptions"""
@@ -392,49 +391,49 @@ class PyParser(object):
 
   def p_exception(self, p):
     """exception : compound_type"""
-    p[0] = ast.ExceptionDef(p[1])
+    p[0] = pytd.ExceptionDef(p[1])
 
   def p_identifier_name_optional(self, p):
     """identifier : NAME QUESTION"""
-    p[0] = typing.NoneAbleType(typing.BasicType(p[1]))
+    p[0] = pytd.NoneAbleType(pytd.BasicType(p[1]))
 
   def p_identifier_name(self, p):
     """identifier : NAME"""
-    p[0] = typing.BasicType(p[1])
+    p[0] = pytd.BasicType(p[1])
 
   def p_identifier_string(self, p):
     """identifier : STRING"""
-    p[0] = typing.ConstType(p[1])
+    p[0] = pytd.ConstType(p[1])
 
   def p_identifier_number(self, p):
     """identifier : NUMBER"""
-    p[0] = typing.ConstType(p[1])
+    p[0] = pytd.ConstType(p[1])
 
   def p_compound_type_intersect(self, p):
     """compound_type : compound_type INTERSECT compound_type"""
     # This rule depends on precedence specification
-    if (isinstance(p[1], typing.IntersectionType) and
-        isinstance(p[3], typing.BasicType)):
-      p[0] = typing.IntersectionType(p[1].type_list + [p[3]])
-    elif (isinstance(p[1], typing.BasicType) and
-          isinstance(p[3], typing.IntersectionType)):
+    if (isinstance(p[1], pytd.IntersectionType) and
+        isinstance(p[3], pytd.BasicType)):
+      p[0] = pytd.IntersectionType(p[1].type_list + [p[3]])
+    elif (isinstance(p[1], pytd.BasicType) and
+          isinstance(p[3], pytd.IntersectionType)):
       # associative
-      p[0] = typing.IntersectionType([p[1]] + p[3].type_list)
+      p[0] = pytd.IntersectionType([p[1]] + p[3].type_list)
     else:
-      p[0] = typing.IntersectionType([p[1], p[3]])
+      p[0] = pytd.IntersectionType([p[1], p[3]])
 
   def p_compound_type_union(self, p):
     """compound_type : compound_type UNION compound_type"""
     # This rule depends on precedence specification
-    if (isinstance(p[1], typing.UnionType) and
-        isinstance(p[3], typing.BasicType)):
-      p[0] = typing.UnionType(p[1].type_list + [p[3]])
-    elif (isinstance(p[1], typing.BasicType) and
-          isinstance(p[3], typing.UnionType)):
+    if (isinstance(p[1], pytd.UnionType) and
+        isinstance(p[3], pytd.BasicType)):
+      p[0] = pytd.UnionType(p[1].type_list + [p[3]])
+    elif (isinstance(p[1], pytd.BasicType) and
+          isinstance(p[3], pytd.UnionType)):
       # associative
-      p[0] = typing.UnionType([p[1]] + p[3].type_list)
+      p[0] = pytd.UnionType([p[1]] + p[3].type_list)
     else:
-      p[0] = typing.UnionType([p[1], p[3]])
+      p[0] = pytd.UnionType([p[1], p[3]])
 
   # This is parameterized type
   # TODO(raoulDoc): support data types in future?
@@ -454,11 +453,11 @@ class PyParser(object):
 
   def p_compound_type_generic_1(self, p):
     """compound_type : identifier LBRACKET compound_type RBRACKET"""
-    p[0] = typing.GenericType1(base_type=p[1], type1=p[3])
+    p[0] = pytd.GenericType1(base_type=p[1], type1=p[3])
 
   def p_compound_type_generic_2(self, p):
     """compound_type : identifier LBRACKET compound_type COMMA compound_type RBRACKET"""
-    p[0] = typing.GenericType2(base_type=p[1], type1=p[3], type2=p[5])
+    p[0] = pytd.GenericType2(base_type=p[1], type1=p[3], type2=p[5])
 
   def p_compound_type_paren(self, p):
     """compound_type : LPAREN compound_type RPAREN"""

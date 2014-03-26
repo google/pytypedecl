@@ -17,10 +17,9 @@
 import collections
 import textwrap
 import unittest
-from pytypedecl.parse import ast
+from pytypedecl import pytd
 from pytypedecl.parse import parser
 from pytypedecl.parse import typed_tuple
-from pytypedecl.parse import typing
 
 
 class TestASTGeneration(unittest.TestCase):
@@ -36,24 +35,24 @@ class TestASTGeneration(unittest.TestCase):
         """)
 
     result = self.parser.Parse(data)
-    expect = ast.TypeDeclUnit(
+    expect = pytd.TypeDeclUnit(
         interfacedefs=[],
         classdefs=[],
         funcdefs=[
-            ast.Function(
+            pytd.Function(
                 name="foo",
                 params=[
-                    ast.Parameter(
+                    pytd.Parameter(
                         name="a",
-                        type=typing.BasicType("int")),
-                    ast.Parameter(
+                        type=pytd.BasicType("int")),
+                    pytd.Parameter(
                         name="c",
-                        type=typing.BasicType("bool"))],
-                return_type=typing.BasicType("int"),
+                        type=pytd.BasicType("bool"))],
+                return_type=pytd.BasicType("int"),
                 template=[], provenance="", signature=None,
                 exceptions=[
-                    ast.ExceptionDef(typing.BasicType("Test")),
-                    ast.ExceptionDef(typing.BasicType("Foo"))])])
+                    pytd.ExceptionDef(pytd.BasicType("Test")),
+                    pytd.ExceptionDef(pytd.BasicType("Foo"))])])
     self.assertEqual(expect, result)
 
   def testMultiFunction(self):
@@ -67,43 +66,43 @@ class TestASTGeneration(unittest.TestCase):
         """)
 
     result = self.parser.Parse(data)
-    expect = ast.TypeDeclUnit(
+    expect = pytd.TypeDeclUnit(
         interfacedefs=[],
         classdefs=[],
         funcdefs=[
-            ast.Function(
+            pytd.Function(
                 name="foo",
                 params=[
-                    ast.Parameter(
+                    pytd.Parameter(
                         name="a",
-                        type=typing.BasicType("int")),
-                    ast.Parameter(
+                        type=pytd.BasicType("int")),
+                    pytd.Parameter(
                         name="c",
-                        type=typing.BasicType("bool"))],
-                return_type=typing.BasicType("int"),
+                        type=pytd.BasicType("bool"))],
+                return_type=pytd.BasicType("int"),
                 template=[], provenance="", signature=None,
                 exceptions=[
-                    ast.ExceptionDef(typing.BasicType("Test")),
-                    ast.ExceptionDef(typing.BasicType("Foo"))]),
-            ast.Function(
+                    pytd.ExceptionDef(pytd.BasicType("Test")),
+                    pytd.ExceptionDef(pytd.BasicType("Foo"))]),
+            pytd.Function(
                 name="foo",
                 params=[],
-                return_type=typing.BasicType(
+                return_type=pytd.BasicType(
                     "None"),
                 template=[], provenance="", signature=None,
                 exceptions=[]),
-            ast.Function(
+            pytd.Function(
                 name="add",
                 params=[
-                    ast.Parameter(
+                    pytd.Parameter(
                         name="x",
-                        type=typing.BasicType(
+                        type=pytd.BasicType(
                             "int")),
-                    ast.Parameter(
+                    pytd.Parameter(
                         name="y",
-                        type=typing.BasicType(
+                        type=pytd.BasicType(
                             "int"))],
-                return_type=typing.BasicType(
+                return_type=pytd.BasicType(
                     "int"),
                 template=[], provenance="", signature=None,
                 exceptions=[])])
@@ -129,37 +128,37 @@ class TestASTGeneration(unittest.TestCase):
     result2 = self.parser.Parse(data2)
     result3 = self.parser.Parse(data3)
     result4 = self.parser.Parse(data4)
-    expect = ast.TypeDeclUnit(
+    expect = pytd.TypeDeclUnit(
         interfacedefs=[],
         classdefs=[],
         funcdefs=[
-            ast.Function(
+            pytd.Function(
                 name="foo",
                 params=[
-                    ast.Parameter(
+                    pytd.Parameter(
                         name="a",
-                        type=typing.NoneAbleType(
-                            base_type=typing.BasicType(
+                        type=pytd.NoneAbleType(
+                            base_type=pytd.BasicType(
                                 "int"))),
-                    ast.Parameter(
+                    pytd.Parameter(
                         name="b",
-                        type=typing.UnionType(
+                        type=pytd.UnionType(
                             type_list=[
-                                typing.BasicType("int"),
-                                typing.BasicType("float"),
-                                typing.BasicType("None")])),
-                    ast.Parameter(
+                                pytd.BasicType("int"),
+                                pytd.BasicType("float"),
+                                pytd.BasicType("None")])),
+                    pytd.Parameter(
                         name="c",
-                        type=typing.IntersectionType(
+                        type=pytd.IntersectionType(
                             type_list=[
-                                typing.BasicType("Foo"),
-                                typing.BasicType("s.Bar"),
-                                typing.BasicType("Zot")]))],
-                return_type=typing.NoneAbleType(
-                    base_type=typing.BasicType(
+                                pytd.BasicType("Foo"),
+                                pytd.BasicType("s.Bar"),
+                                pytd.BasicType("Zot")]))],
+                return_type=pytd.NoneAbleType(
+                    base_type=pytd.BasicType(
                         "int")),
                 exceptions=[
-                    ast.ExceptionDef(typing.BasicType("Bad"))],
+                    pytd.ExceptionDef(pytd.BasicType("Bad"))],
                 template=[], provenance="", signature=None)])
     self.assertEqual(expect, result1)
     self.assertEqual(expect, result2)
@@ -173,24 +172,24 @@ class TestASTGeneration(unittest.TestCase):
     data2 = r"def foo(a: Foo | (Bar & Zot))"
     result1 = self.parser.Parse(data1)
     result2 = self.parser.Parse(data2)
-    expect = ast.TypeDeclUnit(
+    expect = pytd.TypeDeclUnit(
         interfacedefs=[],
         classdefs=[],
         funcdefs=[
-            ast.Function(
+            pytd.Function(
                 name="foo",
                 params=[
-                  ast.Parameter(
+                  pytd.Parameter(
                       name="a",
-                      type=typing.UnionType(
+                      type=pytd.UnionType(
                           type_list=[
-                              typing.BasicType("Foo"),
-                              typing.IntersectionType(
+                              pytd.BasicType("Foo"),
+                              pytd.IntersectionType(
                                   type_list=[
-                                      typing.BasicType("Bar"),
-                                      typing.BasicType("Zot")])]))
+                                      pytd.BasicType("Bar"),
+                                      pytd.BasicType("Zot")])]))
                     ],
-                return_type=typing.BasicType("None"),
+                return_type=pytd.BasicType("None"),
                 template=[], provenance="", signature=None,
                 exceptions=[])])
     self.assertEqual(expect, result1)
@@ -219,14 +218,14 @@ class TestASTGeneration(unittest.TestCase):
                    "template=[])], "
                    "classdefs=[], "
                    "funcdefs=[])")
-    expect = ast.TypeDeclUnit(
+    expect = pytd.TypeDeclUnit(
         interfacedefs=[
-            ast.Interface(
+            pytd.Interface(
                 name="Readable",
                 parents=[], template=[],
-                attrs=[ast.MinimalFunction("Open"),
-                       ast.MinimalFunction("Read"),
-                       ast.MinimalFunction("Close")])],
+                attrs=[pytd.MinimalFunction("Open"),
+                       pytd.MinimalFunction("Read"),
+                       pytd.MinimalFunction("Close")])],
         classdefs=[],
         funcdefs=[])
     self.assertEqual(expect, result)
@@ -252,30 +251,30 @@ class TestASTGeneration(unittest.TestCase):
         """)
 
     result = self.parser.Parse(data)
-    expect = ast.TypeDeclUnit(
+    expect = pytd.TypeDeclUnit(
         interfacedefs=[
-            ast.Interface(
+            pytd.Interface(
                 name="Openable",
                 parents=[], template=[],
-                attrs=[ast.MinimalFunction("Open")]),
-            ast.Interface(
+                attrs=[pytd.MinimalFunction("Open")]),
+            pytd.Interface(
                 name="Closable",
                 parents=[], template=[],
-                attrs=[ast.MinimalFunction("Close")]),
-            ast.Interface(
+                attrs=[pytd.MinimalFunction("Close")]),
+            pytd.Interface(
                 name="Readable", template=[],
                 parents=["Openable", "Closable"],
-                attrs=[ast.MinimalFunction("Read")]),
-            ast.Interface(
+                attrs=[pytd.MinimalFunction("Read")]),
+            pytd.Interface(
                 name="Writable", template=[],
                 parents=["Openable", "Closable"],
-                attrs=[ast.MinimalFunction("Write")])],
+                attrs=[pytd.MinimalFunction("Write")])],
         classdefs=[],
         funcdefs=[
-            ast.Function(
+            pytd.Function(
                 name="foo",
                 params=[],
-                return_type=typing.BasicType("None"),
+                return_type=pytd.BasicType("None"),
                 exceptions=[],
                 template=[], provenance="", signature=None)])
     self.assertEqual(expect, result)
@@ -289,22 +288,22 @@ class TestASTGeneration(unittest.TestCase):
         """)
 
     result = self.parser.Parse(data)
-    expect = ast.TypeDeclUnit(
+    expect = pytd.TypeDeclUnit(
         interfacedefs=[],
         classdefs=[],
         funcdefs=[
-            ast.Function(
+            pytd.Function(
                 name="interface",
                 params=[
-                    ast.Parameter(name="abcde",
-                                   type=typing.ConstType(value="xyz")),
-                    ast.Parameter(name="foo",
-                                   type=typing.ConstType(value='a"b')),
-                    ast.Parameter(name="b",
-                                   type=typing.ConstType(value=-1.0)),
-                    ast.Parameter(name="c",
-                                   type=typing.ConstType(value=666))],
-                return_type=typing.BasicType("int"),
+                    pytd.Parameter(name="abcde",
+                                   type=pytd.ConstType(value="xyz")),
+                    pytd.Parameter(name="foo",
+                                   type=pytd.ConstType(value='a"b')),
+                    pytd.Parameter(name="b",
+                                   type=pytd.ConstType(value=-1.0)),
+                    pytd.Parameter(name="c",
+                                   type=pytd.ConstType(value=666))],
+                return_type=pytd.BasicType("int"),
                 exceptions=[],
                 template=[], provenance="", signature=None)])
     self.assertEqual(expect, result)
@@ -317,14 +316,14 @@ class TestASTGeneration(unittest.TestCase):
 
     result1 = self.parser.Parse(data1)
     result2 = self.parser.Parse(data2)
-    expect = ast.TypeDeclUnit(
+    expect = pytd.TypeDeclUnit(
         interfacedefs=[],
         classdefs=[],
         funcdefs=[
-            ast.Function(
+            pytd.Function(
                 name="foo",
                 params=[],
-                return_type=typing.BasicType("None"),
+                return_type=pytd.BasicType("None"),
                 template=[], provenance="", signature=None, exceptions=[])])
     self.assertEqual(result1, expect)
     self.assertEqual(result2, expect)
@@ -340,86 +339,86 @@ class TestASTGeneration(unittest.TestCase):
         """)
 
     result = self.parser.Parse(data)
-    expect = ast.TypeDeclUnit(
+    expect = pytd.TypeDeclUnit(
         interfacedefs=[],
-        classdefs=[ast.Class(
+        classdefs=[pytd.Class(
             name="MyClass",
             parents=[],
             funcs=[
-                ast.Function(
+                pytd.Function(
                     name="f1",
                     params=[
-                        ast.Parameter(
+                        pytd.Parameter(
                             name="c",
-                            type=ast.TemplateItem(
+                            type=pytd.TemplateItem(
                                 name="C",
-                                within_type=typing.BasicType("Cbase"),
+                                within_type=pytd.BasicType("Cbase"),
                                 level=1))],
-                    return_type=typing.BasicType("None"),
+                    return_type=pytd.BasicType("None"),
                     exceptions=[],
                     template=[],
                     provenance="",
                     signature=None),
-                ast.Function(
+                pytd.Function(
                     name="f2",
                     params=[
-                        ast.Parameter(
+                        pytd.Parameter(
                             name="c",
-                            type=ast.TemplateItem(
+                            type=pytd.TemplateItem(
                                 name="C",
-                                within_type=typing.BasicType("Cbase"),
+                                within_type=pytd.BasicType("Cbase"),
                                 level=1)),
-                        ast.Parameter(
+                        pytd.Parameter(
                             name="t1",
-                            type=ast.TemplateItem(
+                            type=pytd.TemplateItem(
                                 name="T",
-                                within_type=typing.BasicType("object"),
+                                within_type=pytd.BasicType("object"),
                                 level=0)),
-                        ast.Parameter(
+                        pytd.Parameter(
                             name="t2",
-                            type=typing.GenericType2(
-                                base_type=typing.BasicType("dict"),
-                                type1=ast.TemplateItem(
+                            type=pytd.GenericType2(
+                                base_type=pytd.BasicType("dict"),
+                                type1=pytd.TemplateItem(
                                         name='C',
-                                        within_type=typing.BasicType('Cbase'),
+                                        within_type=pytd.BasicType('Cbase'),
                                         level=1),
-                                type2=typing.UnionType([
-                                    ast.TemplateItem(
+                                type2=pytd.UnionType([
+                                    pytd.TemplateItem(
                                         name='C',
-                                        within_type=typing.BasicType('Cbase'),
+                                        within_type=pytd.BasicType('Cbase'),
                                         level=1),
-                                    ast.TemplateItem(
+                                    pytd.TemplateItem(
                                         name='T',
-                                        within_type=typing.BasicType('object'),
+                                        within_type=pytd.BasicType('object'),
                                         level=0),
-                                    typing.BasicType('int')])))],
-                    return_type=ast.TemplateItem(
+                                    pytd.BasicType('int')])))],
+                    return_type=pytd.TemplateItem(
                         name="T",
-                        within_type=typing.BasicType("object"),
+                        within_type=pytd.BasicType("object"),
                         level=0),
                     exceptions=[
-                        ast.ExceptionDef(
-                            typing.GenericType1(
-                                base_type=typing.BasicType("Error"),
-                                type1=ast.TemplateItem(
+                        pytd.ExceptionDef(
+                            pytd.GenericType1(
+                                base_type=pytd.BasicType("Error"),
+                                type1=pytd.TemplateItem(
                                     name="T",
-                                    within_type=typing.BasicType("object"),
+                                    within_type=pytd.BasicType("object"),
                                     level=0)))],
                     template=[
-                        ast.TemplateItem(
+                        pytd.TemplateItem(
                             name="T",
-                            within_type=typing.BasicType("object"),
+                            within_type=pytd.BasicType("object"),
                             level=0),
-                        ast.TemplateItem(
+                        pytd.TemplateItem(
                             name="U",
-                            within_type=typing.BasicType("object"),
+                            within_type=pytd.BasicType("object"),
                             level=0)],
                     provenance="",
                     signature=None)],
             template=[
-                ast.TemplateItem(
+                pytd.TemplateItem(
                     name="C",
-                    within_type=typing.BasicType("Cbase"),
+                    within_type=pytd.BasicType("Cbase"),
                     level=0)])],
         funcdefs=[])
     self.assertEqual(expect, result)

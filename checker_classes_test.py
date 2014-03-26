@@ -17,7 +17,7 @@
 
 import unittest
 from pytypedecl import checker
-from pytypedecl.parse import typing
+from pytypedecl import pytd
 from tests import classes
 
 
@@ -35,7 +35,7 @@ class TestCheckerClasses(unittest.TestCase):
     expected = checker.ParamTypeErrorMsg("MakeAnnoucement",
                                          "emails",
                                          str,
-                                         typing.GenericType1(list, str))
+                                         pytd.GenericType1(list, str))
 
     [actual] = context.exception.args[0]
     self.assertEquals(expected, actual)

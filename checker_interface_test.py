@@ -17,8 +17,7 @@
 
 import unittest
 from pytypedecl import checker
-from pytypedecl.parse import ast
-from pytypedecl.parse import typing
+from pytypedecl import pytd
 from tests import interface
 
 
@@ -36,9 +35,9 @@ class TestCheckerInterface(unittest.TestCase):
         "ReadStuff",
         "r",
         interface.FakeOpenable,
-        typing.StructType([ast.MinimalFunction("Open"),
-                           ast.MinimalFunction("Read"),
-                           ast.MinimalFunction("Close")]))
+        pytd.StructType([pytd.MinimalFunction("Open"),
+                           pytd.MinimalFunction("Read"),
+                           pytd.MinimalFunction("Close")]))
 
     expected_e = checker.ExceptionTypeErrorMsg("ReadStuff",
                                                AttributeError,
@@ -58,9 +57,9 @@ class TestCheckerInterface(unittest.TestCase):
     expected_r = checker.ReturnTypeErrorMsg(
         "GetWritable",
         interface.NoGoodWritable,
-        typing.StructType([ast.MinimalFunction("Open"),
-                           ast.MinimalFunction("Write"),
-                           ast.MinimalFunction("Close")]))
+        pytd.StructType([pytd.MinimalFunction("Open"),
+                           pytd.MinimalFunction("Write"),
+                           pytd.MinimalFunction("Close")]))
 
     [actual_r] = context.exception.args[0]
     self.assertEquals(expected_r, actual_r)
