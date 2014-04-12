@@ -168,5 +168,17 @@ class TestOptimize(parser_test.ParserTest):
     new_src = self.ApplyVisitorToString(src, optimize.ApplyOptionalArguments())
     self.AssertSourceEquals(new_src, expected)
 
+  def testSuperClasses(self):
+    src = """
+        def f(x: list or tuple, y: frozenset or set) -> int or float
+        def f(x: dict or Mapping, y: complex or int) -> set or dict or tuple or Container
+    """
+    expected = """
+        def f(x: Sequence, y: Set) -> Real
+        def f(x: Mapping, y: Complex) -> Container
+    """
+    new_src = self.ApplyVisitorToString(src, optimize.FindCommonSuperClasses())
+    self.AssertSourceEquals(new_src, expected)
+
 if __name__ == "__main__":
   unittest.main()

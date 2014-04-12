@@ -23,6 +23,7 @@
 import collections
 import itertools
 
+from pytypedecl import abc_hierarchy
 from pytypedecl import pytd
 
 
@@ -292,6 +293,97 @@ class ApplyOptionalArguments(object):
     new_signatures = [s for s in f.signatures
                       if not self._HasShorterVersion(s, optional_arg_sigs)]
     return f._replace(signatures=tuple(new_signatures))
+
+
+class FindCommonSuperClasses(object):
+  """Find common super classes.
+
+  E.g., this changes
+    def f(x: list or tuple, y: frozenset or set) -> int or float
+  to
+    def f(x: Sequence, y: Set) -> Real
+  .
+  """
+
+  def __init__(self):
+    self._superclasses = abc_hierarchy.GetSuperClasses()
+    self._subclasses = abc_hierarchy.GetSubClasses()
+
+  # TODO: This only works for built-in types so far. Make this work for
+  # class hierarchy extracted from pytd as well?
+
+  def _CollectSuperclasses(self, node, collect):
+    """Recursively collect super classes for a type.
+
+    Args:
+      node: A type node.
+      collect: A set(), modified to contain all superclasses.
+    """
+    collect.add(node)
+    superclasses = [pytd.BasicType(name)
+                    for name in self._superclasses.get(str(node), [])]
+
+    if node != pytd.BasicType("object"):
+      # Everything but object itself subclasses object. This is not explicitly
+      # specified in _superclasses, so we add object manually.
+      superclasses.append(pytd.BasicType("object"))
+
+    # The superclasses might have superclasses of their own, so recurse.
+    for superclass in superclasses:
+      self._CollectSuperclasses(superclass, collect)
+
+  def _Expand(self, t):
+    """Generate a list of all (known) superclasses for a type.
+
+    Args:
+      t: A type.
+
+    Returns:
+      A set of types. This set includes t as well as all its superclasses.
+    """
+    superclasses = set()
+    self._CollectSuperclasses(t, superclasses)
+    return superclasses
+
+  def _HasSubClassInSet(self, cls, known):
+    """Queries whether a subclass of a type is present in a given set."""
+
+    # object is an implicit superclass of all types. So if we're being asked
+    # whether object has a subclass in the set, we just need to find any
+    # class that's not object itself.
+    if (str(cls) == "object"
+        and known
+        and "object" not in (str(k) for k in known)):
+      return True
+
+    return any(pytd.BasicType(sub) in known
+               for sub in self._subclasses[str(cls)])
+
+  def VisitUnionType(self, union):
+    """Given a union type, try to find a simplification through ABCs.
+
+    This function tries to map a list of types to a common base type. For
+    example, [int, float] are both (abstract) base classes of Real, so
+    it would convert UnionType([int, float]) to BaseType(Real).
+
+    Args:
+      union: A union type.
+
+    Returns:
+      A simplified type, if available.
+    """
+    intersection = self._Expand(union.type_list[0])
+
+    for t in union.type_list[1:]:
+      intersection.intersection_update(self._Expand(t))
+
+    # Remove "redundant" superclasses, by removing everything from the tree
+    # that's not a leaf. I.e., we don't need "object" if we have more
+    # specialized types.
+    new_type_list = tuple(cls for cls in intersection
+                          if not self._HasSubClassInSet(cls, intersection))
+
+    return JoinTypes(new_type_list)
 
 
 def Optimize(node):
