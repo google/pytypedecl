@@ -37,9 +37,9 @@ found in the **/tests/** folder.
 Here’s an example of a type declaration file that mixes several features:
 ```python
 class Logger:
-  def log(messages: list<str>, buffer: Readable & Writeable) raises IOException
+  def log(messages: list<str>, buffer: Readable or Writeable) raises IOException
   def log(messages: list<str>) -> None
-  def setStatus(status: int | str)
+  def setStatus(status: int or str)
 ```
 
 
@@ -59,29 +59,18 @@ might throw.
 This is not supported in the Python 3 function annotation syntax but is
 supported by pytypedecl.
 
-* **None-able types**: A none-able type can represent the range of values for
-its value type plus an additional None value. We use a trailing `?` to indicate
-that a type is none-able. For example, a parameter of type `int?` can accept an
-`int` or a `None` value.
-
 * **Union types**: It is sometime convenient to indicate that a type can hold
 values from a number of different types. Union types allow to express this
-idea. For example `int | float` indicates that a value may be an `int` or a
+idea. For example `int or float` indicates that a value may be an `int` or a
 `float`. There is no limit to the number of types in a union. A none-able type
-can be seen as the union of a type and None -- `int?` is equivalent to
-`int | NoneType`.
-
-* **Intersection types**: An intersection type describes a type that
-belongs to all values of a list of types. For example, the
-intersection type `Readable & Writeable` describes a type that
-supports the operations `open`, `close`, `read`, and `write`. As a
-consequence, the intersection type `int & float` wouldn’t make much
-sense because there isn’t a value in Python that is both an `int` and a
-`float`.
+can be seen as the union of a type and None.
+(Note: None is a unit type and is a subtype of NoneType. Because there's
+only one subtype of NoneType, for type-specification purposes, None and
+NoneType are the same.)
 
 * **Generics**: A type can be parameterised with a set of type arguments,
-similarly to Java generics. For example, `generator[str]` describes a generator
-that only produces `str`s, `dict[str,int]` describes a dictionary of keys of
+similarly to Java generics. For example, `generator<str>` describes a generator
+that only produces `str`s, `dict<str, int>` describes a dictionary of keys of
 type `str` and values of type `int`.
 
 ### Coming soon:

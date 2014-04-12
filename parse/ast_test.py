@@ -31,36 +31,15 @@ class TestASTGeneration(unittest.TestCase):
     """Compile a string, and convert the result back to a string. Compare."""
     tree = self.parser.Parse(src)
     new_src = pytd.Print(tree)
-    self.assertEquals(old_src or src, new_src)
+    self.assertEquals((old_src or src).strip(), new_src.strip())
 
   def testOneFunction(self):
     """Test parsing of a single function definition."""
-    data = textwrap.dedent("""
-        # a function def with two params
-        def foo(a : int, c : bool) -> int raises Test, Foo
+    # a function def with two params
+    src = textwrap.dedent("""
+        def foo(a: int, c: bool) -> int raises Foo, Test
         """)
-
-    result = self.parser.Parse(data)
-    expect = pytd.TypeDeclUnit(
-        constants=[],
-        classes=[],
-        functions=[
-            pytd.Function(
-                name="foo",
-                signatures=[pytd.Signature(
-                    params=[
-                        pytd.Parameter(
-                            name="a",
-                            type=pytd.BasicType("int")),
-                        pytd.Parameter(
-                            name="c",
-                            type=pytd.BasicType("bool"))],
-                    return_type=pytd.BasicType("int"),
-                    template=[], has_optional=False, provenance="",
-                    exceptions=[
-                        pytd.BasicType("Test"),
-                        pytd.BasicType("Foo")])])])
-    self.assertEqual(expect, result)
+    self.TestRoundTrip(src)
 
   def testOnlyOptional(self):
     """Test parsing of optional parameters"""
@@ -97,6 +76,12 @@ class TestASTGeneration(unittest.TestCase):
     """).strip()
     self.TestRoundTrip(src)
 
+  def testTemplateReturn(self):
+    src = textwrap.dedent("""
+        def foo(a: int or float, c: bool) -> list<int> raises Foo, Test
+    """)
+    self.TestRoundTrip(src)
+
   def testMultiFunction(self):
     """Test parsing of multiple function defs including overloaded version."""
 
@@ -128,6 +113,9 @@ class TestASTGeneration(unittest.TestCase):
   def testComplexFunction(self):
     """Test parsing of a function with unions, noneable etc."""
 
+    canonical = textwrap.dedent("""
+        def foo(a: int, b: int or float or None, c: Foo and s.Bar and Zot) -> int raises Bad
+    """)
     data1 = textwrap.dedent("""
         def foo(a: int, b: int or float or None, c: Foo and s.Bar and Zot) -> int raises Bad
     """)
@@ -141,45 +129,10 @@ class TestASTGeneration(unittest.TestCase):
         def foo(a: int, b: ((((int or float)) or ((None)))), c: (((Foo) and s.Bar and (Zot)))) -> int raises Bad
     """)
 
-    result1 = self.parser.Parse(data1)
-    result2 = self.parser.Parse(data2)
-    result3 = self.parser.Parse(data3)
-    result4 = self.parser.Parse(data4)
-    expect = pytd.TypeDeclUnit(
-        constants=[],
-        classes=[],
-        functions=[
-            pytd.Function(
-                name="foo",
-                signatures=[pytd.Signature(
-                    params=[
-                        pytd.Parameter(
-                            name="a",
-                            type=pytd.BasicType(
-                                "int")),
-                        pytd.Parameter(
-                            name="b",
-                            type=pytd.UnionType(
-                                type_list=[
-                                    pytd.BasicType("int"),
-                                    pytd.BasicType("float"),
-                                    pytd.BasicType("None")])),
-                        pytd.Parameter(
-                            name="c",
-                            type=pytd.IntersectionType(
-                                type_list=[
-                                    pytd.BasicType("Foo"),
-                                    pytd.BasicType("s.Bar"),
-                                    pytd.BasicType("Zot")]))],
-                    return_type=pytd.BasicType(
-                            "int"),
-                    exceptions=[
-                        pytd.BasicType("Bad")],
-                    template=[], has_optional=False, provenance="")])])
-    self.assertEqual(expect, result1)
-    self.assertEqual(expect, result2)
-    self.assertEqual(expect, result3)
-    self.assertEqual(expect, result4)
+    self.TestRoundTrip(data1, canonical)
+    self.TestRoundTrip(data2, canonical)
+    self.TestRoundTrip(data3, canonical)
+    self.TestRoundTrip(data4, canonical)
 
   def testComplexCombinedType(self):
     """Test parsing a type with both union and intersection."""
@@ -195,20 +148,21 @@ class TestASTGeneration(unittest.TestCase):
             pytd.Function(
                 name="foo",
                 signatures=[pytd.Signature(
-                    params=[
-                      pytd.Parameter(
-                          name="a",
-                          type=pytd.UnionType(
-                              type_list=[
-                                  pytd.BasicType("Foo"),
-                                  pytd.IntersectionType(
-                                      type_list=[
-                                          pytd.BasicType("Bar"),
-                                          pytd.BasicType("Zot")])]))
-                        ],
-                    return_type=pytd.BasicType("None"),
-                    template=[], has_optional=False, provenance="",
-                    exceptions=[])])])
+                    params=(
+                        pytd.Parameter(
+                            name="a",
+                            type=pytd.UnionType(
+                                type_list=(
+                                    pytd.BasicType("Foo"),
+                                    pytd.IntersectionType(
+                                        type_list=(
+                                            pytd.BasicType("Bar"),
+                                            pytd.BasicType("Zot"))))
+                            )
+                        ),),
+                    return_type=pytd.BasicType("object"),
+                    template=(), has_optional=False, provenance="",
+                    exceptions=())])])
     self.assertEqual(expect, result1)
     self.assertEqual(expect, result2)
 
@@ -227,7 +181,7 @@ class TestASTGeneration(unittest.TestCase):
             pytd.Function(
                 name="interface",
                 signatures=[pytd.Signature(
-                    params=[
+                    params=(
                         pytd.Parameter(name="abcde",
                                        type=pytd.Scalar(value="xyz")),
                         pytd.Parameter(name="foo",
@@ -235,10 +189,10 @@ class TestASTGeneration(unittest.TestCase):
                         pytd.Parameter(name="b",
                                        type=pytd.Scalar(value=-1.0)),
                         pytd.Parameter(name="c",
-                                       type=pytd.Scalar(value=666))],
+                                       type=pytd.Scalar(value=666)),),
                     return_type=pytd.BasicType("int"),
-                    exceptions=[],
-                    template=[], has_optional=False, provenance="")])])
+                    exceptions=(),
+                    template=(), has_optional=False, provenance="")])])
     self.assertEqual(expect, result)
 
   def testNoReturnType(self):
@@ -247,21 +201,8 @@ class TestASTGeneration(unittest.TestCase):
     data1 = "def foo()"
     data2 = "def foo() -> None"
 
-    result1 = self.parser.Parse(data1)
-    result2 = self.parser.Parse(data2)
-    expect = pytd.TypeDeclUnit(
-        constants=[],
-        classes=[],
-        functions=[
-            pytd.Function(
-                name="foo",
-                signatures=[pytd.Signature(
-                    params=[],
-                    return_type=pytd.BasicType("None"),
-                    template=[], has_optional=False, provenance="", exceptions=[])])])
-    self.assertEqual(result1, expect)
-    self.assertEqual(result2, expect)
-    self.assertEqual(result1, result2)  # redundant test
+    self.TestRoundTrip(data1)
+    self.TestRoundTrip(data2)
  
   def testTemplates(self):
     """Test template parsing."""
@@ -422,7 +363,7 @@ class TestTupleEq(unittest.TestCase):
 
 
   def testRecursion(self):
-    y =Y(Y(1, 2), Y(3, Y(4, 5)))
+    y = Y(Y(1, 2), Y(3, Y(4, 5)))
     y_expected = "Y(Y(1, 2), Y(3, Y(4, 5)))"
     self.assertEquals(repr(y), y_expected)
     v = Visitor2()

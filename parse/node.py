@@ -174,6 +174,8 @@ def _VisitNode(node, visitor, *args, **kwargs):
   Returns:
     The transformed Node.
   """
+  # TODO: Keep a dictionary of replaced nodes around, so we don't blow
+  #              up if the graph is circular.
 
   if hasattr(node, "Visit") and node.Visit.im_func != _VisitNode:
     # Node with an overloaded Visit() function. It'll do its own processing.
@@ -182,13 +184,16 @@ def _VisitNode(node, visitor, *args, **kwargs):
     new_children = [(_VisitNode(child, visitor, *args, **kwargs) or child)
                     for child in node]
     if any(c1 is not c2 for c1, c2 in zip(new_children, node)):
-      if isinstance(node, tuple):
-        # Reinitialize tuple because we changed some of the children,
-        # but with our current old class. The constructor of namedtuple()
-        # differs from tuple(), so we have to pass the current tuple using "*".
-        new_node = node.__class__(*new_children)
-      else:  # isinstance(node, list)
+      # Exact comparison, because classes deriving from tuple (like namedtuple)
+      # have different constructor arguments.
+      if node.__class__ is tuple:
         new_node = node.__class__(new_children)
+      else:
+        # Assume this is a namedtuple. Reinitialize with our current old
+        # class (because we changed some of the children). The constructor of
+        # namedtuple() differs from tuple(), so we have to pass the current
+        # tuple using "*".
+        new_node = node.__class__(*new_children)
     else:
       # Optimization: if we didn't change any of the children, keep the entire
       # object the same.

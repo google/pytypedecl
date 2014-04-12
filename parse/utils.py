@@ -30,6 +30,7 @@ ClassesFuncsByName = collections.namedtuple(
     ['classes', 'funcs'])
 
 
+# TODO: Remove this class. Only checker.py still uses it.
 class ParserUtils(object):
   """A utility class for parsing type declaration files.
 

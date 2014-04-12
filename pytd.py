@@ -42,17 +42,13 @@ method. For example:
 
       ... etc. ...
 
-The ExpandTemplates method is used to look up names in the AST and replace them
-by TemplateItem from the look-up. The 'rev_templates' argument is the list
-of templates in reverse order (most recent one first).
 """
 
 
 from pytypedecl.parse import node
-from pytypedecl.parse import visitors
 
 
-# TODO: Make ExpandTemplates() and Process() use visitors.
+# TODO: Make Process() use visitors.
 
 
 class TypeDeclUnit(node.Node('constants', 'classes', 'functions')):
@@ -87,21 +83,23 @@ class TypeDeclUnit(node.Node('constants', 'classes', 'functions')):
         self._name2item[x.name] = x
       return self._name2item[name]
 
-  def ExpandTemplates(self, rev_templates):
-    return self._replace(
-        classes=[c.ExpandTemplates(rev_templates) for c in self.classes],
-        functions=[f.ExpandTemplates(rev_templates) for f in self.functions])
-
 
 class Constant(node.Node('name', 'type')):
   __slots__ = ()
 
-  def ExpandTemplates(self, rev_t):
-    return self._replace(type=self.type.ExpandTemplates(rev_t))
-
 
 class Class(node.Node('name', 'parents', 'methods', 'constants', 'template')):
-  """Represents a class declaration."""
+  """Represents a class declaration.
+
+  Attributes:
+    name: Class name (string)
+    parents: The super classes of this class (instances of Type).
+    methods: List of class methods (instances of Function).
+    constants: List of constant class attributes (instances of Constant).
+    template: List of TemplateItem instances.
+  """
+  # TODO: Rename "parents" to "bases". "Parents" is confusing since we're
+  #              in a tree.
 
   def Lookup(self, name):
     """Convenience function: Look up a given name in the class namespace.
@@ -126,13 +124,6 @@ class Class(node.Node('name', 'parents', 'methods', 'constants', 'template')):
         self._name2item[x.name] = x
       return self._name2item[name]
 
-  def ExpandTemplates(self, rev_templates):
-    rev_t = [self.template] + rev_templates
-    return self._replace(methods=[f.ExpandTemplates(rev_t)
-                                  for f in self.methods],
-                         constants=[c.ExpandTemplates(rev_t)
-                                    for c in self.constants])
-
 
 class Function(node.Node('name', 'signatures')):
   """A function or a method.
@@ -142,10 +133,6 @@ class Function(node.Node('name', 'signatures')):
     signatures: Possible list of parameter type combinations for this function.
   """
   __slots__ = ()
-
-  def ExpandTemplates(self, rev_t):
-    return self._replace(signatures=[f.ExpandTemplates(rev_t)
-                                     for f in self.signatures])
 
 
 class Signature(node.Node('params', 'return_type', 'exceptions', 'template',
@@ -163,22 +150,17 @@ class Signature(node.Node('params', 'return_type', 'exceptions', 'template',
     exceptions: List of exceptions for this function definition.
     template: names for bindings for bounded types in params/return_type
     provenance: TBD
+  """
+  # TODO: exceptions doesn't have to be a list. We could just store it
+  #              as a UnionType
 
   # TODO: define/implement provenance:
-                     ... inferred
-                     --- programmer-deleted
-                     +++ locked (no need to look inside it ... all declarations
-                         for this function must be marked with +++ or ---
-                     (nothing) programmer-approved
-  """
+  #                  ... inferred
+  #                  --- programmer-deleted
+  #                  +++ locked (no need to look inside it ... all declarations
+  #                      for this function must be marked with +++ or ---
+  #                  (nothing) programmer-approved
   __slots__ = ()
-
-  def ExpandTemplates(self, rev_templates):
-    rev_t = [self.template] + rev_templates
-    return self._replace(
-        params=[p.ExpandTemplates(rev_t) for p in self.params],
-        return_type=self.return_type.ExpandTemplates(rev_t),
-        exceptions=[e.ExpandTemplates(rev_t) for e in self.exceptions])
 
 
 class Parameter(node.Node('name', 'type')):
@@ -190,47 +172,47 @@ class Parameter(node.Node('name', 'type')):
   """
   __slots__ = ()
 
-  def ExpandTemplates(self, rev_templates):
-    return self._replace(type=self.type.ExpandTemplates(rev_templates))
-
 
 class TemplateItem(node.Node('name', 'within_type', 'level')):
   """Represents "template name extends bounded_type".
 
   This can be either the result of the 'template' in the parser (e.g.,
     funcdef : provenance DEF template NAME LPAREN params RPAREN ...)
-  or the result of a lookup using the ExpandTemplates method.
+  or the result of a lookup using the ExpandTemplates visitor.
 
   Attributes:
     name: the name that's used in a generic type
-    type: the "<=" type for this name (e.g., BasicType('object'))
+    type: the "extends" type for this name (e.g., BasicType('object'))
     level: When this object is the result of a lookup, it is how many
            levels "up" the name was found. For example:
-             class [T] Foo:
-               def [U] bar(t: T, u: U)
+             class <T> Foo:
+               def <U> bar(t: T, u: U)
            in the definition of 'bar', T has level=1 and U has level=0
   """
   __slots__ = ()
-
-  def ExpandTemplates(self, rev_templates):
-    return self._replace(self.within_type.ExpandTemplates(rev_templates))
 
   def Process(self, processor):
     return processor.ProcessTemplateItem(self)
 
 
-class BasicType(node.Node('containing_type')):
-  """A wrapper for a type."""
-  # TODO: Rename to "NamedType"
-  __slots__ = ()
+# There are multiple representations of a "type" (used for return types,
+# arguments, exceptions etc.):
+# 1.) BasicType:
+#     Specifies a type by name (i.e., a string)
+# 2.) NativeType
+#     Points to a Python type. (int, float etc.)
+# 3.) ClassType
+#     Points back to a Class in the AST. (This makes the AST circular)
+# visitors.py contains tools for converting between the corresponding AST
+# representations.
+# TODO: Add a fourth type, "UnknownType", for use in the type
+# inferencer.
 
-  def ExpandTemplates(self, rev_templates):
-    for level, templ in enumerate(rev_templates):
-      for t in templ:
-        if self.containing_type == t.name:
-          return t._replace(level=level)  # TemplateItem
-    else:  # pylint: disable=useless-else-on-loop
-      return self
+
+class BasicType(node.Node('containing_type')):
+  """A type specified by name."""
+  # TODO: Rename to "NamedType", rename 'containing_type' to 'name'
+  __slots__ = ()
 
   def __str__(self):
     return str(self.containing_type)
@@ -239,19 +221,33 @@ class BasicType(node.Node('containing_type')):
     return processor.ProcessBasicType(self)
 
 
-class Scalar(node.Node('value')):
+class NativeType(node.Node('python_type')):
+  """A type specified by a native Python type. Used during runtime checking."""
   __slots__ = ()
 
-  def ExpandTemplates(self, unused_rev_templates):
-    return self
+
+class ClassType(node.Node('cls')):
+  """A type specified through an existing class node."""
+  __slots__ = ()
+
+  def __str__(self):
+    return str(self.cls.name)
+
+  def Visit(self, visitor, *args, **kwargs):
+    # Do *not* process children- since we point to classes that
+    # are back at the top of the tree, that would generate cycles.
+    if hasattr(visitor, 'VisitClassType'):
+      return visitor.VisitClassType(self, *args, **kwargs)
+    else:
+      return self
+
+
+class Scalar(node.Node('value')):
+  __slots__ = ()
 
 
 class UnionType(node.Node('type_list')):
   __slots__ = ()
-
-  def ExpandTemplates(self, rev_templates):
-    return self._replace(
-        type_list=[t.ExpandTemplates(rev_templates) for t in self.type_list])
 
   def Process(self, processor):
     return processor.ProcessUnionType(self)
@@ -260,21 +256,12 @@ class UnionType(node.Node('type_list')):
 class IntersectionType(node.Node('type_list')):
   __slots__ = ()
 
-  def ExpandTemplates(self, rev_templates):
-    return self._replace(
-        type_list=[t.ExpandTemplates(rev_templates) for t in self.type_list])
-
   def Process(self, processor):
     return processor.ProcessIntersectionType(self)
 
 
 class HomogeneousContainerType(node.Node('base_type', 'element_type')):
   __slots__ = ()
-
-  def ExpandTemplates(self, rev_templates):
-    return self._replace(
-        base_type=self.base_type.ExpandTemplates(rev_templates),
-        element_type=self.element_type.ExpandTemplates(rev_templates))
 
   def Process(self, processor):
     return processor.ProcessHomogeneousContainerType(self)
@@ -283,17 +270,14 @@ class HomogeneousContainerType(node.Node('base_type', 'element_type')):
 class GenericType(node.Node('base_type', 'parameters')):
   __slots__ = ()
 
-  def ExpandTemplates(self, rev_templates):
-    return self._replace(
-        base_type=self.base_type.ExpandTemplates(rev_templates),
-        parameters=[p.ExpandTemplates(rev_templates) for p in self.parameters])
-
   def Process(self, processor):
     return processor.ProcessGenericType(self)
 
 
 def Print(n):
   """Convert a PYTD node to a string."""
+  # TODO: fix circular import
+  from pytypedecl.parse import visitors  # pylint: disable=g-import-not-at-top
   v = visitors.PrintVisitor()
   return n.Visit(v)
 
