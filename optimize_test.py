@@ -136,5 +136,37 @@ class TestOptimize(parser_test.ParserTest):
         self.ApplyVisitorToString(src, optimize.ExpandSignatures()),
         new_src)
 
+  def testFactorize(self):
+    src = """
+        def foo(a: A) -> Z
+        def foo(a: A, x: X) -> Z
+        def foo(a: A, x: Y) -> Z
+        def foo(a: B, x: X) -> Z
+        def foo(a: B, x: Y) -> Z
+        def foo(a: A, x: Z, ...) -> Z
+    """
+    new_src = """
+        def foo(a: A) -> Z
+        def foo(a: A or B, x: X or Y) -> Z
+        def foo(a: A, x: Z, ...) -> Z
+    """
+    self.AssertSourceEquals(
+        self.ApplyVisitorToString(src, optimize.Factorize()), new_src)
+
+  def testOptionalArguments(self):
+    src = """
+        def foo(a: A, ...) -> Z
+        def foo(a: A) -> Z
+        def foo(a: A, b: B) -> Z
+        def foo(a: A, b: B, ...) -> Z
+        def foo() -> Z
+    """
+    expected = """
+        def foo(a: A, ...) -> Z
+        def foo() -> Z
+    """
+    new_src = self.ApplyVisitorToString(src, optimize.ApplyOptionalArguments())
+    self.AssertSourceEquals(new_src, expected)
+
 if __name__ == "__main__":
   unittest.main()
