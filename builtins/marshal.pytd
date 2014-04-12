@@ -1,0 +1,4 @@
+def dump(...) -> NoneType raises TypeError
+def loads(...) -> bool or str or dict or list or NoneType or tuple or int or float or complex
+def dumps(...)
+def load(...) -> bool or str or dict or list or NoneType or tuple or int or float or complex raises TypeError

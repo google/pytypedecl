@@ -1,0 +1,3 @@
+def getweakrefs(...) -> list
+def getweakrefcount(...) -> int
+def proxy(...)

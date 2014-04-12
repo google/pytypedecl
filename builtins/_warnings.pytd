@@ -1,0 +1,2 @@
+def warn_explicit(message: object, category: object, filename: object, lineno: int, ...) -> NoneType
+def warn(message: object, ...) -> NoneType

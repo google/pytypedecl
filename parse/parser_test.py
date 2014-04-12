@@ -16,6 +16,7 @@
 """Utility classes for testing the PYTD parser."""
 
 import re
+import textwrap
 import unittest
 from pytypedecl import pytd
 from pytypedecl.parse import parser
@@ -40,8 +41,17 @@ class ParserTest(unittest.TestCase):
     src1 = self.ToSource(src_or_tree_1)
     src2 = self.ToSource(src_or_tree_2)
 
-    self.assertEquals(re.sub(r"\s+", " ", src1.strip()),
-                      re.sub(r"\s+", " ", src2.strip()))
+    simplified1 = re.sub(r"\s+", " ", src1.strip())
+    simplified2 = re.sub(r"\s+", " ", src2.strip())
+
+    if simplified1 != simplified2:
+      print "Source files differ:"
+      print "-"*80
+      print textwrap.dedent(src1).strip()
+      print "-"*80
+      print textwrap.dedent(src2).strip()
+      print "-"*80
+      self.AssertTrue(false)
 
   def ApplyVisitorToString(self, data, visitor):
     tree = self.parser.Parse(data)

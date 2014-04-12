@@ -1,0 +1,13 @@
+def tee(a: object, ...) -> tuple raises ValueError
+class itertools.tee:
+  def __copy__(...)
+
+class itertools.count:
+  def __reduce__(...) -> tuple
+
+class itertools.repeat:
+  def __length_hint__(...) -> int raises TypeError
+
+class itertools.chain:
+  def from_iterable(...) -> object
+

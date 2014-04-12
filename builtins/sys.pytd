@@ -1,0 +1,57 @@
+flags: tuple
+maxint: int
+maxsize: int
+version_info: tuple
+maxunicode: int
+exec_prefix: str
+stdin: file
+builtin_module_names: list
+__displayhook__: object
+byteorder: str
+py3kwarning: bool
+long_info: object
+stdout: file
+__stderr__: file
+subversion: tuple
+version: str
+warnoptions: list
+_mercurial: tuple
+platform: str
+executable: str
+copyright: str
+prefix: str
+hexversion: int
+api_version: int
+argv: list<str>
+dont_write_bytecode: bool
+stderr: file
+float_repr_style: str
+__stdout__: file
+path: list<str>
+__excepthook__: object
+__stdin__: file
+float_info: object
+def _current_frames(...)
+def getcheckinterval(...) -> int
+def _getframe(...) raises ValueError
+def setcheckinterval(a: int) -> NoneType
+def setdlopenflags(a: int) -> NoneType
+def gettrace(...) -> NoneType
+def exc_info(...) -> tuple
+def exc_clear(...) -> NoneType raises DeprecationWarning
+def getprofile(...) -> NoneType
+def _clear_type_cache(...) -> NoneType
+def getrecursionlimit(...) -> int
+def getfilesystemencoding(...) -> NoneType or str
+def getsizeof(object: object, ...) -> int raises TypeError
+def setprofile(...) -> NoneType
+def displayhook(...) -> NoneType raises RuntimeError
+def settrace(...) -> NoneType
+def exit(...) raises SystemExit
+def setrecursionlimit(a: int) -> NoneType raises ValueError
+def getdefaultencoding(...) -> str
+def getrefcount(...) -> int
+def setdefaultencoding(a: str) -> NoneType
+def call_tracing(a: object, b: object)
+def excepthook(...) -> NoneType
+def getdlopenflags(...) -> int

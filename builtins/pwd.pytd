@@ -1,0 +1,3 @@
+def getpwall(...) -> list
+def getpwnam(a: str) -> tuple raises KeyError
+def getpwuid(a: object) -> tuple raises OverflowError, KeyError

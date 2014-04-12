@@ -1,0 +1,113 @@
+def wait3(...) -> tuple
+def wait4(...) -> tuple
+def minor(...) -> int
+def mknod(...) -> NoneType
+def forkpty(...) -> tuple raises RuntimeError
+def fchdir(...) -> NoneType
+def setresuid(...) -> NoneType
+def popen(...) -> file
+def access(...) -> bool
+def execv(...) raises MemoryError, ValueError, TypeError
+def setpgrp(...) -> NoneType
+def chdir(...) -> NoneType
+def getlogin(...) -> str raises OSError
+def fstat(...) -> tuple
+def getpid(...) -> int
+def fdatasync(...) -> NoneType
+def WSTOPSIG(...) -> int
+def tcsetpgrp(...) -> NoneType
+def WIFEXITED(...) -> bool
+def WEXITSTATUS(...) -> int
+def getresgid(...) -> tuple
+def stat_float_times(...) -> NoneType or bool
+def nice(...) -> int
+def openpty(...) -> tuple
+def makedev(...) -> int
+def getgid(...) -> long or int
+def fsync(...) -> NoneType
+def closerange(...) -> NoneType
+def chmod(...) -> NoneType
+def read(...) -> str
+def setresgid(...) -> NoneType
+def getpgrp(...) -> int
+def geteuid(...) -> long or int
+def initgroups(...) -> NoneType raises OSError
+def ttyname(...) -> str
+def getsid(...) -> int
+def tmpfile(...) -> file raises DeprecationWarning
+def major(...) -> int
+def mkfifo(...) -> NoneType
+def ftruncate(...) -> NoneType
+def chown(...) -> NoneType
+def fstatvfs(...) -> tuple
+def symlink(...) -> NoneType
+def dup2(...) -> NoneType
+def getcwd(...) -> str
+def setuid(...) -> NoneType
+def system(...) -> int
+def ctermid(...) -> str
+def getpgid(...) -> int
+def mkdir(...) -> NoneType
+def _exit(...)
+def getegid(...) -> long or int
+def getcwdu(...)
+def setregid(...) -> NoneType
+def pathconf(...) -> int
+def killpg(...) -> NoneType
+def remove(...) -> NoneType
+def fdopen(...) -> file raises MemoryError
+def sysconf(...) -> int
+def tcgetpgrp(...) -> int
+def setegid(...) -> NoneType
+def unlink(...) -> NoneType
+def confstr(...) -> NoneType or str
+def lseek(...) -> int
+def uname(...) -> tuple
+def getloadavg(...) -> tuple raises OSError
+def times(...) -> tuple
+def putenv(...) -> NoneType raises MemoryError
+def utime(...) -> NoneType raises TypeError
+def WIFSTOPPED(...) -> bool
+def rmdir(...) -> NoneType
+def setgroups(...) -> NoneType raises ValueError, TypeError
+def listdir(...) -> list
+def WIFCONTINUED(...) -> bool
+def close(...) -> NoneType
+def fpathconf(...) -> int
+def WIFSIGNALED(...) -> bool
+def wait(...) -> tuple
+def readlink(...) -> unicode or str or object
+def setgid(...) -> NoneType
+def chroot(...) -> NoneType
+def WTERMSIG(...) -> int
+def setreuid(...) -> NoneType
+def getgroups(...) -> list
+def waitpid(...) -> tuple
+def urandom(...) -> str raises ValueError
+def open(...) -> int
+def umask(...) -> int
+def fchmod(...) -> NoneType
+def isatty(...) -> bool
+def lchown(...) -> NoneType
+def getresuid(...) -> tuple
+def seteuid(...) -> NoneType
+def lstat(...) -> tuple
+def getppid(...) -> int
+def rename(...) -> NoneType
+def dup(...) -> int
+def strerror(...) -> str raises ValueError
+def stat(...) -> tuple
+def fchown(...) -> NoneType
+def execve(...) raises MemoryError, TypeError
+def write(...) -> int
+def setpgid(...) -> NoneType
+def link(...) -> NoneType
+def WCOREDUMP(...) -> bool
+def unsetenv(...) -> NoneType
+def fork(...) -> int raises RuntimeError
+def setsid(...) -> NoneType
+def abort(...)
+def getuid(...) -> long or int
+def pipe(...) -> tuple
+def statvfs(...) -> tuple
+def kill(...) -> NoneType

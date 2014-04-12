@@ -394,12 +394,14 @@ class ShortenUnions(object):
       def __init__(self, obj: object)
   In other words, if there are too many types "or"ed together, we just replace
   the entire thing with "object".
+  Additionally, if the union already contains at least one "object", we also
+  replace the entire union with just "object".
 
   Attributes:
     max_length: The maximum number of types to allow in a union. If there are
-      more types than this, we use "object" for everything instead. The current
-      (experimental) default for this is four, so only up to four types can
-      be represented as a union.
+      more types than this (or the union contains "object"), we use "object"
+      for everything instead.  The current (experimental) default for this
+      parameter is four, so only up to four types can be represented as a union.
   """
 
   def __init__(self, max_length=4):
@@ -407,6 +409,8 @@ class ShortenUnions(object):
 
   def VisitUnionType(self, union):
     if len(union.type_list) > self.max_length:
+      return pytd.BasicType("object")
+    elif pytd.BasicType("object") in union.type_list:
       return pytd.BasicType("object")
     else:
       return union

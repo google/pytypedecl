@@ -1,0 +1,34 @@
+MAXREPEAT: int or str or long
+copyright: int or str or long
+CODESIZE: int or str or long
+MAGIC: int or str or long
+def getcodesize(...) -> int
+def compile(...) raises OverflowError
+def getlower(...) -> int
+class _.SRE_Scanner:
+  def match(...) -> NoneType
+  def search(...) -> NoneType
+
+class _.SRE_Pattern:
+  def match(pattern: object, ...)
+  def search(pattern: object, ...)
+  def sub(repl: object, string: object, ...) -> tuple
+  def subn(repl: object, string: object, ...) -> tuple
+  def split(source: object, ...) -> list
+  def findall(source: object, ...) -> list
+  def finditer(...)
+  def scanner(...)
+  def __copy__(...) raises TypeError
+  def __deepcopy__(...) raises TypeError
+
+class _.SRE_Match:
+  def group(...) -> tuple
+  def start(...) -> int raises IndexError
+  def end(...) -> int raises IndexError
+  def span(...) -> tuple raises IndexError
+  def groups(...) -> tuple
+  def groupdict(...) -> dict
+  def expand(...)
+  def __copy__(...) raises TypeError
+  def __deepcopy__(...) raises TypeError
+

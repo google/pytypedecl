@@ -40,7 +40,10 @@ class PrintVisitor(object):
 
   def VisitTypeDeclUnit(self, node):
     """Convert the AST for an entire pytd file back to a string."""
-    return "\n".join(node.constants + node.functions + node.classes)
+    sections = ("\n".join(section)
+                for section in [node.constants, node.functions, node.classes]
+                if section)
+    return "\n\n".join(sections)
 
   def VisitConstant(self, node):
     """Convert a class-level or module-level constant to a string."""
