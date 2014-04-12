@@ -221,7 +221,8 @@ class PyParser(object):
       raise make_syntax_error(self, 'Duplicate identifier(s)', p)
     p[0] = pytd.TypeDeclUnit(constants=constants,
                              functions=MergeSignatures(funcdefs),
-                             classes=p[2])
+                             classes=p[2],
+                             modules={})
 
   def p_classes(self, p):
     """classes : classes classdef"""

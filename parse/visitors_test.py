@@ -45,7 +45,7 @@ class TestVisitors(parser_test.ParserTest):
           def b(self, a: A, b: B) -> A or B raises A, B
     """
     tree = self.parser.Parse(src)
-    new_tree = tree.Visit(visitors.LookupClasses())
+    new_tree = visitors.LookupClasses(tree)
     self.AssertSourceEquals(new_tree, src)
     new_tree.Visit(VerifyLookup())
 

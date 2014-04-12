@@ -18,68 +18,39 @@
 """Utilities for parsing type declaration files.
 """
 
-import collections
-import itertools
-import sys
-import traceback
+import os
+
+from pytypedecl import pytd
 from pytypedecl.parse import parser
 
 
-ClassesFuncsByName = collections.namedtuple(
-    'ClassesFuncsByName',
-    ['classes', 'funcs'])
+def GetDataFile(filename=""):
+    return os.path.abspath(
+        os.path.join(os.path.dirname(pytd.__file__), "builtins", filename))
 
 
-# TODO: Remove this class. Only checker.py still uses it.
-class ParserUtils(object):
-  """A utility class for parsing type declaration files.
+def Compile(filename):
+  if not Compile._parser:
+    Compile._parser = parser.PyParser()
+  return parser.parse_file(filename)
 
-  If there's an error, prints a message and calls sys.exit(1)
+Compile._parser = None
+
+
+def GetBuiltins():
+  """Get the "default" AST used to lookup built in types.
+
+  Get an AST for all Python builtins as well as the most commonly used standard
+  libraries.
+
+  Returns:
+    A pytd.TypeDeclUnit instance. It'll directly contain the builtin classes
+    and functions, and submodules for each of the standard library modules.
   """
+  builtins = Compile(GetDataFile("__builtin__.pytd"))
+  for mod in [
+      "array", "errno", "fcntl", "gc", "itertools", "marshal", "posix", "pwd",
+      "select", "signal", "_sre", "_struct", "sys", "_warnings", "_weakref"]:
+    builtins.modules[mod] = Compile(GetDataFile(mod + ".pytd"))
+  return builtins
 
-  def __init__(self):
-    self._parser = parser.PyParser()
-
-  def LoadTypeDeclaration(self, content, filename=''):
-    """Parse a type declaration from a str.
-
-    Args:
-      content:  string: type declarations to parse
-      filename: name of the file whose content is in 'content'
-
-    Returns:
-      A tuple of classes    dict[str, Class],
-                 functions  dict[str, PyOptFuncdef]
-    """
-    # TODO: There is an inconsistency here ... the functions are
-    #                  grouped by named but this isn't done for the functions
-    #                  (methods) inside a class.  Add grouping to class
-    #                  and change the pytd-to-constraints compiler to use this
-    #                  for detecting polymorphic functions and methods.
-    try:
-      type_decl_unit = self._parser.Parse(content, filename)
-    except SyntaxError as unused_exception:
-      # without all the tedious traceback stuff from PLY:
-      traceback.print_exception(sys.exc_type, sys.exc_value, None)
-      sys.exit(1)
-
-    functions_by_name = {f.name: f.signatures for f in type_decl_unit.functions}
-
-    classes_by_name = {c.name: c for c in type_decl_unit.classes}
-
-    return ClassesFuncsByName(
-        classes=classes_by_name,
-        funcs=functions_by_name)
-
-  def LoadTypeDeclarationFromFile(self, type_decl_path):
-    """Parse a type declaration and convert it to a list of functions.
-
-    Args:
-      type_decl_path: type declaration to parse
-
-    Returns:
-      A tuple of classes    dict[str, Class],
-                 functions  dict[str, PyOptFuncdef]
-    """
-    with open(type_decl_path) as f:
-      return self.LoadTypeDeclaration(f.read(), type_decl_path)

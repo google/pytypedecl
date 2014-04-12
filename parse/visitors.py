@@ -39,11 +39,12 @@ class PrintVisitor(object):
       return name
 
   def VisitTypeDeclUnit(self, node):
-    """Convert the AST for an entire pytd file back to a string."""
-    sections = ("\n".join(section)
-                for section in [node.constants, node.functions, node.classes]
-                if section)
-    return "\n\n".join(sections)
+    """Convert the AST for an entire module back to a string."""
+    sections = [node.constants, node.functions, node.classes, node.modules]
+    sections_as_string = ("\n".join(section)
+                          for section in sections
+                          if section)
+    return "\n\n".join(sections_as_string)
 
   def VisitConstant(self, node):
     """Convert a class-level or module-level constant to a string."""
@@ -130,7 +131,13 @@ class PrintVisitor(object):
     return self.SafeName(node.python_type.__name__)
 
   def VisitClassType(self, node):
-    return self.SafeName(node.cls.name)
+    if node.cls is not None:
+      return self.SafeName(node.cls.name)
+    else:
+      # we mark unresolved classes with "~".
+      # You rarely see these - this only happens if you print the tree
+      # while LookupClasses() is in the process of changing it.
+      return "~" + node.name
 
   def VisitHomogeneousContainerType(self, node):
     """Convert a homogeneous container type to a string."""
@@ -172,34 +179,25 @@ class StripSelf(object):
     return node._replace(params=node.params[1:])
 
 
-class FillInClasses(object):
+class _FillInClasses(object):
   """Fill in ClassType pointers using a symbol table.
 
   This is an in-place visitor! It modifies the original tree. This is
   necessary because we introduce loops.
   """
 
-  def __init__(self, symbol_table):
+  def __init__(self, local_lookup, global_lookup):
     """Create this visitor.
 
     You're expected to then pass this instance to node.Visit().
 
     Args:
-      symbol_table: The symbol table to use for looking up classes.
+      local_lookup: Usually, the local module. Tried first when looking up
+        names.
+      global_lookup: Global symbols. Tried if a name doesn't exist locally.
     """
-    self.symbol_table = symbol_table
-
-  def VisitTypeDeclUnit(self, unused_unit):
-    """Visits a top level module. This is usually this visitor's entry point.
-
-    Args:
-      unused_unit: Our module. (ignored)
-
-    Returns:
-      Explicitly returns None, to trip any callers treating this visitor as
-      a pure function.
-    """
-    return None
+    self._local_lookup = local_lookup
+    self._global_lookup = global_lookup
 
   def VisitClassType(self, node):
     """Fills in a class type.
@@ -213,35 +211,16 @@ class FillInClasses(object):
     Raises:
       KeyError: If we can't find a given class.
     """
-    node.cls = self.symbol_table.Lookup(node.name)
+    if node.cls is None:
+      try:
+        node.cls = self._local_lookup.Lookup(node.name)
+      except KeyError:
+        node.cls = self._global_lookup.Lookup(node.name)
     return node
 
 
-class LookupClasses(object):
-  """Change all NamedType objects to ClassType objects, by looking them up.
-
-  This is a destructive visitor! It modifies the original tree. This is
-  necessary because we introduce cycles to the tree.
-  """
-
-  def VisitTypeDeclUnit(self, unit):
-    """Converts a module from one using BasicType to ClassType.
-
-    Args:
-      unit: The module to process.
-
-    Returns:
-      A new module that only uses ClassType. All ClassType instances will point
-      to concrete classes.
-
-    Throws:
-      KeyError: If we can't find a class by this name.
-    """
-    # Since the node visitor protocol calls us *after* our children, the classes
-    # will already have been processed (i.e., contain ClassType instead of
-    # BasicType).
-    unit.Visit(FillInClasses(unit))  # discard return value (None)
-    return unit
+class BasicTypeToClassType(object):
+  """Change all BasicType objects to ClassType objects."""
 
   def VisitBasicType(self, node):
     """Converts a named type to a class type, to be filled in later.
@@ -253,6 +232,43 @@ class LookupClasses(object):
       A ClassType. This ClassType will (temporarily) only have a name.
     """
     return pytd.ClassType(node.containing_type)
+
+
+def FillInClasses(module, global_module=None):
+  """Fill in class pointers in ClassType nodes for a module.
+
+  Args:
+    module: Module to change. Changes will happen in-place.
+    global_module: Global symbols. Tried if a name doesn't exist locally.
+  """
+  if global_module is None:
+    global_module = module
+
+  for submodule in module.modules.values():
+    FillInClasses(submodule, global_module)
+
+  # Fill in classes for this module, bottom up.
+  # TODO: Node.Visit() should support blacklisting of attributes so
+  # we don't recurse into submodules multiple times.
+  module.Visit(_FillInClasses(module, global_module))
+
+
+def LookupClasses(module):
+  """Converts a module from one using BasicType to ClassType.
+
+  Args:
+    module: The module to process.
+
+  Returns:
+    A new module that only uses ClassType. All ClassType instances will point
+    to concrete classes.
+
+  Throws:
+    KeyError: If we can't find a class.
+  """
+  module = module.Visit(BasicTypeToClassType())
+  FillInClasses(module, module)
+  return module
 
 
 class ReplaceType(object):
@@ -283,9 +299,24 @@ class InstantiateTemplates(object):
     self._instantiated_classes = {}
 
   def VisitTypeDeclUnit(self, node):
-    """Adds the instantiated classes to the module. Removes templates."""
-    old_classes = [c for c in node.classes if c.template is None]
+    """Adds the instantiated classes to the module. Removes templates.
+
+    This will add the instantiated classes to the module the original was
+    defined in.
+
+    Args:
+      node: Module to process. The elements of this module will already be
+        processsed once this method is called.
+
+    Returns:
+      A module that contains extra classes for all the templated classes
+      we encountered within this module.
+    """
+    # TODO: What if a class template is used outside of the module it's
+    # defined in?
+    old_classes = [c for c in node.classes if not c.template]
     new_classes = self._instantiated_classes.values()
+    self._instantiated_classes = {}  # don't add class into more than one module
     return node._replace(classes=old_classes + new_classes)
 
   def _InstantiateClass(self, name, base_type, element_types):

@@ -161,7 +161,8 @@ class TestASTGeneration(unittest.TestCase):
                         ),),
                     return_type=pytd.BasicType("object"),
                     template=(), has_optional=False, provenance="",
-                    exceptions=())])])
+                    exceptions=())])],
+        modules={})
     self.assertEqual(expect, result1)
     self.assertEqual(expect, result2)
 
@@ -191,7 +192,8 @@ class TestASTGeneration(unittest.TestCase):
                                        type=pytd.Scalar(value=666)),),
                     return_type=pytd.BasicType("int"),
                     exceptions=(),
-                    template=(), has_optional=False, provenance="")])])
+                    template=(), has_optional=False, provenance="")])],
+        modules={})
     self.assertEqual(expect, result)
 
   def testNoReturnType(self):

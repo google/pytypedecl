@@ -49,15 +49,17 @@ from pytypedecl.parse import node
 
 
 # TODO: Make Process() use visitors.
+# TODO: Rename "TypeDeclUnit" to "Module".
 
 
-class TypeDeclUnit(node.Node('constants', 'classes', 'functions')):
-  """Top level node. Holds a list of Function nodes.
+class TypeDeclUnit(node.Node('constants', 'classes', 'functions', 'modules')):
+  """Module node. Holds module contents (classes / functions) and submodules.
 
   Attributes:
     constants: List of module-level constants.
     functions: List of functions defined in this type decl unit.
     classes: List of classes defined in this type decl unit.
+    modules: Map of submodules of the current module.
   """
 
   def Lookup(self, name):
