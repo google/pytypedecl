@@ -35,7 +35,6 @@ class RemoveDuplicates(object):
     def f(x: int) -> float
   to
     def f(x: int) -> float
-  .
   In order to be removed, a signatures has to be exactly identical to an
   existing one.
   """
@@ -87,7 +86,6 @@ class CombineReturnsAndExceptions(object):
     def f(x: int) -> int raises IndexError
   to
     def f(x: int) -> float or int raises IndexError, OverflowError
-  .
   """
 
   def _GroupByArguments(self, signatures):
@@ -144,7 +142,7 @@ class ExpandSignatures(object):
     def f(x: int, y: float)
     def f(x: float, y: int)
     def f(x: float, y: float)
-  .
+
   This is also called the "cartesian product".  The expansion by this class
   is typically *not* an optimization. But it can be the precursor for
   optimizations that need the expanded signatures, or it can simplify code
@@ -193,7 +191,6 @@ class Factorize(object):
     def f(x: float, y: float)
   to
     def f(x: int or float, y: int or float)
-  .
   """
 
   def _GroupByOmittedArg(self, signatures, i):
@@ -260,7 +257,7 @@ class ApplyOptionalArguments(object):
     def f(x: int, y: int)
   to just
     def f(x: int, ...)
-  .
+
   Because "..." makes it possible to pass any additional arguments, the latter
   encompasses both declarations, one of which can hence be omitted.
   """
@@ -302,7 +299,6 @@ class FindCommonSuperClasses(object):
     def f(x: list or tuple, y: frozenset or set) -> int or float
   to
     def f(x: Sequence, y: Set) -> Real
-  .
   """
 
   def __init__(self):
@@ -386,11 +382,42 @@ class FindCommonSuperClasses(object):
     return JoinTypes(new_type_list)
 
 
+class ShortenUnions(object):
+  """Shortens long unions to object.
+
+  Poor man's version of FindCommonSuperClasses. Some signature extractions
+  generate signatures like
+    class str:
+      def __init__(self, obj: str or unicode or int or float or list)
+  We shorten that to
+    class str:
+      def __init__(self, obj: object)
+  In other words, if there are too many types "or"ed together, we just replace
+  the entire thing with "object".
+
+  Attributes:
+    max_length: The maximum number of types to allow in a union. If there are
+      more types than this, we use "object" for everything instead. The current
+      (experimental) default for this is four, so only up to four types can
+      be represented as a union.
+  """
+
+  def __init__(self, max_length=4):
+    self.max_length = max_length
+
+  def VisitUnionType(self, union):
+    if len(union.type_list) > self.max_length:
+      return pytd.BasicType("object")
+    else:
+      return union
+
+
 def Optimize(node):
   """Optimize a PYTD tree."""
   node = node.Visit(RemoveDuplicates())
   node = node.Visit(CombineReturnsAndExceptions())
   node = node.Visit(Factorize())
   node = node.Visit(ApplyOptionalArguments())
+  node = node.Visit(ShortenUnions())
   return node
 

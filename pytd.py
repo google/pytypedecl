@@ -226,20 +226,31 @@ class NativeType(node.Node('python_type')):
   __slots__ = ()
 
 
-class ClassType(node.Node('cls')):
+class ClassType(node.Node('name')):
   """A type specified through an existing class node."""
-  __slots__ = ()
+
+  # This type is different from normal nodes:
+  # (a) It's mutable, and there are functions (parse/visitors.py:FillInClasses)
+  #     that modify a tree in place.
+  # (b) Because it's mutable, it's not actually using the tuple/Node interface
+  #     to store things (in particular, the pointer to the existing class).
+  # (c) Visitors will not process the "children" of this node. Since we point
+  #     to classes that are back at the top of the tree, that would generate
+  #     cycles.
+
+  def __new__(cls, name):
+    self = super(ClassType, cls).__new__(cls, name)
+    self.cls = None  # later, name is looked up, and cls is filled in
+    return self
 
   def __str__(self):
     return str(self.cls.name)
 
-  def Visit(self, visitor, *args, **kwargs):
-    # Do *not* process children- since we point to classes that
-    # are back at the top of the tree, that would generate cycles.
-    if hasattr(visitor, 'VisitClassType'):
-      return visitor.VisitClassType(self, *args, **kwargs)
-    else:
-      return self
+  def __repr__(self):
+    return '{%sClassType}(%s)' % (
+        'Unresolved' if self.cls is None else '',
+        self.name
+    )
 
 
 class Scalar(node.Node('value')):

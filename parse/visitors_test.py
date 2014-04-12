@@ -15,12 +15,52 @@
 
 
 import unittest
+
+from pytypedecl import pytd
 from pytypedecl.parse import parser_test
 from pytypedecl.parse import visitors
 
 
+class VerifyLookup(object):
+  """Utility class for testing visitors.LookupClasses."""
+
+  def VisitBasicType(self, _):
+    raise ValueError("All BasicType nodes should have been replaced.")
+
+  def VisitClassType(self, node):
+    if node.cls is None:
+      raise ValueError("All ClassType nodes should have been resolved.")
+
+
 class TestVisitors(parser_test.ParserTest):
   """Tests the classes in parse/visitors."""
+
+  def testLookupClasses(self):
+    src = """
+        class object:
+          pass
+        class A:
+          def a(self, a: A, b: B) -> A or B raises A, B
+        class B:
+          def b(self, a: A, b: B) -> A or B raises A, B
+    """
+    tree = self.parser.Parse(src)
+    new_tree = tree.Visit(visitors.LookupClasses())
+    self.AssertSourceEquals(new_tree, src)
+    new_tree.Visit(VerifyLookup())
+
+  def testReplaceType(self):
+    src = """
+        class A:
+          def a(self, a: A or B) -> A or B raises A, B
+    """
+    expected = """
+        class A:
+          def a(self, a: A2 or B) -> A2 or B raises A2, B
+    """
+    tree = self.parser.Parse(src)
+    new_tree = tree.Visit(visitors.ReplaceType({"A": pytd.BasicType("A2")}))
+    self.AssertSourceEquals(new_tree, expected)
 
   def testInstantiateTemplates(self):
     src = """
@@ -29,14 +69,13 @@ class TestVisitors(parser_test.ParserTest):
           def foo(a: T) -> T raises T
     """
     expected = """
-        def foo(x: int) -> A<int>
+        def foo(x: int) -> `A<int>`
         class `A<int>`:
           def foo(a: int) -> int raises int
     """
     tree = self.parser.Parse(src)
     new_tree = tree.Visit(visitors.InstantiateTemplates(tree))
-    new_src = new_tree.Visit(visitors.PrintVisitor())
-    self.AssertSourceEquals(new_src, expected)
+    self.AssertSourceEquals(new_tree, expected)
 
   def testStripSelf(self):
     src = """
@@ -55,8 +94,7 @@ class TestVisitors(parser_test.ParserTest):
     """
     tree = self.parser.Parse(src)
     new_tree = tree.Visit(visitors.StripSelf())
-    new_src = new_tree.Visit(visitors.PrintVisitor())
-    self.AssertSourceEquals(new_src, expected)
+    self.AssertSourceEquals(new_tree, expected)
 
 
 if __name__ == "__main__":

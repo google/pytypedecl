@@ -265,11 +265,11 @@ class PyParser(object):
 
   def p_parent_list_multi(self, p):
     """parent_list : parent_list COMMA NAME"""
-    p[0] = p[1] + [p[3]]
+    p[0] = p[1] + [pytd.BasicType(p[3])]
 
   def p_parent_list_1(self, p):
     """parent_list : NAME"""
-    p[0] = [p[1]]
+    p[0] = [pytd.BasicType(p[1])]
 
   def p_template(self, p):
     """template : LBRACKET templates RBRACKET"""

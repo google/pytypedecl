@@ -181,7 +181,7 @@ def _VisitNode(node, visitor, *args, **kwargs):
     # Node with an overloaded Visit() function. It'll do its own processing.
     return node.Visit(visitor, *args, **kwargs)
   elif isinstance(node, tuple):
-    new_children = [(_VisitNode(child, visitor, *args, **kwargs) or child)
+    new_children = [_VisitNode(child, visitor, *args, **kwargs)
                     for child in node]
     if any(c1 is not c2 for c1, c2 in zip(new_children, node)):
       # Exact comparison, because classes deriving from tuple (like namedtuple)
@@ -209,14 +209,14 @@ def _VisitNode(node, visitor, *args, **kwargs):
     else:
       return new_node
   elif isinstance(node, list):
-    new_list_entries = [(_VisitNode(child, visitor, *args, **kwargs) or child)
+    new_list_entries = [_VisitNode(child, visitor, *args, **kwargs)
                         for child in node]
-    if any(id(c1) != id(c2) for c1, c2 in zip(new_list_entries, node)):
+    if any(c1 is not c2 for c1, c2 in zip(new_list_entries, node)):
       # Since some of our children changed, instantiate a new list.
       return node.__class__(new_list_entries)
   elif isinstance(node, dict):
-    new_dict = {k: (_VisitNode(v, visitor, *args, **kwargs) or v)
-                for k, v in node.items()}
+    new_dict = {k: _VisitNode(child, visitor, *args, **kwargs)
+                for k, child in node.items()}
     if (len(new_dict) != len(node) or
         any(id(new_dict[k]) != id(node[k]) for k in node)):
       # Return a new dictionary, but with the current class, in case the user

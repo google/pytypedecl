@@ -13,13 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-import collections
 import textwrap
 import unittest
 from pytypedecl import pytd
-from pytypedecl.parse import parser
+from pytypedecl.parse import decorate
 from pytypedecl.parse import node
+from pytypedecl.parse import parser
 
 
 class TestASTGeneration(unittest.TestCase):
@@ -114,7 +113,7 @@ class TestASTGeneration(unittest.TestCase):
     """Test parsing of a function with unions, noneable etc."""
 
     canonical = textwrap.dedent("""
-        def foo(a: int, b: int or float or None, c: Foo and s.Bar and Zot) -> int raises Bad
+        def foo(a: int, b: int or float or None, c: Foo and `s.Bar` and Zot) -> int raises Bad
     """)
     data1 = textwrap.dedent("""
         def foo(a: int, b: int or float or None, c: Foo and s.Bar and Zot) -> int raises Bad
@@ -370,6 +369,32 @@ class TestTupleEq(unittest.TestCase):
     new_y = y.Visit(v)
     self.assertEquals(repr(new_y), y_expected.replace("Y", "X"))
     self.assertEquals(repr(y), y_expected) # check that original is unchanged
+
+
+class TestDecorate(unittest.TestCase):
+  """Test adding additional methods to nodes in a tree using decorate.py."""
+
+  def test1(self):
+    decorator = decorate.Decorator()
+
+    # Change pytd.BasicType to also have a method called "test1"
+    @decorator
+    class BasicType(pytd.BasicType):
+      def test1(self):
+        pass
+
+    # Change pytd.Scalar to also have a method called "test2"
+    @decorator
+    class Scalar(pytd.Scalar):
+      def test2(self):
+        pass
+
+    tree = pytd.Scalar(pytd.BasicType("test"))
+    tree = decorator.Visit(tree)
+    # test that we now have the "test2" method on pytd.Scalar
+    tree.test2()
+    # test that we now have the "test1" method on pytd.BasicType
+    tree.value.test1()
 
 
 if __name__ == "__main__":

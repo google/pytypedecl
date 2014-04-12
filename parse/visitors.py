@@ -98,17 +98,21 @@ class PrintVisitor(object):
       string representation of the signature (no "def" and function name)
     """
     # TODO: template
-    if node.return_type != "object":
-      ret = " -> " + node.return_type
-    else:
-      ret = ""
+
+    # Potentially abbreviate. "object" is the default.
+    ret = " -> " + node.return_type if node.return_type != "object" else ""
+
     exc = " raises " + ", ".join(node.exceptions) if node.exceptions else ""
     optional = ("...",) if node.has_optional else ()
     return "(" + ", ".join(node.params + optional) + ")" + ret + exc
 
   def VisitParameter(self, node):
     """Convert a template parameter to a string."""
-    return node.name + ": " + node.type
+    if node.type != "object":
+      return node.name + ": " + node.type
+    else:
+      # Abbreviated form. "object" is the default.
+      return node.name
 
   def VisitTemplateItem(self, node):
     """Convert a template (E.g. "<X extends list>") to a string."""
@@ -116,14 +120,14 @@ class PrintVisitor(object):
 
   def VisitBasicType(self, node):
     """Convert a type to a string."""
-    return node.containing_type
+    return self.SafeName(node.containing_type)
 
   def VisitNativeType(self, node):
     """Convert a native type to a string."""
-    return node.python_type.__name__
+    return self.SafeName(node.python_type.__name__)
 
   def VisitClassType(self, node):
-    return node.cls.name
+    return self.SafeName(node.cls.name)
 
   def VisitHomogeneousContainerType(self, node):
     """Convert a homogeneous container type to a string."""
@@ -165,32 +169,91 @@ class StripSelf(object):
     return node._replace(params=node.params[1:])
 
 
-class LookupClasses(object):
-  """Change all NamedType objects to ClassType objects, by looking them up."""
+class FillInClasses(object):
+  """Fill in ClassType pointers using a symbol table.
+
+  This is an in-place visitor! It modifies the original tree. This is
+  necessary because we introduce loops.
+  """
 
   def __init__(self, symbol_table):
-    self.symbol_table = symbol_table
+    """Create this visitor.
 
-  def VisitBasicType(self, named_type):
-    """Converts a named type to a class type by looking up the name.
+    You're expected to then pass this instance to node.Visit().
 
     Args:
-      named_type: The BasicType to look up
+      symbol_table: The symbol table to use for looking up classes.
+    """
+    self.symbol_table = symbol_table
+
+  def VisitTypeDeclUnit(self, unused_unit):
+    """Visits a top level module. This is usually this visitor's entry point.
+
+    Args:
+      unused_unit: Our module. (ignored)
 
     Returns:
-      A ClassType.
+      Explicitly returns None, to trip any callers treating this visitor as
+      a pure function.
+    """
+    return None
+
+  def VisitClassType(self, node):
+    """Fills in a class type.
+
+    Args:
+      node: A ClassType. This node will have a name, which we use for lookup.
+
+    Returns:
+      The same ClassType. We will have filled in its "cls" attribute.
+
+    Raises:
+      KeyError: If we can't find a given class.
+    """
+    node.cls = self.symbol_table.Lookup(node.name)
+    return node
+
+
+class LookupClasses(object):
+  """Change all NamedType objects to ClassType objects, by looking them up.
+
+  This is a destructive visitor! It modifies the original tree. This is
+  necessary because we introduce cycles to the tree.
+  """
+
+  def VisitTypeDeclUnit(self, unit):
+    """Converts a module from one using BasicType to ClassType.
+
+    Args:
+      unit: The module to process.
+
+    Returns:
+      A new module that only uses ClassType. All ClassType instances will point
+      to concrete classes.
 
     Throws:
       KeyError: If we can't find a class by this name.
     """
-    return pytd.ClassType(self.symbol_table.Lookup(named_type.containing_type))
+    # Since the node visitor protocol calls us *after* our children, the classes
+    # will already have been processed (i.e., contain ClassType instead of
+    # BasicType).
+    unit.Visit(FillInClasses(unit))  # discard return value (None)
+    return unit
+
+  def VisitBasicType(self, node):
+    """Converts a named type to a class type, to be filled in later.
+
+    Args:
+      node: The BasicType. This type only has a name.
+
+    Returns:
+      A ClassType. This ClassType will (temporarily) only have a name.
+    """
+    return pytd.ClassType(node.containing_type)
 
 
-class RenameType(object):
-  """Renames types in a tree. Only changes BasicType nodes."""
-  # TODO: This only differs from LookupClasses in that Rename doesn't
-  # raise KeyError, and that LookupClasses also wraps a ClassType around the
-  # result. Merge the two?
+class ReplaceType(object):
+  """Visitor for replacing types in a tree. Only changes BasicType nodes."""
 
   def __init__(self, mapping):
     self.mapping = mapping
@@ -226,7 +289,7 @@ class InstantiateTemplates(object):
     cls = self.symbol_table.Lookup(base_type.containing_type)
     names = [t.name for t in cls.template]
     mapping = {name: e for name, e in zip(names, element_types)}
-    return cls._replace(name=name, template=None).Visit(RenameType(mapping))
+    return cls._replace(name=name, template=None).Visit(ReplaceType(mapping))
 
   def VisitHomogeneousContainerType(self, node):
     """Converts a template type (container type) to a concrete class.
@@ -234,7 +297,7 @@ class InstantiateTemplates(object):
     This works by looking up the actual Class (using the lookup table passed
     when initializing the visitor) and substituting the parameters of the
     template everywhere in its definition. The new class is appended to the
-    list of classes of this module. (Later on, the template we used is removed)
+    list of classes of this module. (Later on, the template we used is removed.)
 
     Args:
       node: An instance of HomogeneousContainerType
