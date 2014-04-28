@@ -33,7 +33,7 @@ Usage:
       ...
 
   @decorate
-  class BasicType(pytd.BasicType):
+  class NamedType(pytd.NamedType):
     def Print(self):
       ...
 

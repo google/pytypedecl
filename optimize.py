@@ -313,13 +313,13 @@ class FindCommonSuperClasses(object):
       collect: A set(), modified to contain all superclasses.
     """
     collect.add(node)
-    superclasses = [pytd.BasicType(name)
+    superclasses = [pytd.NamedType(name)
                     for name in self._superclasses.get(str(node), [])]
 
-    if node != pytd.BasicType("object"):
+    if node != pytd.NamedType("object"):
       # Everything but object itself subclasses object. This is not explicitly
       # specified in _superclasses, so we add object manually.
-      superclasses.append(pytd.BasicType("object"))
+      superclasses.append(pytd.NamedType("object"))
 
     # The superclasses might have superclasses of their own, so recurse.
     for superclass in superclasses:
@@ -349,7 +349,7 @@ class FindCommonSuperClasses(object):
         and "object" not in (str(k) for k in known)):
       return True
 
-    return any(pytd.BasicType(sub) in known
+    return any(pytd.NamedType(sub) in known
                for sub in self._subclasses[str(cls)])
 
   def VisitUnionType(self, union):
@@ -406,9 +406,9 @@ class ShortenUnions(object):
 
   def VisitUnionType(self, union):
     if len(union.type_list) > self.max_length:
-      return pytd.BasicType("object")
-    elif pytd.BasicType("object") in union.type_list:
-      return pytd.BasicType("object")
+      return pytd.NamedType("object")
+    elif pytd.NamedType("object") in union.type_list:
+      return pytd.NamedType("object")
     else:
       return union
 

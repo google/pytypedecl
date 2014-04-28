@@ -175,14 +175,14 @@ def ConvertToType(module, type_node):
   # TODO: Convert this to a visitor.
 
   # clean up str
-  if isinstance(type_node, pytd.BasicType):
-    if type_node.containing_type == "None":
+  if isinstance(type_node, pytd.NamedType):
+    if type_node.name == "None":
       return types.NoneType
-    elif type_node.containing_type == "generator":
+    elif type_node.name == "generator":
       return types.GeneratorType
     else:
-      res = _EvalWithModuleContext(type_node.containing_type, module)
-      assert isinstance(res, type), (type_node.containing_type, repr(res))
+      res = _EvalWithModuleContext(type_node.name, module)
+      assert isinstance(res, type), (type_node.name, repr(res))
       return res
 
   elif isinstance(type_node, pytd.UnionType):

@@ -96,17 +96,17 @@ class TestASTGeneration(unittest.TestCase):
     f = result.Lookup("add")
     self.assertEquals(len(f.signatures), 1)
     self.assertEquals(["int", "int"],
-                      [p.type.containing_type
+                      [p.type.name
                        for p in f.signatures[0].params])
 
     f = result.Lookup("foo")
     self.assertEquals(len(f.signatures), 2)
 
     sig1, = [s for s in f.signatures if not s.params]
-    self.assertEquals(sig1.return_type.containing_type, "None")
+    self.assertEquals(sig1.return_type.name, "None")
     sig2, = [s for s in f.signatures if len(s.params) == 2]
-    self.assertEquals(sig2.return_type.containing_type, "int")
-    self.assertEquals([p.type.containing_type for p in sig2.params],
+    self.assertEquals(sig2.return_type.name, "int")
+    self.assertEquals([p.type.name for p in sig2.params],
                       ["int", "bool"])
 
   def testComplexFunction(self):
@@ -152,14 +152,14 @@ class TestASTGeneration(unittest.TestCase):
                             name="a",
                             type=pytd.UnionType(
                                 type_list=(
-                                    pytd.BasicType("Foo"),
+                                    pytd.NamedType("Foo"),
                                     pytd.IntersectionType(
                                         type_list=(
-                                            pytd.BasicType("Bar"),
-                                            pytd.BasicType("Zot"))))
+                                            pytd.NamedType("Bar"),
+                                            pytd.NamedType("Zot"))))
                             )
                         ),),
-                    return_type=pytd.BasicType("object"),
+                    return_type=pytd.NamedType("object"),
                     template=(), has_optional=False, provenance="",
                     exceptions=())])],
         modules={})
@@ -190,7 +190,7 @@ class TestASTGeneration(unittest.TestCase):
                                        type=pytd.Scalar(value=-1.0)),
                         pytd.Parameter(name="c",
                                        type=pytd.Scalar(value=666)),),
-                    return_type=pytd.BasicType("int"),
+                    return_type=pytd.NamedType("int"),
                     exceptions=(),
                     template=(), has_optional=False, provenance="")])],
         modules={})
@@ -379,9 +379,9 @@ class TestDecorate(unittest.TestCase):
   def test1(self):
     decorator = decorate.Decorator()
 
-    # Change pytd.BasicType to also have a method called "test1"
-    @decorator
-    class BasicType(pytd.BasicType):
+    # Change pytd.NamedType to also have a method called "test1"
+    @decorator  # pylint: disable=unused-variable
+    class NamedType(pytd.NamedType):
       def test1(self):
         pass
 
@@ -391,11 +391,11 @@ class TestDecorate(unittest.TestCase):
       def test2(self):
         pass
 
-    tree = pytd.Scalar(pytd.BasicType("test"))
+    tree = pytd.Scalar(pytd.NamedType("test"))
     tree = decorator.Visit(tree)
     # test that we now have the "test2" method on pytd.Scalar
     tree.test2()
-    # test that we now have the "test1" method on pytd.BasicType
+    # test that we now have the "test1" method on pytd.NamedType
     tree.value.test1()
 
 

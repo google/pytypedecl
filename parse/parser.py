@@ -266,11 +266,11 @@ class PyParser(object):
 
   def p_parent_list_multi(self, p):
     """parent_list : parent_list COMMA NAME"""
-    p[0] = p[1] + [pytd.BasicType(p[3])]
+    p[0] = p[1] + [pytd.NamedType(p[3])]
 
   def p_parent_list_1(self, p):
     """parent_list : NAME"""
-    p[0] = [pytd.BasicType(p[1])]
+    p[0] = [pytd.NamedType(p[1])]
 
   def p_template(self, p):
     """template : LBRACKET templates RBRACKET"""
@@ -291,7 +291,7 @@ class PyParser(object):
 
   def p_template_item(self, p):
     """template_item : NAME"""
-    p[0] = pytd.TemplateItem(p[1], pytd.BasicType('object'), 0)
+    p[0] = pytd.TemplateItem(p[1], pytd.NamedType('object'), 0)
 
   def p_template_item_subclss(self, p):
     """template_item : NAME EXTENDS compound_type"""
@@ -330,7 +330,7 @@ class PyParser(object):
   # We interpret a missing "-> type" as: "Type not specified"
   def p_return_null(self, p):
     """return :"""
-    p[0] = pytd.BasicType('object')
+    p[0] = pytd.NamedType('object')
 
   def p_params_multi(self, p):
     """params : params COMMA param"""
@@ -355,7 +355,7 @@ class PyParser(object):
   def p_param(self, p):
     """param : NAME"""
     # type is optional and defaults to "object"
-    p[0] = pytd.Parameter(p[1], pytd.BasicType('object'))
+    p[0] = pytd.Parameter(p[1], pytd.NamedType('object'))
 
   def p_param_and_type(self, p):
     """param : NAME COLON compound_type"""
@@ -383,7 +383,7 @@ class PyParser(object):
 
   def p_identifier_name(self, p):
     """identifier : NAME"""
-    p[0] = pytd.BasicType(p[1])
+    p[0] = pytd.NamedType(p[1])
 
   def p_identifier_string(self, p):
     """identifier : STRING"""
@@ -400,9 +400,9 @@ class PyParser(object):
     #              should remove it.
     # This rule depends on precedence specification
     if (isinstance(p[1], pytd.IntersectionType) and
-        isinstance(p[3], pytd.BasicType)):
+        isinstance(p[3], pytd.NamedType)):
       p[0] = pytd.IntersectionType(p[1].type_list + (p[3],))
-    elif (isinstance(p[1], pytd.BasicType) and
+    elif (isinstance(p[1], pytd.NamedType) and
           isinstance(p[3], pytd.IntersectionType)):
       # associative
       p[0] = pytd.IntersectionType(((p[1],) + p[3].type_list))
@@ -413,9 +413,9 @@ class PyParser(object):
     """compound_type : compound_type OR compound_type"""
     # This rule depends on precedence specification
     if (isinstance(p[1], pytd.UnionType) and
-        isinstance(p[3], pytd.BasicType)):
+        isinstance(p[3], pytd.NamedType)):
       p[0] = pytd.UnionType(p[1].type_list + (p[3],))
-    elif (isinstance(p[1], pytd.BasicType) and
+    elif (isinstance(p[1], pytd.NamedType) and
           isinstance(p[3], pytd.UnionType)):
       # associative
       p[0] = pytd.UnionType((p[1],) + p[3].type_list)

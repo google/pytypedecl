@@ -121,9 +121,9 @@ class PrintVisitor(object):
     """Convert a template (E.g. "<X extends list>") to a string."""
     return node.name + "<" + node.within_type + ">"
 
-  def VisitBasicType(self, node):
+  def VisitNamedType(self, node):
     """Convert a type to a string."""
-    return self.SafeName(node.containing_type)
+    return self.SafeName(node.name)
 
   def VisitNativeType(self, node):
     """Convert a native type to a string."""
@@ -218,19 +218,19 @@ class _FillInClasses(object):
     return node
 
 
-class BasicTypeToClassType(object):
-  """Change all BasicType objects to ClassType objects."""
+class NamedTypeToClassType(object):
+  """Change all NamedType objects to ClassType objects."""
 
-  def VisitBasicType(self, node):
+  def VisitNamedType(self, node):
     """Converts a named type to a class type, to be filled in later.
 
     Args:
-      node: The BasicType. This type only has a name.
+      node: The NamedType. This type only has a name.
 
     Returns:
       A ClassType. This ClassType will (temporarily) only have a name.
     """
-    return pytd.ClassType(node.containing_type)
+    return pytd.ClassType(node.name)
 
 
 def FillInClasses(module, global_module=None):
@@ -253,7 +253,7 @@ def FillInClasses(module, global_module=None):
 
 
 def LookupClasses(module):
-  """Converts a module from one using BasicType to ClassType.
+  """Converts a module from one using NamedType to ClassType.
 
   Args:
     module: The module to process.
@@ -265,20 +265,20 @@ def LookupClasses(module):
   Throws:
     KeyError: If we can't find a class.
   """
-  module = module.Visit(BasicTypeToClassType())
+  module = module.Visit(NamedTypeToClassType())
   FillInClasses(module, module)
   return module
 
 
 class ReplaceType(object):
-  """Visitor for replacing types in a tree. Only changes BasicType nodes."""
+  """Visitor for replacing types in a tree. Only changes NamedType nodes."""
 
   def __init__(self, mapping):
     self.mapping = mapping
 
-  def VisitBasicType(self, node):
-    if node.containing_type in self.mapping:
-      return self.mapping[node.containing_type]
+  def VisitNamedType(self, node):
+    if node.name in self.mapping:
+      return self.mapping[node.name]
     else:
       return node
 
@@ -319,7 +319,7 @@ class InstantiateTemplates(object):
     return node.Replace(classes=old_classes + new_classes)
 
   def _InstantiateClass(self, name, base_type, element_types):
-    cls = self.symbol_table.Lookup(base_type.containing_type)
+    cls = self.symbol_table.Lookup(base_type.name)
     names = [t.name for t in cls.template]
     mapping = {name: e for name, e in zip(names, element_types)}
     return cls.Replace(name=name, template=None).Visit(ReplaceType(mapping))
@@ -336,7 +336,7 @@ class InstantiateTemplates(object):
       node: An instance of HomogeneousContainerType
 
     Returns:
-      A new BasicType pointing to an instantiation of the class.
+      A new NamedType pointing to an instantiation of the class.
     """
     base_type_name = node.base_type.Visit(PrintVisitor())
     element_type_name = node.element_type.Visit(PrintVisitor())
@@ -344,7 +344,7 @@ class InstantiateTemplates(object):
     if name not in self._instantiated_classes:
       self._instantiated_classes[name] = self._InstantiateClass(
           name, node.base_type, [node.element_type])
-    return pytd.BasicType(name)
+    return pytd.NamedType(name)
 
   def VisitGenericType(self, node):
     # TODO: implement this

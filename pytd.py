@@ -16,7 +16,6 @@
 
 # Our way of using namedtuple is confusing pylint.
 # pylint: disable=no-member
-# pylint: disable=protected-access
 
 """AST representation of a pytd file.
 
@@ -33,8 +32,8 @@ method. For example:
 
       # The Process callbacks:
 
-      def ProcessBasicType(self, t):
-        return t.containing_type
+      def ProcessNamedType(self, t):
+        return t.name
 
       def ProcessUnionType(self, t):
         return 'UNION({})'.format(', '.join(
@@ -184,7 +183,7 @@ class TemplateItem(node.Node('name', 'within_type', 'level')):
 
   Attributes:
     name: the name that's used in a generic type
-    type: the "extends" type for this name (e.g., BasicType('object'))
+    type: the "extends" type for this name (e.g., NamedType('object'))
     level: When this object is the result of a lookup, it is how many
            levels "up" the name was found. For example:
              class <T> Foo:
@@ -199,7 +198,7 @@ class TemplateItem(node.Node('name', 'within_type', 'level')):
 
 # There are multiple representations of a "type" (used for return types,
 # arguments, exceptions etc.):
-# 1.) BasicType:
+# 1.) NamedType:
 #     Specifies a type by name (i.e., a string)
 # 2.) NativeType
 #     Points to a Python type. (int, float etc.)
@@ -207,20 +206,18 @@ class TemplateItem(node.Node('name', 'within_type', 'level')):
 #     Points back to a Class in the AST. (This makes the AST circular)
 # visitors.py contains tools for converting between the corresponding AST
 # representations.
-# TODO: Add a fourth type, "UnknownType", for use in the type
-# inferencer.
+# TODO: Add a fourth type, "UnknownType", for type inference.
 
 
-class BasicType(node.Node('containing_type')):
+class NamedType(node.Node('name')):
   """A type specified by name."""
-  # TODO: Rename to "NamedType", rename 'containing_type' to 'name'
   __slots__ = ()
 
   def __str__(self):
-    return str(self.containing_type)
+    return str(self.name)
 
   def Process(self, processor):
-    return processor.ProcessBasicType(self)
+    return processor.ProcessNamedType(self)
 
 
 class NativeType(node.Node('python_type')):

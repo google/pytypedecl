@@ -24,8 +24,8 @@ from pytypedecl.parse import visitors
 class VerifyLookup(object):
   """Utility class for testing visitors.LookupClasses."""
 
-  def VisitBasicType(self, _):
-    raise ValueError("All BasicType nodes should have been replaced.")
+  def VisitNamedType(self, _):
+    raise ValueError("All NamedType nodes should have been replaced.")
 
   def VisitClassType(self, node):
     if node.cls is None:
@@ -59,7 +59,7 @@ class TestVisitors(parser_test.ParserTest):
           def a(self, a: A2 or B) -> A2 or B raises A2, B
     """
     tree = self.parser.Parse(src)
-    new_tree = tree.Visit(visitors.ReplaceType({"A": pytd.BasicType("A2")}))
+    new_tree = tree.Visit(visitors.ReplaceType({"A": pytd.NamedType("A2")}))
     self.AssertSourceEquals(new_tree, expected)
 
   def testInstantiateTemplates(self):
