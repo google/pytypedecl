@@ -44,8 +44,26 @@ class RemoveDuplicates(object):
     return node.Replace(signatures=list(ordered_set))
 
 
-ReturnsAndExceptions = collections.namedtuple(
-    "ReturnsAndExceptions", ["return_types", "exceptions"])
+class _ReturnsAndExceptions(object):
+  """Mutable class for collecting return types and exceptions of functions.
+
+  The collecting is stable: Items are kept in the order in which they were
+  encountered.
+  """
+
+  def __init__(self):
+    self.return_types = []
+    self.exceptions = []
+
+  def Update(self, signature):
+    """Add the return types / exceptions of a signature to this instance."""
+
+    if signature.return_type not in self.return_types:
+      self.return_types.append(signature.return_type)
+
+    self.exceptions.extend(exception
+                           for exception in signature.exceptions
+                           if exception not in self.exceptions)
 
 
 def JoinTypes(types):
@@ -66,12 +84,15 @@ def JoinTypes(types):
   if len(types) == 1:
     return types[0]
   else:
+    seen = set()
     new_types = []
     for t in types:
       if isinstance(t, pytd.UnionType):
-        new_types += t.type_list
+        types_to_add = t.type_list
       else:
-        new_types.append(t)
+        types_to_add = [t]
+      new_types.extend(t for t in types_to_add if t not in seen)
+      seen.update(types_to_add)
     return pytd.UnionType(tuple(new_types))
 
 
@@ -98,13 +119,14 @@ class CombineReturnsAndExceptions(object):
     groups = collections.OrderedDict()
     for sig in signatures:
       stripped_signature = sig.Replace(return_type=None, exceptions=None)
-      existing = groups.get(stripped_signature)
-      if existing:
-        existing.return_types.add(sig.return_type)
-        existing.exceptions.update(sig.exceptions)
-      else:
-        groups[stripped_signature] = ReturnsAndExceptions(
-            set([sig.return_type]), set(sig.exceptions))
+
+      ret = groups.get(stripped_signature)
+      if not ret:
+        ret = _ReturnsAndExceptions()
+        groups[stripped_signature] = ret
+
+      ret.Update(sig)
+
     return groups
 
   def VisitFunction(self, f):
@@ -112,16 +134,9 @@ class CombineReturnsAndExceptions(object):
     groups = self._GroupByArguments(f.signatures)
 
     new_signatures = []
-    for stripped_signature, ret_and_exc in groups.viewitems():
-      return_types, exceptions = ret_and_exc
-
-      # TODO: Do we need the sorting? It would be nicer if this
-      #              was a stable operation that didn't change the order.
-      ret = JoinTypes(sorted(return_types))
-
-      # TODO: Once we change Signature.exceptions to be a single type
-      #              instead of a list, make this return a union type.
-      exc = tuple(sorted(exceptions))
+    for stripped_signature, ret_exc in groups.viewitems():
+      ret = JoinTypes(ret_exc.return_types)
+      exc = tuple(ret_exc.exceptions)
 
       new_signatures.append(
           stripped_signature.Replace(return_type=ret, exceptions=exc)
@@ -148,15 +163,11 @@ class ExpandSignatures(object):
 
   def VisitFunction(self, f):
     """Rebuild the function with the new signatures."""
-    new_signatures = []
-    for signature in f.signatures:
-      if isinstance(signature, list):
-        # signature that got expanded
-        new_signatures += signature
-      else:
-        # single signature we didn't touch
-        new_signatures.append(signature)
-    return f.Replace(signatures=tuple(new_signatures))
+
+    # concatenate return value(s) from VisitSignature
+    new_signatures = tuple(sum(f.signatures, []))
+
+    return f.Replace(signatures=new_signatures)
 
   def VisitSignature(self, sig):
     """Expand a single signature."""
@@ -283,7 +294,11 @@ class ApplyOptionalArguments(object):
 
   def VisitFunction(self, f):
     """Remove all signatures that have a shorter version."""
-    optional_arg_sigs = set(s for s in f.signatures if s.has_optional)
+
+    # Set of signatures that can replace longer ones. Only used for matching,
+    # hence we can use an unordered data structure.
+    optional_arg_sigs = frozenset(s for s in f.signatures if s.has_optional)
+
     new_signatures = [s for s in f.signatures
                       if not self._HasShorterVersion(s, optional_arg_sigs)]
     return f.Replace(signatures=tuple(new_signatures))
@@ -344,9 +359,9 @@ class FindCommonSuperClasses(object):
     # object is an implicit superclass of all types. So if we're being asked
     # whether object has a subclass in the set, we just need to find any
     # class that's not object itself.
-    if (str(cls) == "object"
+    if (cls == pytd.NamedType("object")
         and known
-        and "object" not in (str(k) for k in known)):
+        and any(k == pytd.NamedType("object") for k in known)):
       return True
 
     return any(pytd.NamedType(sub) in known

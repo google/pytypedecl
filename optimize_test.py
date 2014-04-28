@@ -68,7 +68,30 @@ class TestOptimize(parser_test.ParserTest):
         def foo(a: int) -> float
     """
     new_src = """
-        def foo(a: int) -> float or int
+        def foo(a: int) -> int or float
+    """
+    self.AssertOptimizeEquals(src, new_src)
+
+  def testCombineRedundantReturns(self):
+    src = """
+        def foo(a: int) -> int
+        def foo(a: int) -> float
+        def foo(a: int) -> int or float
+    """
+    new_src = """
+        def foo(a: int) -> int or float
+    """
+    self.AssertOptimizeEquals(src, new_src)
+
+  def testCombineUnionReturns(self):
+    src = """
+        def foo(a: int) -> int or float
+        def bar(a: str) -> str
+        def foo(a: int) -> str or unicode
+    """
+    new_src = """
+        def foo(a: int) -> int or float or str or unicode
+        def bar(a: str) -> str
     """
     self.AssertOptimizeEquals(src, new_src)
 
@@ -77,9 +100,10 @@ class TestOptimize(parser_test.ParserTest):
         def foo(a: int) -> int raises ValueError
         def foo(a: int) -> int raises IndexError
         def foo(a: float) -> int raises IndexError
+        def foo(a: int) -> int raises AttributeError
     """
     new_src = """
-        def foo(a: int) -> int raises IndexError, ValueError
+        def foo(a: int) -> int raises ValueError, IndexError, AttributeError
         def foo(a: float) -> int raises IndexError
     """
     self.AssertOptimizeEquals(src, new_src)
@@ -91,46 +115,19 @@ class TestOptimize(parser_test.ParserTest):
         def foo(a: int) -> int raises IndexError
     """
     new_src = """
-        def foo(a: int) -> float or int raises IndexError, ValueError
-    """
-    self.AssertOptimizeEquals(src, new_src)
-
-  def testSorting1(self):
-    src = """
-        def foo(a: int) -> c
-        def foo(a: int) -> b
-        def foo(a: int) -> a
-        def foo(a: int) -> a
-        def foo(a: int) -> d
-    """
-    new_src = """
-        def foo(a: int) -> a or b or c or d
-    """
-    self.AssertOptimizeEquals(src, new_src)
-
-  def testSorting2(self):
-    src = """
-        def foo(a: int) raises D
-        def foo(a: int) raises B
-        def foo(a: int) raises B
-        def foo(a: int) raises A
-        def foo(a: int) raises A
-        def foo(a: int) raises C
-    """
-    new_src = """
-        def foo(a: int) raises A, B, C, D
+        def foo(a: int) -> int or float raises ValueError, IndexError
     """
     self.AssertOptimizeEquals(src, new_src)
 
   def testExpand(self):
     src = """
-        def foo(a: A or B, x: X or Y) -> Z
+        def foo(a: A or B, z: X or Y, u: U) -> Z
     """
     new_src = """
-        def foo(a: A, x: X) -> Z
-        def foo(a: A, x: Y) -> Z
-        def foo(a: B, x: X) -> Z
-        def foo(a: B, x: Y) -> Z
+        def foo(a: A, z: X, u: U) -> Z
+        def foo(a: A, z: Y, u: U) -> Z
+        def foo(a: B, z: X, u: U) -> Z
+        def foo(a: B, z: Y, u: U) -> Z
     """
     self.AssertSourceEquals(
         self.ApplyVisitorToString(src, optimize.ExpandSignatures()),
@@ -171,13 +168,30 @@ class TestOptimize(parser_test.ParserTest):
   def testSuperClasses(self):
     src = """
         def f(x: list or tuple, y: frozenset or set) -> int or float
-        def f(x: dict or Mapping, y: complex or int) -> set or dict or tuple or Container
+        def g(x: dict or Mapping, y: complex or int) -> set or dict or tuple or Container
+        def h(x)
     """
     expected = """
         def f(x: Sequence, y: Set) -> Real
-        def f(x: Mapping, y: Complex) -> Container
+        def g(x: Mapping, y: Complex) -> Container
+        def h(x)
     """
     new_src = self.ApplyVisitorToString(src, optimize.FindCommonSuperClasses())
+    self.AssertSourceEquals(new_src, expected)
+
+  def testShortenUnions(self):
+    src = """
+        def f(x: A or B or C or D) -> X
+        def g(x: A or B or C or D or E) -> X
+        def h(x: A or object) -> X
+    """
+    expected = """
+        def f(x: A or B or C or D) -> X
+        def g(x) -> X
+        def h(x) -> X
+    """
+    new_src = self.ApplyVisitorToString(src,
+        optimize.ShortenUnions(max_length=4))
     self.AssertSourceEquals(new_src, expected)
 
 if __name__ == "__main__":
