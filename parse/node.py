@@ -36,7 +36,7 @@ Example usage:
     def X(self):
       count_x += 1
     def VisitData(self, node):
-      return node._replace(d3=1000)
+      return node.Replace(d3=1000)
 
   new_xy = xy.Visit(Visitor())
 
@@ -75,7 +75,9 @@ def Node(*child_names):
     A subclass of (named)tuple.
   """
 
-  class NamedTupleNode(collections.namedtuple("_", child_names)):
+  namedtuple_type = collections.namedtuple("_", child_names)
+
+  class NamedTupleNode(namedtuple_type):
     """A Node class based on namedtuple."""
 
     def __eq__(self, other):
@@ -122,6 +124,10 @@ def Node(*child_names):
         return self.__class__.__name__ + "(" + repr(self[0]) + ")"
       else:
         return self.__class__.__name__ + repr(tuple(self))
+
+    # Expose namedtuple._replace as "Replace", so avoid lint warnings
+    # and have consistent method names.
+    Replace = namedtuple_type._replace  # pylint: disable=no-member,invalid-name
 
     def Visit(self, visitor, *args, **kwargs):
       """Visitor interface for transforming a tree of nodes to a new tree.

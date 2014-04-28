@@ -16,7 +16,6 @@
 
 """Visitor(s) for walking ASTs."""
 
-# pylint: disable=protected-access
 # pylint: disable=g-importing-member
 
 import re
@@ -166,17 +165,17 @@ class StripSelf(object):
 
   def VisitClass(self, node):
     """Visits a Class, and removes "self" from all its methods."""
-    return node._replace(methods=[self._StripFunction(m)
-                                  for m in node.methods])
+    return node.Replace(methods=[self._StripFunction(m)
+                                 for m in node.methods])
 
   def _StripFunction(self, node):
     """Remove "self" from all signatures of a method."""
-    return node._replace(signatures=tuple(self.StripSignature(s)
-                                          for s in node.signatures))
+    return node.Replace(signatures=tuple(self.StripSignature(s)
+                                         for s in node.signatures))
 
   def StripSignature(self, node):
     """Remove "self" from a Signature. Assumes "self" is the first argument."""
-    return node._replace(params=node.params[1:])
+    return node.Replace(params=node.params[1:])
 
 
 class _FillInClasses(object):
@@ -317,13 +316,13 @@ class InstantiateTemplates(object):
     old_classes = [c for c in node.classes if not c.template]
     new_classes = self._instantiated_classes.values()
     self._instantiated_classes = {}  # don't add class into more than one module
-    return node._replace(classes=old_classes + new_classes)
+    return node.Replace(classes=old_classes + new_classes)
 
   def _InstantiateClass(self, name, base_type, element_types):
     cls = self.symbol_table.Lookup(base_type.containing_type)
     names = [t.name for t in cls.template]
     mapping = {name: e for name, e in zip(names, element_types)}
-    return cls._replace(name=name, template=None).Visit(ReplaceType(mapping))
+    return cls.Replace(name=name, template=None).Visit(ReplaceType(mapping))
 
   def VisitHomogeneousContainerType(self, node):
     """Converts a template type (container type) to a concrete class.

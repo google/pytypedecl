@@ -31,7 +31,7 @@ def GetDataFile(filename=""):
 
 def Compile(filename):
   if not Compile._parser:
-    Compile._parser = parser.PyParser()
+    Compile._parser = _parser.PyParser()
   return parser.parse_file(filename)
 
 Compile._parser = None

@@ -283,7 +283,7 @@ class XY(node.Node("x", "y")):
 
 class Visitor1(object):
   def VisitData(self, node):
-    return node._replace(d3=-1)
+    return node.Replace(d3=-1)
 
 
 class Visitor2(object):

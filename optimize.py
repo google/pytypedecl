@@ -17,9 +17,6 @@
 
 """Functions for optimizing pytd parse trees and ASTs."""
 
-# For namedtuple._replace (TODO: Rename this in node.py):
-# pylint: disable=protected-access
-
 import collections
 import itertools
 
@@ -44,7 +41,7 @@ class RemoveDuplicates(object):
   def VisitFunction(self, node):
     # We remove duplicates, but keep entries in the same order.
     ordered_set = collections.OrderedDict(zip(node.signatures, node.signatures))
-    return node._replace(signatures=list(ordered_set))
+    return node.Replace(signatures=list(ordered_set))
 
 
 ReturnsAndExceptions = collections.namedtuple(
@@ -100,7 +97,7 @@ class CombineReturnsAndExceptions(object):
     """
     groups = collections.OrderedDict()
     for sig in signatures:
-      stripped_signature = sig._replace(return_type=None, exceptions=None)
+      stripped_signature = sig.Replace(return_type=None, exceptions=None)
       existing = groups.get(stripped_signature)
       if existing:
         existing.return_types.add(sig.return_type)
@@ -127,9 +124,9 @@ class CombineReturnsAndExceptions(object):
       exc = tuple(sorted(exceptions))
 
       new_signatures.append(
-          stripped_signature._replace(return_type=ret, exceptions=exc)
+          stripped_signature.Replace(return_type=ret, exceptions=exc)
       )
-    return f._replace(signatures=new_signatures)
+    return f.Replace(signatures=new_signatures)
 
 
 class ExpandSignatures(object):
@@ -159,7 +156,7 @@ class ExpandSignatures(object):
       else:
         # single signature we didn't touch
         new_signatures.append(signature)
-    return f._replace(signatures=tuple(new_signatures))
+    return f.Replace(signatures=tuple(new_signatures))
 
   def VisitSignature(self, sig):
     """Expand a single signature."""
@@ -175,7 +172,7 @@ class ExpandSignatures(object):
         # single type
         params.append([pytd.Parameter(name, param_type)])
 
-    new_signatures = [sig._replace(params=tuple(combination))
+    new_signatures = [sig.Replace(params=tuple(combination))
                       for combination in itertools.product(*params)]
 
     return new_signatures  # Hand list over to VisitFunction
@@ -216,7 +213,7 @@ class Factorize(object):
       params = list(sig.params)
       param_i = params[i]
       params[i] = pytd.Parameter(param_i.name, None)
-      stripped_signature = sig._replace(params=tuple(params))
+      stripped_signature = sig.Replace(params=tuple(params))
       existing = groups.get(stripped_signature)
       if not existing:
         groups[stripped_signature] = [param_i.type]
@@ -242,11 +239,11 @@ class Factorize(object):
           # A signature that has one or more options for argument <i>
           new_params = list(sig.params)
           new_params[i] = pytd.Parameter(sig.params[i].name, JoinTypes(types))
-          sig = sig._replace(params=tuple(new_params))
+          sig = sig.Replace(params=tuple(new_params))
           new_sigs.append(sig)
       signatures = new_sigs
 
-    return f._replace(signatures=tuple(signatures))
+    return f.Replace(signatures=tuple(signatures))
 
 
 class ApplyOptionalArguments(object):
@@ -280,7 +277,7 @@ class ApplyOptionalArguments(object):
       param_count += 1  # also consider f(x, y, ...) for f(x, y)
 
     for i in xrange(param_count):
-      shortened = sig._replace(params=sig.params[0:i], has_optional=True)
+      shortened = sig.Replace(params=sig.params[0:i], has_optional=True)
       if shortened in optional_arg_sigs:
         return True
 
@@ -289,7 +286,7 @@ class ApplyOptionalArguments(object):
     optional_arg_sigs = set(s for s in f.signatures if s.has_optional)
     new_signatures = [s for s in f.signatures
                       if not self._HasShorterVersion(s, optional_arg_sigs)]
-    return f._replace(signatures=tuple(new_signatures))
+    return f.Replace(signatures=tuple(new_signatures))
 
 
 class FindCommonSuperClasses(object):
