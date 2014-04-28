@@ -17,37 +17,11 @@
 # Our way of using namedtuple is confusing pylint.
 # pylint: disable=no-member
 
-"""AST representation of a pytd file.
-
-Each type has a Process method that takes a 'processor', which implements the
-necessary callbacks. In this way, the processor can keep state, and can be used
-to do node-specific processing, such as pretty-printing or creating constraints.
-Typically, the caller will walk the tree and call itself via the Process
-method. For example:
-
-    class Printer(object):
-
-      def WalkFunc(self, func):
-        Print(func.name, ', '.join(p.type.Process(self) for p in func.params))
-
-      # The Process callbacks:
-
-      def ProcessNamedType(self, t):
-        return t.name
-
-      def ProcessUnionType(self, t):
-        return 'UNION({})'.format(', '.join(
-            u.Process(self) for u in t.type_list))
-
-      ... etc. ...
-
-"""
-
+"""AST representation of a pytd file."""
 
 from pytypedecl.parse import node
 
 
-# TODO: Make Process() use visitors.
 # TODO: Rename "TypeDeclUnit" to "Module".
 
 
@@ -192,9 +166,6 @@ class TemplateItem(node.Node('name', 'within_type', 'level')):
   """
   __slots__ = ()
 
-  def Process(self, processor):
-    return processor.ProcessTemplateItem(self)
-
 
 # There are multiple representations of a "type" (used for return types,
 # arguments, exceptions etc.):
@@ -215,9 +186,6 @@ class NamedType(node.Node('name')):
 
   def __str__(self):
     return str(self.name)
-
-  def Process(self, processor):
-    return processor.ProcessNamedType(self)
 
 
 class NativeType(node.Node('python_type')):
@@ -259,29 +227,17 @@ class Scalar(node.Node('value')):
 class UnionType(node.Node('type_list')):
   __slots__ = ()
 
-  def Process(self, processor):
-    return processor.ProcessUnionType(self)
-
 
 class IntersectionType(node.Node('type_list')):
   __slots__ = ()
-
-  def Process(self, processor):
-    return processor.ProcessIntersectionType(self)
 
 
 class HomogeneousContainerType(node.Node('base_type', 'element_type')):
   __slots__ = ()
 
-  def Process(self, processor):
-    return processor.ProcessHomogeneousContainerType(self)
-
 
 class GenericType(node.Node('base_type', 'parameters')):
   __slots__ = ()
-
-  def Process(self, processor):
-    return processor.ProcessGenericType(self)
 
 
 def Print(n):
