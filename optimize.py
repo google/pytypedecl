@@ -22,6 +22,7 @@ import itertools
 
 from pytypedecl import abc_hierarchy
 from pytypedecl import pytd
+from pytypedecl.parse import visitors
 
 
 class RemoveDuplicates(object):
@@ -32,11 +33,9 @@ class RemoveDuplicates(object):
     def f(x: int) -> float
   to
     def f(x: int) -> float
-  In order to be removed, a signatures has to be exactly identical to an
+  In order to be removed, a signature has to be exactly identical to an
   existing one.
   """
-  # TODO: what if only the argument names differ? Maybe make parser.py
-  # output a warning.
 
   def VisitFunction(self, node):
     # We remove duplicates, but keep entries in the same order.
@@ -172,9 +171,6 @@ class ExpandSignatures(object):
   def VisitSignature(self, sig):
     """Expand a single signature."""
     params = []
-    # TODO: This doesn't take nested types like ((a or b) or c) into
-    #              account. Maybe we need a visitor that flattens structures
-    #              like that beforehand.
     for name, param_type in sig.params:
       if isinstance(param_type, pytd.UnionType):
         # multiple types
@@ -299,8 +295,8 @@ class ApplyOptionalArguments(object):
     # hence we can use an unordered data structure.
     optional_arg_sigs = frozenset(s for s in f.signatures if s.has_optional)
 
-    new_signatures = [s for s in f.signatures
-                      if not self._HasShorterVersion(s, optional_arg_sigs)]
+    new_signatures = (s for s in f.signatures
+                      if not self._HasShorterVersion(s, optional_arg_sigs))
     return f.Replace(signatures=tuple(new_signatures))
 
 
@@ -313,12 +309,12 @@ class FindCommonSuperClasses(object):
     def f(x: Sequence, y: Set) -> Real
   """
 
-  def __init__(self):
-    self._superclasses = abc_hierarchy.GetSuperClasses()
-    self._subclasses = abc_hierarchy.GetSubClasses()
-
-  # TODO: This only works for built-in types so far. Make this work for
-  # class hierarchy extracted from pytd as well?
+  def __init__(self, superclasses=None, use_abcs=True):
+    self._superclasses = superclasses or {}
+    self._subclasses = abc_hierarchy.Invert(self._superclasses)
+    if use_abcs:
+      self._superclasses.update(abc_hierarchy.GetSuperClasses())
+      self._subclasses.update(abc_hierarchy.GetSubClasses())
 
   def _CollectSuperclasses(self, node, collect):
     """Recursively collect super classes for a type.
@@ -331,14 +327,14 @@ class FindCommonSuperClasses(object):
     superclasses = [pytd.NamedType(name)
                     for name in self._superclasses.get(str(node), [])]
 
-    if node != pytd.NamedType("object"):
-      # Everything but object itself subclasses object. This is not explicitly
-      # specified in _superclasses, so we add object manually.
-      superclasses.append(pytd.NamedType("object"))
-
     # The superclasses might have superclasses of their own, so recurse.
     for superclass in superclasses:
       self._CollectSuperclasses(superclass, collect)
+
+    if node != pytd.NamedType("object"):
+      # Everything but object itself subclasses object. This is not explicitly
+      # specified in _superclasses, so we add object manually.
+      collect.add(pytd.NamedType("object"))
 
   def _Expand(self, t):
     """Generate a list of all (known) superclasses for a type.
@@ -361,7 +357,7 @@ class FindCommonSuperClasses(object):
     # class that's not object itself.
     if (cls == pytd.NamedType("object")
         and known
-        and any(k == pytd.NamedType("object") for k in known)):
+        and any(k != pytd.NamedType("object") for k in known)):
       return True
 
     return any(pytd.NamedType(sub) in known
@@ -397,15 +393,11 @@ class FindCommonSuperClasses(object):
 class ShortenUnions(object):
   """Shortens long unions to object.
 
-  Poor man's version of FindCommonSuperClasses. Some signature extractions
-  generate signatures like
-    class str:
-      def __init__(self, obj: str or unicode or int or float or list)
-  We shorten that to
-    class str:
-      def __init__(self, obj: object)
-  In other words, if there are too many types "or"ed together, we just replace
-  the entire thing with "object".
+  Poor man's version of FindCommonSuperClasses. Shorten types like
+    str or unicode or int or float or list
+  to just
+    object
+  .
   Additionally, if the union already contains at least one "object", we also
   replace the entire union with just "object".
 
@@ -428,12 +420,44 @@ class ShortenUnions(object):
       return union
 
 
-def Optimize(node):
+class ShortenParameterUnions(object):
+  """Shortens long unions in parameters to object.
+
+  Some signature extractions generate signatures like
+    class str:
+      def __init__(self, obj: str or unicode or int or float or list)
+  We shorten that to
+    class str:
+      def __init__(self, obj: object)
+  In other words, if there are too many types "or"ed together, we just replace
+  the entire thing with "object".
+
+  Attributes:
+    max_length: The maximum number of types to allow in a parameter. See
+      ShortenUnions.
+  """
+
+  def __init__(self, max_length=4):
+    self.max_length = max_length
+
+  def VisitParameter(self, param):
+    return param.Visit(ShortenUnions())
+
+
+OptimizeFlags = collections.namedtuple("_", ["lossy", "use_abcs", "max_union"])
+
+
+def Optimize(node, flags=None):
   """Optimize a PYTD tree."""
   node = node.Visit(RemoveDuplicates())
   node = node.Visit(CombineReturnsAndExceptions())
   node = node.Visit(Factorize())
   node = node.Visit(ApplyOptionalArguments())
-  node = node.Visit(ShortenUnions())
+  if flags and flags.lossy:
+    hierarchy = node.Visit(visitors.ExtractSuperClasses())
+    node = node.Visit(
+        FindCommonSuperClasses(hierarchy, flags and flags.use_abcs)
+    )
+    node = node.Visit(ShortenParameterUnions(flags and flags.max_union))
   return node
 

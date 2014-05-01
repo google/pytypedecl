@@ -18,6 +18,7 @@ import unittest
 from pytypedecl import optimize
 from pytypedecl import pytd
 from pytypedecl.parse import parser_test
+from pytypedecl.parse import visitors
 
 
 class TestOptimize(parser_test.ParserTest):
@@ -119,6 +120,19 @@ class TestOptimize(parser_test.ParserTest):
     """
     self.AssertOptimizeEquals(src, new_src)
 
+  def testLossy(self):
+    # Lossy compression is hard to test, since we don't know to which degree
+    # "compressible" items will be compressed. This test only checks that
+    # non-compressible things stay the same.
+    src = """
+        def foo(a: A) -> B raises C
+        def foo(a: D) -> E raises F
+    """
+    flags = optimize.OptimizeFlags(lossy=True, use_abcs=True, max_union=4)
+    self.AssertSourceEquals(
+        optimize.Optimize(self.parser.Parse(src), flags),
+        src)
+
   def testExpand(self):
     src = """
         def foo(a: A or B, z: X or Y, u: U) -> Z
@@ -176,7 +190,43 @@ class TestOptimize(parser_test.ParserTest):
         def g(x: Mapping, y: Complex) -> Container
         def h(x)
     """
-    new_src = self.ApplyVisitorToString(src, optimize.FindCommonSuperClasses())
+    visitor = optimize.FindCommonSuperClasses(use_abcs=True)
+    new_src = self.ApplyVisitorToString(src, visitor)
+    self.AssertSourceEquals(new_src, expected)
+
+  def testUserSuperClassHierarchy(self):
+    class_data = """
+        class AB:
+          pass
+        class EFG:
+          pass
+        class A(AB, EFG):
+          pass
+        class B(AB):
+          pass
+        class E(EFG, AB):
+          pass
+        class F(EFG):
+          pass
+        class G(EFG):
+          pass
+    """
+
+    src = """
+        def f(x: A or B, y: A, z: B) -> E or F or G
+        def g(x: E or F or G or B) -> E or F
+        def h(x)
+    """ + class_data
+
+    expected = """
+        def f(x: AB, y: A, z: B) -> EFG
+        def g(x) -> EFG
+        def h(x)
+    """ + class_data
+
+    hierarchy = self.parser.Parse(src).Visit(visitors.ExtractSuperClasses())
+    visitor = optimize.FindCommonSuperClasses(hierarchy, use_abcs=False)
+    new_src = self.ApplyVisitorToString(src, visitor)
     self.AssertSourceEquals(new_src, expected)
 
   def testShortenUnions(self):
@@ -191,7 +241,7 @@ class TestOptimize(parser_test.ParserTest):
         def h(x) -> X
     """
     new_src = self.ApplyVisitorToString(src,
-        optimize.ShortenUnions(max_length=4))
+                                        optimize.ShortenUnions(max_length=4))
     self.AssertSourceEquals(new_src, expected)
 
 if __name__ == "__main__":

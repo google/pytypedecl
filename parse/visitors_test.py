@@ -62,6 +62,24 @@ class TestVisitors(parser_test.ParserTest):
     new_tree = tree.Visit(visitors.ReplaceType({"A": pytd.NamedType("A2")}))
     self.AssertSourceEquals(new_tree, expected)
 
+  def testSuperClasses(self):
+    src = """
+      class A:
+        pass
+      class B:
+        pass
+      class C(A):
+        pass
+      class D(A,B):
+        pass
+      class E(C,D,A):
+        pass
+    """
+    tree = self.parser.Parse(src)
+    data = tree.Visit(visitors.ExtractSuperClasses())
+    for base, superclass in ["CA", "DA", "DB", "EC", "ED", "EA"]:
+      self.assertIn(superclass, data[base])
+
   def testInstantiateTemplates(self):
     src = """
         def foo(x: int) -> A<int>

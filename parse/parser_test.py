@@ -51,7 +51,7 @@ class ParserTest(unittest.TestCase):
       print "-"*80
       print textwrap.dedent(src2).strip()
       print "-"*80
-      self.AssertTrue(false)
+      self.fail("source files differ")
 
   def ApplyVisitorToString(self, data, visitor):
     tree = self.parser.Parse(data)

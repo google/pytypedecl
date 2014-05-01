@@ -283,6 +283,21 @@ class ReplaceType(object):
       return node
 
 
+class ExtractSuperClasses(object):
+  """Visitor for extracting all superclasses (i.e., the class hierarchy)."""
+
+  def VisitTypeDeclUnit(self, module):
+    result = {base_class: superclasses
+              for base_class, superclasses in module.classes}
+    for module_name, module_dict in module.modules:
+      result.update({module_name + "." + name: superclasses
+                     for name, superclasses in module_dict.items()})
+    return result
+
+  def VisitClass(self, cls):
+    return (cls.name, [parent.name for parent in cls.parents])
+
+
 class InstantiateTemplates(object):
   """Tries to remove templates by instantiating the corresponding types.
 

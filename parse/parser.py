@@ -318,6 +318,8 @@ class PyParser(object):
     """funcdef : provenance DEF template NAME LPAREN params RPAREN return raises signature"""
     #            1          2   3        4     5     6      7      8      9     10
     # TODO: do name lookups for template within params, return, raises
+    # TODO: Output a warning if we already encountered a signature
+    #              with these types (but potentially different argument names)
     signature = pytd.Signature(params=tuple(p[6].required), return_type=p[8],
                                exceptions=tuple(p[9]), template=tuple(p[3]),
                                has_optional=p[6].has_optional, provenance=p[1])
