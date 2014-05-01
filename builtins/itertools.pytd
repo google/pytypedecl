@@ -1,13 +1,67 @@
-def tee(a: object, ...) -> tuple raises ValueError
-class itertools.tee:
-  def __copy__(...)
+def tee(a, ...) -> tuple raises ValueError
 
-class itertools.count:
-  def __reduce__(...) -> tuple
+class _grouper:
+    pass
 
-class itertools.repeat:
-  def __length_hint__(...) -> int raises TypeError
+class chain:
+    def from_iterable(...)
 
-class itertools.chain:
-  def from_iterable(...) -> object
+class combinations:
+    pass
 
+class combinations_with_replacement:
+    pass
+
+class compress:
+    pass
+
+class count:
+    def __reduce__() -> tuple
+
+class cycle:
+    pass
+
+class dropwhile:
+    pass
+
+class groupby:
+    pass
+
+class ifilter:
+    pass
+
+class ifilterfalse:
+    pass
+
+class imap:
+    pass
+
+class islice:
+    pass
+
+class izip:
+    pass
+
+class izip_longest:
+    pass
+
+class permutations:
+    pass
+
+class product:
+    pass
+
+class repeat:
+    def __length_hint__() -> int raises TypeError
+
+class starmap:
+    pass
+
+class takewhile:
+    pass
+
+class tee:
+    def __copy__()
+
+class tee_dataobject:
+    pass

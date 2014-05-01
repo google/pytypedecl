@@ -1,35 +1,35 @@
-copyright: int or str or long
-MAGIC: int or str or long
-MAXREPEAT: int or str or long
-CODESIZE: int or str or long
+CODESIZE: long or int or str
+MAGIC: long or int or str
+MAXREPEAT: long or int or str
+copyright: long or int or str
 
-def getcodesize() -> int
 def compile(...) -> SRE_Pattern raises OverflowError
+def getcodesize() -> int
 def getlower(...) -> int
 
+class SRE_Match:
+    def __copy__() raises TypeError
+    def __deepcopy__(...) raises TypeError
+    def end(...) -> int raises IndexError
+    def expand(...)
+    def group(...) -> tuple
+    def groupdict(...) -> dict
+    def groups(...) -> tuple
+    def span(...) -> tuple raises IndexError
+    def start(...) -> int raises IndexError
+
 class SRE_Pattern:
-    def match(pattern, ...)
-    def search(pattern, ...)
-    def sub(repl, string, ...) -> tuple
-    def subn(repl, string, ...) -> tuple
-    def split(source, ...) -> list<NoneType>
+    def __copy__() raises TypeError
+    def __deepcopy__(...) raises TypeError
     def findall(source, ...) -> list<NoneType or tuple>
     def finditer(...) -> `callable-iterator`
-    def scanner(...)
-    def __copy__() raises TypeError
-    def __deepcopy__(...) raises TypeError
-
-class SRE_Match:
-    def group(...) -> tuple
-    def start(...) -> int raises IndexError
-    def end(...) -> int raises IndexError
-    def span(...) -> tuple raises IndexError
-    def groups(...) -> tuple
-    def groupdict(...) -> dict
-    def expand(...)
-    def __copy__() raises TypeError
-    def __deepcopy__(...) raises TypeError
+    def match(pattern, ...) -> NoneType or SRE_Match
+    def scanner(...) -> SRE_Scanner
+    def search(pattern, ...) -> NoneType or SRE_Match
+    def split(source, ...) -> list<NoneType>
+    def sub(repl, string, ...) -> tuple
+    def subn(repl, string, ...) -> tuple
 
 class SRE_Scanner:
-    def match()
-    def search()
+    def match() -> NoneType or SRE_Match
+    def search() -> NoneType or SRE_Match
