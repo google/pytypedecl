@@ -15,7 +15,13 @@
 # limitations under the License.
 
 
-"""Functions for optimizing pytd parse trees and ASTs."""
+"""Functions for optimizing pytd syntax trees.
+
+   pytd files come from various sources, and are typically redundant (duplicate
+   functions, different signatures saying the same thing, overlong type
+   disjunctions). The Visitors in this file remove various forms of these
+   redundancies.
+"""
 
 import collections
 import itertools
@@ -38,7 +44,7 @@ class RemoveDuplicates(object):
   """
 
   def VisitFunction(self, node):
-    # We remove duplicates, but keep entries in the same order.
+    # We remove duplicates, but keep existing entries in the same order.
     ordered_set = collections.OrderedDict(zip(node.signatures, node.signatures))
     return node.Replace(signatures=list(ordered_set))
 
@@ -48,6 +54,10 @@ class _ReturnsAndExceptions(object):
 
   The collecting is stable: Items are kept in the order in which they were
   encountered.
+
+  Attributes:
+    return_types: Return types seen so far.
+    exceptions: Exceptions seen so far.
   """
 
   def __init__(self):
@@ -68,10 +78,10 @@ class _ReturnsAndExceptions(object):
 def JoinTypes(types):
   """Combine a list of types into a union type, if needed.
 
-  Leave singular return values alone, and wraps a UnionType around them if there
-  are multiple ones.
+  Leaves singular return values alone, or wraps a UnionType around them if
+  there are multiple ones.
 
-  Args:
+  Arguments:
     types: A list of types. This list might contain other UnionTypes. If
     so, they are flattened.
 
@@ -108,14 +118,14 @@ class CombineReturnsAndExceptions(object):
   def _GroupByArguments(self, signatures):
     """Groups signatures by arguments.
 
-    Args:
+    Arguments:
       signatures: A list of function signatures (Signature instances).
 
     Returns:
       A dictionary mapping signatures (without return and exceptions) to
       a tuple of return values and exceptions.
     """
-    groups = collections.OrderedDict()
+    groups = collections.OrderedDict()  # Signature -> ReturnsAndExceptions
     for sig in signatures:
       stripped_signature = sig.Replace(return_type=None, exceptions=None)
 
@@ -129,7 +139,17 @@ class CombineReturnsAndExceptions(object):
     return groups
 
   def VisitFunction(self, f):
-    """Merge signatures of a function."""
+    """Merge signatures of a function.
+
+    This groups signatures by arguments and then for each group creates a
+    single signature that joins the return values / exceptions using "or".
+
+    Arguments:
+      f: A pytd.Function instance
+
+    Returns:
+      Function with simplified / combined signatures.
+    """
     groups = self._GroupByArguments(f.signatures)
 
     new_signatures = []
@@ -156,12 +176,23 @@ class ExpandSignatures(object):
 
   This is also called the "cartesian product".  The expansion by this class
   is typically *not* an optimization. But it can be the precursor for
-  optimizations that need the expanded signatures, or it can simplify code
-  generation, like generating type declarations for a type inferencer.
+  optimizations that need the expanded signatures, and it can simplify code
+  generation, e.g. when generating type declarations for a type inferencer.
   """
 
   def VisitFunction(self, f):
-    """Rebuild the function with the new signatures."""
+    """Rebuild the function with the new signatures.
+
+    This is called after its children (i.e. when VisitSignature has already
+    converted each signature into a list) and rebuilds the function using the
+    new signatures.
+
+    Arguments:
+      f: A pytd.Function instance.
+
+    Returns:
+      Function with the new signatures.
+    """
 
     # concatenate return value(s) from VisitSignature
     new_signatures = tuple(sum(f.signatures, []))
@@ -169,7 +200,20 @@ class ExpandSignatures(object):
     return f.Replace(signatures=new_signatures)
 
   def VisitSignature(self, sig):
-    """Expand a single signature."""
+    """Expand a single signature.
+
+    For argument lists that contain disjunctions, generates all combinations
+    of arguments. The expansion will be done right to left.
+    E.g., from (a or b, c or d), this will generate the signatures
+    (a, c), (a, d), (b, c), (b, d). (In that order)
+
+    Arguments:
+      sig: A pytd.Signature instance.
+
+    Returns:
+      A list. The visit function of the parent of this node (VisitFunction) will
+      process this list further.
+    """
     params = []
     for name, param_type in sig.params:
       if isinstance(param_type, pytd.UnionType):
@@ -200,26 +244,29 @@ class Factorize(object):
   def _GroupByOmittedArg(self, signatures, i):
     """Group functions that are identical if you ignore one of the arguments.
 
-    Args:
+    Arguments:
       signatures: A list of function signatures
       i: The index of the argument to ignore during comparison.
 
     Returns:
-      A list of tuples (signature, types). "signature" are signatures where
-      argument i is omitted, "types" is a list of types that argument was
+      A list of tuples (signature, types). "signature" is a signature with
+      argument i omitted, "types" is the list of types that argument was
       found to have. signatures that don't have argument i are represented
       as (original, None).
     """
     groups = collections.OrderedDict()
     for sig in signatures:
       if i >= len(sig.params):
-        # We can't omit argument i, because this signature doesn't have that
-        # many arguments. Represent this signature as (original, None).
+        # We can't omit argument i, because this signature has too few
+        # arguments. Represent this signature as (original, None).
         groups[sig] = None
         continue
+
+      # Set type of parameter i to None
       params = list(sig.params)
       param_i = params[i]
       params[i] = pytd.Parameter(param_i.name, None)
+
       stripped_signature = sig.Replace(params=tuple(params))
       existing = groups.get(stripped_signature)
       if not existing:
@@ -229,13 +276,23 @@ class Factorize(object):
     return groups.items()
 
   def VisitFunction(self, f):
-    """Shrink a function, by factorizing cartesian products of arguments."""
+    """Shrink a function, by factorizing cartesian products of arguments.
+
+    Greedily groups signatures, looking at the arguments from left to right.
+    This algorithm is *not* optimal. But it does the right thing for the
+    typical cases.
+
+    Arguments:
+      f: An instance of pytd.Function. If this function has more than one
+          signature, we will try to combine some of these signatures by
+          introducing union types.
+
+    Returns:
+      A new, potentially optimized, instance of pytd.Function.
+    """
     max_argument_count = max(len(s.params) for s in f.signatures)
     signatures = f.signatures
 
-    # Greedily group signatures, looking at the arguments from left to right.
-    # This algorithm is *not* optimal. But it does the right thing for the
-    # typical cases.
     for i in range(max_argument_count):
       new_sigs = []
       for sig, types in self._GroupByOmittedArg(signatures, i):
@@ -257,25 +314,26 @@ class ApplyOptionalArguments(object):
   """Removes functions that are instances of a more specific case.
 
   For example, this reduces
-    def f(x: int, ...)
-    def f(x: int, y: int)
+    def f(x: int, ...)    # [1]
+    def f(x: int, y: int) # [2]
   to just
     def f(x: int, ...)
 
-  Because "..." makes it possible to pass any additional arguments, the latter
-  encompasses both declarations, one of which can hence be omitted.
+  Because "..." makes it possible to pass any additional arguments to [1],
+  it encompasses both declarations, hence we can omit [2].
   """
 
   def _HasShorterVersion(self, sig, optional_arg_sigs):
-    """Find a shorter signature with optional arguments of a longer signature.
+    """Find a shorter signature with optional arguments for a longer signature.
 
-    Args:
+    Arguments:
       sig: The function signature we'd like to shorten
-      optional_arg_sigs: A list of function signatures with optional arguments
+      optional_arg_sigs: A set of function signatures with optional arguments
         that will be matched against sig.
 
     Returns:
-      True if there is a shorter signature that generalizes sig.
+      True if there is a shorter signature that generalizes sig, but is not
+          identical to sig.
     """
 
     param_count = len(sig.params)
@@ -289,7 +347,18 @@ class ApplyOptionalArguments(object):
         return True
 
   def VisitFunction(self, f):
-    """Remove all signatures that have a shorter version."""
+    """Remove all signatures that have a shorter version.
+
+    We use signatures with optional argument (has_opt=True) as template
+    and then match all signatures against those templates, removing those
+    that match.
+
+    Arguments:
+      f: An instance of pytd.Function
+
+    Returns:
+      A potentially simplified instance of pytd.Function.
+    """
 
     # Set of signatures that can replace longer ones. Only used for matching,
     # hence we can use an unordered data structure.
@@ -301,7 +370,7 @@ class ApplyOptionalArguments(object):
 
 
 class FindCommonSuperClasses(object):
-  """Find common super classes.
+  """Find common super classes. Optionally also uses abstract base classes.
 
   E.g., this changes
     def f(x: list or tuple, y: frozenset or set) -> int or float
@@ -319,7 +388,7 @@ class FindCommonSuperClasses(object):
   def _CollectSuperclasses(self, node, collect):
     """Recursively collect super classes for a type.
 
-    Args:
+    Arguments:
       node: A type node.
       collect: A set(), modified to contain all superclasses.
     """
@@ -339,11 +408,12 @@ class FindCommonSuperClasses(object):
   def _Expand(self, t):
     """Generate a list of all (known) superclasses for a type.
 
-    Args:
-      t: A type.
+    Arguments:
+      t: A type. E.g. NamedType("int").
 
     Returns:
-      A set of types. This set includes t as well as all its superclasses.
+      A set of types. This set includes t as well as all its superclasses. For
+      example, this will return "bool", "int" and "object" for "bool".
     """
     superclasses = set()
     self._CollectSuperclasses(t, superclasses)
@@ -364,13 +434,13 @@ class FindCommonSuperClasses(object):
                for sub in self._subclasses[str(cls)])
 
   def VisitUnionType(self, union):
-    """Given a union type, try to find a simplification through ABCs.
+    """Given a union type, try to find a simplification by using superclasses.
 
-    This function tries to map a list of types to a common base type. For
-    example, [int, float] are both (abstract) base classes of Real, so
-    it would convert UnionType([int, float]) to BaseType(Real).
+    This is a lossy optimization that tries to map a list of types to a common
+    base type. For example, int and bool are both base classes of int, so it
+    would convert "int or bool" to "int".
 
-    Args:
+    Arguments:
       union: A union type.
 
     Returns:
@@ -394,10 +464,8 @@ class ShortenUnions(object):
   """Shortens long unions to object.
 
   Poor man's version of FindCommonSuperClasses. Shorten types like
-    str or unicode or int or float or list
-  to just
-    object
-  .
+  "str or unicode or int or float or list" to just "object".
+
   Additionally, if the union already contains at least one "object", we also
   replace the entire union with just "object".
 
@@ -423,6 +491,8 @@ class ShortenUnions(object):
 class ShortenParameterUnions(object):
   """Shortens long unions in parameters to object.
 
+  This is a lossy optimization that changes overlong disjunctions in arguments
+  to just "object".
   Some signature extractions generate signatures like
     class str:
       def __init__(self, obj: str or unicode or int or float or list)
@@ -448,7 +518,20 @@ OptimizeFlags = collections.namedtuple("_", ["lossy", "use_abcs", "max_union"])
 
 
 def Optimize(node, flags=None):
-  """Optimize a PYTD tree."""
+  """Optimize a PYTD tree.
+
+  Tries to shrink a PYTD tree by applying various optimizations.
+
+  Arguments:
+    node: A pytd node to be optimized. It won't be modified - this function will
+        return a new node.
+    flags: An instance of OptimizeFlags, to control which optimizations
+        happen and what parameters to use for the ones that take parameters. Can
+        be None, in which case defaults will be applied.
+
+  Returns:
+    An optimized node.
+  """
   node = node.Visit(RemoveDuplicates())
   node = node.Visit(CombineReturnsAndExceptions())
   node = node.Visit(Factorize())
