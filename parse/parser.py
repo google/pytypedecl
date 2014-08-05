@@ -17,11 +17,6 @@
 
 """Parser & Lexer for type declaration language."""
 
-# TODO: look at https://github.com/JetBrains/python-skeletons
-#                  for an alternative syntax (e.g. T <= Foo for T such
-#                  that it's Foo or subclass) ... doesn't have interfaces
-#                  or intersection
-
 # pylint: disable=g-bad-name, g-short-docstring-punctuation
 # pylint: disable=g-doc-args, g-no-space-after-docstring-summary
 # pylint: disable=g-space-before-docstring-summary
@@ -215,7 +210,7 @@ def MergeSignatures(signatures):
           for name, signatures in name_to_signatures.viewitems()]
 
 
-class PyParser(object):
+class TypeDeclParser(object):
   """Parser for type declaration language."""
 
   # TODO: Check for name clashes.
@@ -231,10 +226,12 @@ class PyParser(object):
     #                  [might also need optimize=True]
     self.lexer = PyLexer()
     self.tokens = self.lexer.tokens
+
     self.parser = yacc.yacc(
-        start='unit',
+        start='start',  # warning: ply ignores this
         module=self,
         debug=False,
+        write_tables=False,
         # debuglog=yacc.PlyLogger(sys.stderr),
         # errorlog=yacc.NullLogger(),  # If you really want to suppress messages
         **kwargs)
@@ -250,6 +247,10 @@ class PyParser(object):
       ('left', 'AND'),
       ('left', 'COMMA'),
   )
+
+  def p_start(self, p):
+    """start : unit"""
+    p[0] = p[1]
 
   def p_unit(self, p):
     """unit : alldefs"""
@@ -315,12 +316,12 @@ class PyParser(object):
     p[0] = []
 
   def p_parent_list_multi(self, p):
-    """parent_list : parent_list COMMA NAME"""
-    p[0] = p[1] + [pytd.NamedType(p[3])]
+    """parent_list : parent_list COMMA type"""
+    p[0] = p[1] + [p[3]]
 
   def p_parent_list_1(self, p):
-    """parent_list : NAME"""
-    p[0] = [pytd.NamedType(p[1])]
+    """parent_list : type"""
+    p[0] = [p[1]]
 
   def p_template(self, p):
     """template : LBRACKET templates RBRACKET"""
@@ -344,7 +345,7 @@ class PyParser(object):
     p[0] = pytd.TemplateItem(p[1], pytd.NamedType('object'), 0)
 
   def p_template_item_subclss(self, p):
-    """template_item : NAME EXTENDS compound_type"""
+    """template_item : NAME EXTENDS type"""
     p[0] = pytd.TemplateItem(p[1], p[3], 0)
 
   def p_funcdefs_func(self, p):
@@ -361,22 +362,22 @@ class PyParser(object):
     p[0] = []
 
   def p_constantdef(self, p):
-    """constantdef : NAME COLON compound_type"""
+    """constantdef : NAME COLON type"""
     p[0] = pytd.Constant(p[1], p[3])
 
   def p_funcdef(self, p):
-    """funcdef : provenance DEF template NAME LPAREN params RPAREN return raises signature"""
+    """funcdef : DEF template NAME LPAREN params RPAREN return raises signature"""
     #            1          2   3        4     5     6      7      8      9     10
     # TODO: do name lookups for template within params, return, raises
     # TODO: Output a warning if we already encountered a signature
     #              with these types (but potentially different argument names)
-    signature = pytd.Signature(params=tuple(p[6].required), return_type=p[8],
-                               exceptions=tuple(p[9]), template=tuple(p[3]),
-                               has_optional=p[6].has_optional, provenance=p[1])
-    p[0] = NameAndSig(name=p[4], signature=signature)
+    signature = pytd.Signature(params=tuple(p[5].required), return_type=p[7],
+                               exceptions=tuple(p[8]), template=tuple(p[2]),
+                               has_optional=p[5].has_optional)
+    p[0] = NameAndSig(name=p[3], signature=signature)
 
   def p_return(self, p):
-    """return : ARROW compound_type"""
+    """return : ARROW type"""
     p[0] = p[2]
 
   # We interpret a missing "-> type" as: "Type not specified"
@@ -410,7 +411,7 @@ class PyParser(object):
     p[0] = pytd.Parameter(p[1], pytd.NamedType('object'))
 
   def p_param_and_type(self, p):
-    """param : NAME COLON compound_type"""
+    """param : NAME COLON type"""
     p[0] = pytd.Parameter(p[1], p[3])
 
   def p_raise(self, p):
@@ -430,23 +431,31 @@ class PyParser(object):
     p[0] = p[1] + [p[3]]
 
   def p_exception(self, p):
-    """exception : compound_type"""
+    """exception : type"""
     p[0] = p[1]
 
-  def p_identifier_name(self, p):
-    """identifier : NAME"""
-    p[0] = pytd.NamedType(p[1])
+  def p_parameters_1(self, p):
+    """parameters : parameter"""
+    p[0] = (p[1],)
 
-  def p_identifier_string(self, p):
-    """identifier : STRING"""
-    p[0] = pytd.Scalar(p[1])
+  def p_parameters_multi(self, p):
+    """parameters : parameters COMMA parameter"""
+    p[0] = p[1] + (p[3],)
 
-  def p_identifier_number(self, p):
-    """identifier : NUMBER"""
-    p[0] = pytd.Scalar(p[1])
+  def p_parameter(self, p):
+    """parameter : type"""
+    p[0] = p[1]
 
-  def p_compound_type_and(self, p):
-    """compound_type : compound_type AND compound_type"""
+  def p_signature_(self, p):
+    """signature : AT STRING"""
+    p[0] = p[2]
+
+  def p_signature_none(self, p):
+    """signature :"""
+    p[0] = None
+
+  def p_type_and(self, p):
+    """type : type AND type"""
     # TODO: Unless we bring interfaces back, it's not clear when
     #              "type1 and type2" would be useful for anything. We
     #              should remove it.
@@ -461,8 +470,8 @@ class PyParser(object):
     else:
       p[0] = pytd.IntersectionType((p[1], p[3]))
 
-  def p_compound_type_or(self, p):
-    """compound_type : compound_type OR compound_type"""
+  def p_type_or(self, p):
+    """type : type OR type"""
     # This rule depends on precedence specification
     if (isinstance(p[1], pytd.UnionType) and
         isinstance(p[3], pytd.NamedType)):
@@ -480,7 +489,7 @@ class PyParser(object):
   # TODO(raoulDoc): should we consider nested generics?
 
   # TODO: for generic types, we explicitly don't allow
-  #                  compound_type<...> but insist on identifier<...> ... this
+  #                  type<...> but insist on identifier<...> ... this
   #                  is because the grammar would be ambiguous, but for some
   #                  reason PLY didn't come up with a shift/reduce conflict but
   #                  just quietly promoted OR and AND above LBRACKET
@@ -488,65 +497,38 @@ class PyParser(object):
   #                  to not use precedence and write everything out fully, even
   #                  if it's a more verbose grammar.
 
-  def p_compound_type_homogeneous(self, p):
-    """compound_type : identifier LBRACKET parameters RBRACKET"""
+  def p_type_homogeneous(self, p):
+    """type : NAME LBRACKET parameters RBRACKET"""
     if len(p[3]) == 1:
       element_type, = p[3]
-      p[0] = pytd.HomogeneousContainerType(base_type=p[1],
+      p[0] = pytd.HomogeneousContainerType(base_type=pytd.NamedType(p[1]),
                                            element_type=element_type)
     else:
-      p[0] = pytd.GenericType(base_type=p[1], parameters=p[3])
+      p[0] = pytd.GenericType(base_type=pytd.NamedType(p[1]), parameters=p[3])
 
-  def p_compound_type_generic_1(self, p):
-    """compound_type : identifier LBRACKET parameters COMMA RBRACKET"""
-    p[0] = pytd.GenericType(base_type=p[1], parameters=p[3])
+  def p_type_generic_1(self, p):
+    """type : NAME LBRACKET parameters COMMA RBRACKET"""
+    p[0] = pytd.GenericType(base_type=pytd.NamedType(p[1]), parameters=p[3])
 
-  def p_compound_type_paren(self, p):
-    """compound_type : LPAREN compound_type RPAREN"""
+  def p_type_paren(self, p):
+    """type : LPAREN type RPAREN"""
     p[0] = p[2]
 
-  def p_compound_type_identifier(self, p):
-    """compound_type : identifier"""
+  def p_type_name(self, p):
+    """type : NAME"""
+    p[0] = pytd.NamedType(p[1])
+
+  def p_type_constant(self, p):
+    """type : scalar"""
     p[0] = p[1]
 
-  def p_parameters_1(self, p):
-    """parameters : parameter"""
-    p[0] = (p[1],)
+  def p_scalar_string(self, p):
+    """scalar : STRING"""
+    p[0] = pytd.Scalar(p[1])
 
-  def p_parameters_multi(self, p):
-    """parameters : parameters COMMA parameter"""
-    p[0] = p[1] + (p[3],)
-
-  def p_parameter(self, p):
-    """parameter : compound_type"""
-    p[0] = p[1]
-
-  def p_provenance_approved(self, p):
-    """provenance :"""
-    p[0] = ''  # TODO: implement
-
-  def p_provenance_inferred(self, p):
-    """provenance : DOT DOT DOT"""
-    p[0] = '...'  # TODO: implement
-
-  def p_provenance_negated(self, p):
-    """provenance : MINUS MINUS MINUS"""
-    p[0] = '---'  # TODO: implement
-
-  def p_provenance_locked(self, p):
-    """provenance : PLUS PLUS PLUS"""
-    # TODO: verify that all other rules for this definition are
-    #                  either 'locked' or 'negated' (none 'inferred' or
-    #                  'approved'
-    p[0] = '+++'  # TODO: implement
-
-  def p_signature_(self, p):
-    """signature : AT STRING"""
-    p[0] = p[2]
-
-  def p_signature_none(self, p):
-    """signature :"""
-    p[0] = None
+  def p_scalar_number(self, p):
+    """scalar : NUMBER"""
+    p[0] = pytd.Scalar(p[1])
 
   def p_error(self, p):
     raise make_syntax_error(self, 'Parse error', p)
@@ -580,7 +562,7 @@ def make_syntax_error(parser_or_tokenizer, msg, p):
 def parse_file(filename):
   with open(filename) as f:
     try:
-      return PyParser().Parse(f.read(), filename)
+      return TypeDeclParser().Parse(f.read(), filename)
     except SyntaxError as unused_exception:
       # without all the tedious traceback stuff from PLY:
       # TODO: What happens if we don't catch SyntaxError?

@@ -23,7 +23,7 @@ from pytypedecl.parse import parser
 class TestASTGeneration(unittest.TestCase):
 
   def setUp(self):
-    self.parser = parser.PyParser()
+    self.parser = parser.TypeDeclParser()
 
   def TestRoundTrip(self, src, old_src=None):
     """Compile a string, and convert the result back to a string. Compare."""
@@ -159,7 +159,7 @@ class TestASTGeneration(unittest.TestCase):
                             )
                         ),),
                     return_type=pytd.NamedType("object"),
-                    template=(), has_optional=False, provenance="",
+                    template=(), has_optional=False,
                     exceptions=()),)),),
         modules={})
     self.assertEqual(expect, result1)
@@ -191,7 +191,7 @@ class TestASTGeneration(unittest.TestCase):
                                        type=pytd.Scalar(value=666))),
                     return_type=pytd.NamedType("int"),
                     exceptions=(),
-                    template=(), has_optional=False, provenance=""),)),),
+                    template=(), has_optional=False),)),),
         modules={})
     self.assertEqual(expect, result)
 

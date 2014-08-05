@@ -44,7 +44,7 @@ class ParserUtils(object):
   """
 
   def __init__(self):
-    self._parser = parser.PyParser()
+    self._parser = parser.TypeDeclParser()
 
   def LoadTypeDeclaration(self, content, filename=''):
     """Parse a type declaration from a str.

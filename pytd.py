@@ -118,7 +118,7 @@ class Function(node.Node('name', 'signatures')):
 
 
 class Signature(node.Node('params', 'return_type', 'exceptions', 'template',
-                          'has_optional', 'provenance'), Type):
+                          'has_optional'), Type):
   """Represents an individual signature of a function.
 
   For overloaded functions, this is one specific combination of parameters.
@@ -131,17 +131,10 @@ class Signature(node.Node('params', 'return_type', 'exceptions', 'template',
     return_type: The return type of this function.
     exceptions: List of exceptions for this function definition.
     template: names for bindings for bounded types in params/return_type
-    provenance: TBD
   """
   # TODO: exceptions doesn't have to be a list. We could just store it
   #              as a UnionType
 
-  # TODO: define/implement provenance:
-  #                  ... inferred
-  #                  --- programmer-deleted
-  #                  +++ locked (no need to look inside it ... all declarations
-  #                      for this function must be marked with +++ or ---
-  #                  (nothing) programmer-approved
   __slots__ = ()
 
 
@@ -159,7 +152,7 @@ class TemplateItem(node.Node('name', 'within_type', 'level')):
   """Represents "template name extends bounded_type".
 
   This can be either the result of the 'template' in the parser (e.g.,
-    funcdef : provenance DEF template NAME LPAREN params RPAREN ...)
+    funcdef : DEF template NAME LPAREN params RPAREN ...)
   or the result of a lookup using the ExpandTemplates visitor.
 
   Attributes:

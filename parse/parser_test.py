@@ -27,7 +27,7 @@ class ParserTest(unittest.TestCase):
   """Test utility class. Knows how to parse PYTD and compare source code."""
 
   def setUp(self):
-    self.parser = parser.PyParser()
+    self.parser = parser.TypeDeclParser()
 
   def Parse(self, src):
     return self.parser.Parse(textwrap.dedent(src))
