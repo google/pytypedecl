@@ -292,12 +292,22 @@ def LookupClasses(module):
 
 
 class ReplaceType(object):
-  """Visitor for replacing types in a tree. Only changes NamedType nodes."""
+  """Visitor for replacing types in a tree.
+
+  This replaces both NamedType and ClassType nodes that have a name in the
+  mapping. The two cases are not distinguished.
+  """
 
   def __init__(self, mapping):
     self.mapping = mapping
 
   def VisitNamedType(self, node):
+    if node.name in self.mapping:
+      return self.mapping[node.name]
+    else:
+      return node
+
+  def VisitClassType(self, node):
     if node.name in self.mapping:
       return self.mapping[node.name]
     else:

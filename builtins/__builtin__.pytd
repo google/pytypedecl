@@ -347,17 +347,17 @@ class dict_items:
     def __sub__(self, y) -> set
     def __xor__(self, y) -> set
 
-class dict:
+class <K, V> dict:
     def __init__(self, p0)
     def __init__(self)
-    def __contains__(self, k) -> bool
-    def __delitem__(self, y) -> NoneType
+    def __contains__(self, k: K) -> bool
+    def __delitem__(self, y: K) -> NoneType
     def __eq__(self, y: dict) -> bool
-    def __getitem__(self, y)
+    def __getitem__(self, y: K) -> V
     def __iter__(self) -> `dictionary-keyiterator`
     def __len__(self) -> int
     def __ne__(self, y: dict) -> bool
-    def __setitem__(self, i, y) -> NoneType
+    def __setitem__(self, i: K, y: V) -> NoneType
     def clear(self) -> NoneType
     def copy(self) -> dict<object, object>
     def fromkeys(self, S: str or bytearray, ...) -> dict<str, NoneType> or dict
@@ -367,17 +367,17 @@ class dict:
     def fromkeys(self, S: dict, ...) -> dict<object, NoneType>
     def get(self, k, ...)
     def has_key(self, k) -> bool
-    def items(self) -> list<tuple>
+    def items(self) -> list<tuple<K or V>>
     def iteritems(self) -> `dictionary-itemiterator`
     def iterkeys(self) -> `dictionary-keyiterator`
     def itervalues(self) -> `dictionary-valueiterator`
-    def keys(self) -> list
+    def keys(self) -> list<K>
     def pop(self, k, ...)
     def popitem(self) -> tuple<unicode, object>
-    def setdefault(self, k, ...)
+    def setdefault(self, k: K, ...)
     def update(self, E, ...) -> NoneType
     def update(self) -> NoneType
-    def values(self) -> list<object>
+    def values(self) -> list<V>
     def viewitems(self) -> dict_items
     def viewkeys(self) -> dict_keys
     def viewvalues(self) -> dict_values
@@ -395,21 +395,21 @@ class listreverseiterator:
     def __iter__(self) -> listreverseiterator
     def next(self)
 
-class list:
+class <T> list:
     def __init__(self, p0)
     def __init__(self)
-    def __add__(self, y: list) -> list<object>
-    def __contains__(self, y) -> bool
+    def __add__(self, y: list<A>) -> list<T or A>
+    def __contains__(self, y: T) -> bool
     def __delitem__(self, y: int) -> NoneType
     def __delslice__(self, i: int, j: int) -> NoneType
     def __eq__(self, y: list) -> bool
     def __ge__(self, y: list) -> bool
-    def __getitem__(self, y: int)
-    def __getslice__(self, i: int, j: int) -> list<object> or list
+    def __getitem__(self, y)
+    def __getslice__(self, i: int, j: int) -> list<T>
     def __gt__(self, y: list) -> bool
     def __iadd__(self, y) -> list
     def __imul__(self, y: int) -> list
-    def __iter__(self) -> listiterator
+    def __iter__(self) -> listiterator<T>
     def __le__(self, y: list) -> bool
     def __len__(self) -> int
     def __lt__(self, y: list) -> bool
@@ -419,13 +419,13 @@ class list:
     def __rmul__(self, n: int) -> list<object> or list
     def __setitem__(self, i: int, y) -> NoneType
     def __setslice__(self, i: int, j: int, y) -> NoneType
-    def append(self, object) -> NoneType
-    def count(self, value) -> int
+    def append(self, object: T) -> NoneType
+    def count(self, value: T) -> int
     def extend(self, iterable) -> NoneType
     def index(self, value, ...) -> int
-    def insert(self, index: int, object) -> NoneType
+    def insert(self, index: int, object: T) -> NoneType
     def pop(self, ...)
-    def remove(self, value) -> NoneType
+    def remove(self, value: T) -> NoneType
     def reverse(self) -> NoneType
     def sort(self, ...) -> NoneType
 
@@ -434,14 +434,14 @@ class reversed:
     def __iter__(self) -> reversed
     def next(self) -> str
 
-class tuple:
+class <T> tuple:
     def __init__(self, p0)
     def __init__(self)
     def __add__(self, y: tuple) -> tuple
-    def __contains__(self, y) -> bool
+    def __contains__(self, y: T) -> bool
     def __eq__(self, y: tuple) -> bool
     def __ge__(self, y: tuple) -> bool
-    def __getitem__(self, y: int)
+    def __getitem__(self, y: int) -> T
     def __getslice__(self, i: int, j: int)
     def __gt__(self, y: tuple) -> bool
     def __iter__(self) -> tupleiterator
@@ -451,14 +451,14 @@ class tuple:
     def __mul__(self, n: int) -> tuple
     def __ne__(self, y: tuple) -> bool
     def __rmul__(self, n: int) -> tuple
-    def count(self, value) -> int
+    def count(self, value: T) -> int
     def index(self, value, ...) -> int
 
 class tupleiterator:
     def __iter__(self) -> tupleiterator
     def next(self)
 
-class set:
+class <T>set:
     def __init__(self, p0)
     def __init__(self)
     def __and__(self, y: set) -> set
@@ -490,7 +490,7 @@ class set:
     def intersection_update(self, ...) -> NoneType
     def union(self, ...) -> set
     def update(self, ...) -> NoneType
-    def add(self, ...) -> NoneType
+    def add(self, object: T) -> NoneType
 
 class frozenset:
     def __init__(self, p0)

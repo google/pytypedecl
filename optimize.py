@@ -550,4 +550,3 @@ def Optimize(node, flags=None):
     )
     node = node.Visit(ShortenParameterUnions(flags and flags.max_union))
   return node
-
