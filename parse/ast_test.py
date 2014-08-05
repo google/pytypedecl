@@ -91,6 +91,34 @@ class TestASTGeneration(unittest.TestCase):
     self.assertEquals(["bar"], [f.name for f in foo.methods])
     self.assertEquals(["baz"], [f.name for f in result.functions])
 
+  def testMutable(self):
+    src = textwrap.dedent("""
+        class Foo:
+          def append_int(l: list):
+            l := list<int>
+        def append_float(l: list):
+          l := list<float>
+    """)
+    module = self.parser.Parse(src)
+    foo = module.Lookup("Foo")
+    self.assertEquals(["append_int"], [f.name for f in foo.methods])
+    self.assertEquals(["append_float"], [f.name for f in module.functions])
+    append_int = foo.methods[0].signatures[0]
+    append_float = module.functions[0].signatures[0]
+    self.assertIsInstance(append_int.params[0], pytd.MutableParameter)
+    self.assertIsInstance(append_float.params[0], pytd.MutableParameter)
+
+  def testMutableRoundTrip(self):
+    src = textwrap.dedent("""
+        def append_float(l: list):
+            l := list<float>
+
+        class Foo:
+            def append_int(l: list):
+                l := list<int>
+    """)
+    self.TestRoundTrip(src)
+
   def testMultiFunction(self):
     """Test parsing of multiple function defs including overloaded version."""
 
@@ -214,7 +242,7 @@ class TestASTGeneration(unittest.TestCase):
 
     self.TestRoundTrip(data1)
     self.TestRoundTrip(data2)
- 
+
   def testTemplates(self):
     """Test template parsing."""
 

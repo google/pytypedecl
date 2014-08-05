@@ -115,7 +115,17 @@ class PrintVisitor(object):
 
     exc = " raises " + ", ".join(node.exceptions) if node.exceptions else ""
     optional = ("...",) if node.has_optional else ()
-    return "(" + ", ".join(node.params + optional) + ")" + ret + exc
+
+    mutable_params = [p for p in self.old_node.params
+                      if isinstance(p, pytd.MutableParameter)]
+    if mutable_params:
+      stmts = "\n".join(self.INDENT + name + " := " + new.Visit(PrintVisitor())
+                        for name, _, new in mutable_params)
+      body = ":\n" + stmts
+    else:
+      body = ""
+
+    return "(" + ", ".join(node.params + optional) + ")" + ret + exc + body
 
   def VisitParameter(self, node):
     """Convert a function parameter to a string."""
@@ -124,6 +134,10 @@ class PrintVisitor(object):
       return node.name
     else:
       return node.name + ": " + node.type
+
+  def VisitMutableParameter(self, node):
+    """Convert a mutable function parameter to a string."""
+    return self.VisitParameter(node)
 
   def VisitTemplateItem(self, node):
     """Convert a template (E.g. "<X extends list>") to a string."""

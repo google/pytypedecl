@@ -52,6 +52,7 @@ class PyLexer(object):
   t_ARROW = r'->'
   t_AT = r'@'
   t_COLON = r':'
+  t_COLONEQUALS = r':='
   t_COMMA = r','
   t_DOT = r'\.'
   t_INDENT = r'(?!i)i'
@@ -75,6 +76,7 @@ class PyLexer(object):
       'ARROW',
       'AT',
       'COLON',
+      'COLONEQUALS',
       'COMMA',
       # 'COMMENT',  # Not used in the grammar; only used to discard comments
       'DEDENT',
@@ -215,6 +217,29 @@ def MergeSignatures(signatures):
   # TODO: Return this as a dictionary.
   return [pytd.Function(name, tuple(signatures))
           for name, signatures in name_to_signatures.viewitems()]
+
+
+class Mutator(object):
+  """Visitor for changing parameters to BeforeAfterType instances.
+
+  We model
+    def f(x: old_type):
+      x := new_type
+  as
+    def f(x: BeforeAfterType(old_type, new_type))
+  .
+  This visitor applies the body "x := new_type" to the function signature.
+  """
+
+  def __init__(self, name, new_type):
+    self.name = name
+    self.new_type = new_type
+
+  def VisitParameter(self, p):
+    if p.name == self.name:
+      return pytd.MutableParameter(p.name, p.type, self.new_type)
+    else:
+      return p
 
 
 class TypeDeclParser(object):
@@ -373,15 +398,37 @@ class TypeDeclParser(object):
     p[0] = pytd.Constant(p[1], p[3])
 
   def p_funcdef(self, p):
-    """funcdef : DEF template NAME LPAREN params RPAREN return raises signature"""
-    #            1          2   3        4     5     6      7      8      9     10
+    """funcdef : DEF template NAME LPAREN params RPAREN return raises signature maybe_body"""
+    #            1   2        3    4      5      6      7      8      9         10
     # TODO: do name lookups for template within params, return, raises
     # TODO: Output a warning if we already encountered a signature
     #              with these types (but potentially different argument names)
     signature = pytd.Signature(params=tuple(p[5].required), return_type=p[7],
                                exceptions=tuple(p[8]), template=tuple(p[2]),
                                has_optional=p[5].has_optional)
+    for mutator in p[10]:
+      signature = signature.Visit(mutator)
     p[0] = NameAndSig(name=p[3], signature=signature)
+
+  def p_empty_body(self, p):
+    """maybe_body :"""
+    p[0] = []
+
+  def p_has_body(self, p):
+    """maybe_body : COLON INDENT body DEDENT"""
+    p[0] = p[3]
+
+  def p_body_1(self, p):
+    """body : mutator"""
+    p[0] = [p[1]]
+
+  def p_body_multiple(self, p):
+    """body : mutator body"""
+    p[0] = p[1] + [p[2]]
+
+  def p_mutator(self, p):
+    """mutator : NAME COLONEQUALS type"""
+    p[0] = Mutator(p[1], p[3])
 
   def p_return(self, p):
     """return : ARROW type"""

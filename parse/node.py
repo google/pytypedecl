@@ -175,6 +175,9 @@ def _VisitNode(node, visitor, *args, **kwargs):
           with <Name> the name of the Node class, a callback will be triggered,
           and the transformed version of this node will be whatever the
           callback returned, or the original node if the callback returned None.
+          Before calling the callback, the following attribute(s) on the Visitor
+          class will be populated:
+          vistor.old_node: The node before the child nodes were visited.
     *args: Passed to visitor callbacks.
     **kwargs: Passed to visitor callbacks.
   Returns:
@@ -207,9 +210,10 @@ def _VisitNode(node, visitor, *args, **kwargs):
     # for tuples.
     visit_function = "Visit" + node.__class__.__name__
     if hasattr(visitor, visit_function):
-      return getattr(visitor, visit_function)(new_node, *args, **kwargs)
-    else:
-      return new_node
+      visitor.old_node = node
+      new_node = getattr(visitor, visit_function)(new_node, *args, **kwargs)
+      del visitor.old_node
+    return new_node
   elif isinstance(node, list):
     new_list_entries = [_VisitNode(child, visitor, *args, **kwargs)
                         for child in node]

@@ -131,9 +131,8 @@ class Signature(node.Node('params', 'return_type', 'exceptions', 'template',
     return_type: The return type of this function.
     exceptions: List of exceptions for this function definition.
     template: names for bindings for bounded types in params/return_type
+    has_optional: Do we have optional parameters ("...")?
   """
-  # TODO: exceptions doesn't have to be a list. We could just store it
-  #              as a UnionType
 
   __slots__ = ()
 
@@ -144,6 +143,18 @@ class Parameter(node.Node('name', 'type')):
   Attributes:
     name: The name of the parameter.
     type: The type of the parameter.
+  """
+  __slots__ = ()
+
+
+# Conceptually, this is a subtype of Parameter:
+class MutableParameter(node.Node('name', 'type', 'new_type')):
+  """Represents a parameter that's modified by the function.
+
+  Attributes:
+    name: The name of the parameter.
+    type: The type of the parameter.
+    new_type: The type the parameter will have after the function is called.
   """
   __slots__ = ()
 
