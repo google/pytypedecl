@@ -105,9 +105,7 @@ def Node(*child_names):
       if self.__class__ is other.__class__:
         return tuple.__ne__(self, other)
       else:
-        # TODO: This is inconsistent with __eq__. Same as in
-        # typedtuple.py. (NoImplemented <-> True)
-        return True
+        return NotImplemented
 
     def __repr__(self):
       """Returns this tuple converted to a string.
@@ -153,7 +151,9 @@ def Node(*child_names):
       Returns:
         Transformed version of this node.
       """
-      pass  # overwritten in the next line
+      # This function is overwritten below, so that we have the same im_func
+      # even though we generate classes here.
+      pass  # COV_NF_LINE
     Visit = _VisitNode  # pylint: disable=invalid-name
 
   return NamedTupleNode
@@ -180,8 +180,6 @@ def _VisitNode(node, visitor, *args, **kwargs):
   Returns:
     The transformed Node.
   """
-  # TODO: Keep a dictionary of replaced nodes around, so we don't blow
-  #              up if the graph is circular.
 
   if hasattr(node, "Visit") and node.Visit.im_func != _VisitNode:
     # Node with an overloaded Visit() function. It'll do its own processing.
@@ -223,11 +221,9 @@ def _VisitNode(node, visitor, *args, **kwargs):
   elif isinstance(node, dict):
     new_dict = {k: _VisitNode(child, visitor, *args, **kwargs)
                 for k, child in node.items()}
-    if (len(new_dict) != len(node) or
-        any(id(new_dict[k]) != id(node[k]) for k in node)):
+    if any(id(new_dict[k]) != id(node[k]) for k in node):
       # Return a new dictionary, but with the current class, in case the user
       # subclasses dict.
       return node.__class__(new_dict)
   return node
-
 
