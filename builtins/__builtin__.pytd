@@ -490,6 +490,7 @@ class set:
     def intersection_update(self, ...) -> NoneType
     def union(self, ...) -> set
     def update(self, ...) -> NoneType
+    def add(self, ...) -> NoneType
 
 class frozenset:
     def __init__(self, p0)

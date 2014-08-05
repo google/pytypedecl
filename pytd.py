@@ -218,7 +218,7 @@ class ClassType(node.Node('name'), Type):
     return self
 
   def __str__(self):
-    return str(self.cls.name)
+    return str(self.cls.name) if self.cls else self.name
 
   def __repr__(self):
     return '{%sClassType}(%s)' % (

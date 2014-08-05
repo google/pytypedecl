@@ -211,7 +211,7 @@ def MergeSignatures(signatures):
     name_to_signatures[name].append(signature)
 
   # TODO: Return this as a dictionary.
-  return [pytd.Function(name, signatures)
+  return [pytd.Function(name, tuple(signatures))
           for name, signatures in name_to_signatures.viewitems()]
 
 
@@ -261,9 +261,9 @@ class PyParser(object):
         {c.name for c in classes} & {f.name for f in funcdefs}):
       # TODO: raise a syntax error right when the identifier is defined.
       raise make_syntax_error(self, 'Duplicate identifier(s)', p)
-    p[0] = pytd.TypeDeclUnit(constants=constants,
-                             functions=MergeSignatures(funcdefs),
-                             classes=classes,
+    p[0] = pytd.TypeDeclUnit(constants=tuple(constants),
+                             functions=tuple(MergeSignatures(funcdefs)),
+                             classes=tuple(classes),
                              modules={})
 
   def p_alldefs_constant(self, p):
@@ -294,9 +294,9 @@ class PyParser(object):
         set(d.name for d in p[7])):
       # TODO: raise a syntax error right when the identifier is defined.
       raise make_syntax_error(self, 'Duplicate identifier(s)', p)
-    p[0] = pytd.Class(name=p[3], parents=p[4],
-                      methods=MergeSignatures(funcdefs),
-                      constants=constants, template=p[2])
+    p[0] = pytd.Class(name=p[3], parents=tuple(p[4]),
+                      methods=tuple(MergeSignatures(funcdefs)),
+                      constants=tuple(constants), template=tuple(p[2]))
 
   def p_class_funcs(self, p):
     """class_funcs : funcdefs"""
@@ -586,4 +586,3 @@ def parse_file(filename):
       # TODO: What happens if we don't catch SyntaxError?
       traceback.print_exception(sys.exc_type, sys.exc_value, None)
       sys.exit(1)
-
