@@ -44,7 +44,7 @@ class TestVisitors(parser_test.ParserTest):
         class B:
           def b(self, a: A, b: B) -> A or B raises A, B
     """
-    tree = self.parser.Parse(src)
+    tree = self.Parse(src)
     new_tree = visitors.LookupClasses(tree)
     self.AssertSourceEquals(new_tree, src)
     new_tree.Visit(VerifyLookup())
@@ -58,7 +58,7 @@ class TestVisitors(parser_test.ParserTest):
         class A:
           def a(self, a: A2 or B) -> A2 or B raises A2, B
     """
-    tree = self.parser.Parse(src)
+    tree = self.Parse(src)
     new_tree = tree.Visit(visitors.ReplaceType({"A": pytd.NamedType("A2")}))
     self.AssertSourceEquals(new_tree, expected)
 
@@ -75,7 +75,7 @@ class TestVisitors(parser_test.ParserTest):
       class E(C,D,A):
         pass
     """
-    tree = self.parser.Parse(src)
+    tree = self.Parse(src)
     data = tree.Visit(visitors.ExtractSuperClasses())
     for base, superclass in ["CA", "DA", "DB", "EC", "ED", "EA"]:
       self.assertIn(superclass, data[base])
@@ -91,7 +91,7 @@ class TestVisitors(parser_test.ParserTest):
         class `A<int>`:
           def foo(a: int) -> int raises int
     """
-    tree = self.parser.Parse(src)
+    tree = self.Parse(src)
     new_tree = tree.Visit(visitors.InstantiateTemplates(tree))
     self.AssertSourceEquals(new_tree, expected)
 
@@ -110,7 +110,7 @@ class TestVisitors(parser_test.ParserTest):
           def baz() -> float
           def foo(x: int, y: float) -> float
     """
-    tree = self.parser.Parse(src)
+    tree = self.Parse(src)
     new_tree = tree.Visit(visitors.StripSelf())
     self.AssertSourceEquals(new_tree, expected)
 

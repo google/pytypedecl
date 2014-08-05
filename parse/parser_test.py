@@ -29,6 +29,9 @@ class ParserTest(unittest.TestCase):
   def setUp(self):
     self.parser = parser.PyParser()
 
+  def Parse(self, src):
+    return self.parser.Parse(textwrap.dedent(src))
+
   def ToSource(self, src_or_tree):
     if isinstance(src_or_tree, tuple):
       return src_or_tree.Visit(visitors.PrintVisitor())
@@ -54,7 +57,7 @@ class ParserTest(unittest.TestCase):
       self.fail("source files differ")
 
   def ApplyVisitorToString(self, data, visitor):
-    tree = self.parser.Parse(data)
+    tree = self.Parse(data)
     new_tree = tree.Visit(visitor)
     return pytd.Print(new_tree)
 

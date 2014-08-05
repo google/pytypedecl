@@ -49,6 +49,8 @@ class PyLexer(object):
   def set_parse_info(self, data, filename):
     self.data = data
     self.filename = filename
+    self.indent_stack = [0]
+    self.open_brackets = 0
 
   # The ply parsing library expects class members to be named in a specific way.
   t_ARROW = r'->'
@@ -56,12 +58,10 @@ class PyLexer(object):
   t_COLON = r':'
   t_COMMA = r','
   t_DOT = r'\.'
-  t_LBRACKET = r'\<'
-  t_LPAREN = r'\('
   t_MINUS = r'-'
   t_PLUS = r'\+'
-  t_RBRACKET = r'\>'
-  t_RPAREN = r'\)'
+  t_INDENT = r'(?!i)i'
+  t_DEDENT = r'(?!d)d'
 
   reserved = [
       'class',
@@ -83,7 +83,9 @@ class PyLexer(object):
       'COLON',
       'COMMA',
       # 'COMMENT',  # Not used in the grammar; only used to discard comments
+      'DEDENT',
       'DOT',
+      'INDENT',
       'LBRACKET',
       'LPAREN',
       'MINUS',
@@ -95,8 +97,58 @@ class PyLexer(object):
       'STRING',
   ] + [id.upper() for id in reserved]
 
-  # Ignored characters
-  t_ignore = ' \t'
+  def t_LBRACKET(self, t):
+    r"""<"""
+    self.open_brackets += 1
+    return t
+
+  def t_RBRACKET(self, t):
+    r""">"""
+    self.open_brackets -= 1
+    return t
+
+  def t_LPAREN(self, t):
+    r"""\("""
+    self.open_brackets += 1
+    return t
+
+  def t_RPAREN(self, t):
+    r"""\)"""
+    self.open_brackets -= 1
+    return t
+
+  def t_TAB(self, t):
+    r"""\t"""
+    # Since nobody can agree anymore what how wide tab characters are supposed
+    # to be, disallow them altogether.
+    raise make_syntax_error(self, 'Use spaces, not tabs', t)
+
+  def t_WHITESPACE(self, t):
+    r"""[\n\r ]+"""  # explicit [...] instead of \s, to omit tab
+    t.lexer.lineno += t.value.count('\n')
+    if self.open_brackets:
+      # inside (...) and <...>, we allow any kind of whitespace and indentation.
+      return
+    spaces_and_newlines = t.value.replace('\r', '')
+    i = spaces_and_newlines.rfind('\n')
+    if i < 0:
+      # whitespace in the middle of line
+      return
+    indent = len(spaces_and_newlines) - i - 1
+    if indent < self.indent_stack[-1]:
+      self.indent_stack.pop()
+      if indent < self.indent_stack[-1]:
+        # TODO: support multi-level dedent?
+        make_syntax_error(self, 'invalid dedent', t)
+      t.type = 'DEDENT'
+      return t
+    elif indent > self.indent_stack[-1]:
+      self.indent_stack.append(indent)
+      t.type = 'INDENT'
+      return t
+    else:
+      # same indent as before, ignore.
+      return None
 
   def t_NAME(self, t):
     (r"""([a-zA-Z_][a-zA-Z0-9_\.]*)|"""
@@ -127,13 +179,8 @@ class PyLexer(object):
     return t
 
   def t_COMMENT(self, t):
-    r"""\#.*"""  # implicit end of line
+    r"""\#[^\n]*"""
     # No return value. Token discarded
-
-  def t_newline(self, t):
-    r"""\n+"""  # TODO: is this correct?
-    t.lexer.lineno += t.value.count('\n')
-    t.lexer.on_newline = True
 
   def t_error(self, t):
     raise make_syntax_error(self, "Illegal character '%s'" % t.value[0], t)
@@ -185,7 +232,7 @@ class PyParser(object):
     self.lexer = PyLexer()
     self.tokens = self.lexer.tokens
     self.parser = yacc.yacc(
-        start='defs',
+        start='unit',
         module=self,
         debug=False,
         # debuglog=yacc.PlyLogger(sys.stderr),
@@ -204,44 +251,47 @@ class PyParser(object):
       ('left', 'COMMA'),
   )
 
-  def p_defs(self, p):
-    """defs : funcdefs classes
-    """
-    # TODO: change the definition of defs to:
-    #            defs : defs def | defs
-    #            def : funcdef | classdef
-    #        This will require handling indent/exdent and/or allowing {...}.
-    #        Also requires supporting INDENT/DEDENT because otherwise it's
-    #        ambiguous on the meaning of a funcdef after a classdef
+  def p_unit(self, p):
+    """unit : alldefs"""
     funcdefs = [x for x in p[1] if isinstance(x, NameAndSig)]
     constants = [x for x in p[1] if isinstance(x, pytd.Constant)]
-    if (set(f.name for f in funcdefs) | set(c.name for c in constants) !=
-        set(d.name for d in p[1])):
+    classes = [x for x in p[1] if isinstance(x, pytd.Class)]
+    if ({f.name for f in funcdefs} & {o.name for o in constants} or
+        {o.name for o in constants} & {c.name for c in classes} or
+        {c.name for c in classes} & {f.name for f in funcdefs}):
       # TODO: raise a syntax error right when the identifier is defined.
       raise make_syntax_error(self, 'Duplicate identifier(s)', p)
     p[0] = pytd.TypeDeclUnit(constants=constants,
                              functions=MergeSignatures(funcdefs),
-                             classes=p[2],
+                             classes=classes,
                              modules={})
 
-  def p_classes(self, p):
-    """classes : classes classdef"""
+  def p_alldefs_constant(self, p):
+    """alldefs : alldefs constantdef"""
     p[0] = p[1] + [p[2]]
 
-  def p_classes_null(self, p):
-    """classes :"""
+  def p_alldefs_class(self, p):
+    """alldefs : alldefs classdef"""
+    p[0] = p[1] + [p[2]]
+
+  def p_alldefs_func(self, p):
+    """alldefs : alldefs funcdef"""
+    p[0] = p[1] + [p[2]]
+
+  def p_alldefs_null(self, p):
+    """alldefs :"""
     p[0] = []
 
   # TODO(raoulDoc): doesn't support nested classes
   # TODO: parents is redundant -- should match what's in .py file
   def p_classdef(self, p):
-    """classdef : CLASS template NAME parents COLON class_funcs"""
+    """classdef : CLASS template NAME parents COLON INDENT class_funcs DEDENT"""
     #             1     2        3    4       5     6
     # TODO: do name lookups for template within class_funcs
-    funcdefs = [x for x in p[6] if isinstance(x, NameAndSig)]
-    constants = [x for x in p[6] if isinstance(x, pytd.Constant)]
+    funcdefs = [x for x in p[7] if isinstance(x, NameAndSig)]
+    constants = [x for x in p[7] if isinstance(x, pytd.Constant)]
     if (set(f.name for f in funcdefs) | set(c.name for c in constants) !=
-        set(d.name for d in p[6])):
+        set(d.name for d in p[7])):
       # TODO: raise a syntax error right when the identifier is defined.
       raise make_syntax_error(self, 'Duplicate identifier(s)', p)
     p[0] = pytd.Class(name=p[3], parents=p[4],

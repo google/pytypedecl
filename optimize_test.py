@@ -25,7 +25,7 @@ class TestOptimize(parser_test.ParserTest):
   """Test the visitors in optimize.py."""
 
   def OptimizedString(self, data):
-    tree = self.parser.Parse(data)
+    tree = self.Parse(data)
     new_tree = optimize.Optimize(tree)
     return pytd.Print(new_tree)
 
@@ -130,7 +130,7 @@ class TestOptimize(parser_test.ParserTest):
     """
     flags = optimize.OptimizeFlags(lossy=True, use_abcs=True, max_union=4)
     self.AssertSourceEquals(
-        optimize.Optimize(self.parser.Parse(src), flags),
+        optimize.Optimize(self.Parse(src), flags),
         src)
 
   def testExpand(self):
@@ -224,7 +224,7 @@ class TestOptimize(parser_test.ParserTest):
         def h(x)
     """ + class_data
 
-    hierarchy = self.parser.Parse(src).Visit(visitors.ExtractSuperClasses())
+    hierarchy = self.Parse(src).Visit(visitors.ExtractSuperClasses())
     visitor = optimize.FindCommonSuperClasses(hierarchy, use_abcs=False)
     new_src = self.ApplyVisitorToString(src, visitor)
     self.AssertSourceEquals(new_src, expected)
