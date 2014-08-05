@@ -22,9 +22,16 @@
 from pytypedecl.parse import node
 
 
+class Type(object):
+  """The superclass of all types.
+
+  This is a marker superclass that is mixed into each class that represents a
+  pytd type.
+  """
+  pass
+
+
 # TODO: Rename "TypeDeclUnit" to "Module".
-
-
 class TypeDeclUnit(node.Node('constants', 'classes', 'functions', 'modules')):
   """Module node. Holds module contents (classes / functions) and submodules.
 
@@ -111,7 +118,7 @@ class Function(node.Node('name', 'signatures')):
 
 
 class Signature(node.Node('params', 'return_type', 'exceptions', 'template',
-                          'has_optional', 'provenance')):
+                          'has_optional', 'provenance'), Type):
   """Represents an individual signature of a function.
 
   For overloaded functions, this is one specific combination of parameters.
@@ -180,7 +187,7 @@ class TemplateItem(node.Node('name', 'within_type', 'level')):
 # TODO: Add a fourth type, "UnknownType", for type inference.
 
 
-class NamedType(node.Node('name')):
+class NamedType(node.Node('name'), Type):
   """A type specified by name."""
   __slots__ = ()
 
@@ -188,12 +195,12 @@ class NamedType(node.Node('name')):
     return str(self.name)
 
 
-class NativeType(node.Node('python_type')):
+class NativeType(node.Node('python_type'), Type):
   """A type specified by a native Python type. Used during runtime checking."""
   __slots__ = ()
 
 
-class ClassType(node.Node('name')):
+class ClassType(node.Node('name'), Type):
   """A type specified through an existing class node."""
 
   # This type is different from normal nodes:
@@ -220,23 +227,23 @@ class ClassType(node.Node('name')):
     )
 
 
-class Scalar(node.Node('value')):
+class Scalar(node.Node('value'), Type):
   __slots__ = ()
 
 
-class UnionType(node.Node('type_list')):
+class UnionType(node.Node('type_list'), Type):
   __slots__ = ()
 
 
-class IntersectionType(node.Node('type_list')):
+class IntersectionType(node.Node('type_list'), Type):
   __slots__ = ()
 
 
-class HomogeneousContainerType(node.Node('base_type', 'element_type')):
+class HomogeneousContainerType(node.Node('base_type', 'element_type'), Type):
   __slots__ = ()
 
 
-class GenericType(node.Node('base_type', 'parameters')):
+class GenericType(node.Node('base_type', 'parameters'), Type):
   __slots__ = ()
 
 
@@ -246,4 +253,3 @@ def Print(n):
   from pytypedecl.parse import visitors  # pylint: disable=g-import-not-at-top
   v = visitors.PrintVisitor()
   return n.Visit(v)
-
