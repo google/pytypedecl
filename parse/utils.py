@@ -18,15 +18,9 @@
 """Utilities for parsing type declaration files.
 """
 
-import os
 
-from pytypedecl import pytd
+from pytypedecl import utils
 from pytypedecl.parse import parser
-
-
-def GetDataFile(filename=""):
-    return os.path.abspath(
-        os.path.join(os.path.dirname(pytd.__file__), "builtins", filename))
 
 
 def GetBuiltins():
@@ -39,11 +33,11 @@ def GetBuiltins():
     A pytd.TypeDeclUnit instance. It'll directly contain the builtin classes
     and functions, and submodules for each of the standard library modules.
   """
-  builtins = parser.parse_file(GetDataFile("__builtin__.pytd"))
+  builtins = parser.parse_file(utils.GetDataFile("builtins/__builtin__.pytd"))
   for mod in [
       "array", "errno", "fcntl", "gc", "itertools", "marshal", "posix", "pwd",
       "select", "signal", "_sre", "_struct", "strop", "sys", "_warnings",
       "_weakref"]:
-    builtins.modules[mod] = parser.parse_file(GetDataFile(mod + ".pytd"))
+    builtins.modules[mod] = parser.parse_file(
+        utils.GetDataFile("builtins/" + mod + ".pytd"))
   return builtins
-
