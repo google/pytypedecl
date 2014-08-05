@@ -850,7 +850,7 @@ class iterator:
     def __iter__(self) -> iterator
     def next(self)
 
-class callable-iterator:
+class `callable-iterator`:
     def __iter__(self) -> `callable-iterator`
     def next(self)
 
