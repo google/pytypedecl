@@ -83,16 +83,43 @@ class TestVisitors(parser_test.ParserTest):
   def testInstantiateTemplates(self):
     src = """
         def foo(x: int) -> A<int>
+
         class<T> A:
           def foo(a: T) -> T raises T
     """
     expected = """
         def foo(x: int) -> `A<int>`
+
         class `A<int>`:
           def foo(a: int) -> int raises int
     """
     tree = self.Parse(src)
-    new_tree = tree.Visit(visitors.InstantiateTemplates(tree))
+    new_tree = visitors.InstantiateTemplates(tree)
+    self.AssertSourceEquals(new_tree, expected)
+
+  def testInstantiateTemplatesWithParameters(self):
+    src = """
+        def foo(x: int) -> T1<float, >
+        def foo(x: int) -> T2<int, complex>
+
+        class<A> T1:
+          def foo(a: A) -> A raises A
+
+        class<A, B> T2:
+          def foo(a: A) -> B raises B
+    """
+    expected = """
+        def foo(x: int) -> `T1<float, >`
+        def foo(x: int) -> `T2<int, complex>`
+
+        class `T1<float, >`:
+          def foo(a: float) -> float raises float
+
+        class `T2<int, complex>`:
+          def foo(a: int) -> complex raises complex
+    """
+    tree = self.Parse(src)
+    new_tree = visitors.InstantiateTemplates(tree)
     self.AssertSourceEquals(new_tree, expected)
 
   def testStripSelf(self):

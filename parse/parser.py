@@ -489,15 +489,16 @@ class PyParser(object):
   #                  if it's a more verbose grammar.
 
   def p_compound_type_homogeneous(self, p):
-    """compound_type : identifier LBRACKET parameter RBRACKET"""
-    p[0] = pytd.HomogeneousContainerType(base_type=p[1], element_type=p[3])
+    """compound_type : identifier LBRACKET parameters RBRACKET"""
+    if len(p[3]) == 1:
+      element_type, = p[3]
+      p[0] = pytd.HomogeneousContainerType(base_type=p[1],
+                                           element_type=element_type)
+    else:
+      p[0] = pytd.GenericType(base_type=p[1], parameters=p[3])
 
   def p_compound_type_generic_1(self, p):
-    """compound_type : identifier LBRACKET parameter COMMA RBRACKET"""
-    p[0] = pytd.GenericType(base_type=p[1], parameters=(p[3],))
-
-  def p_compound_type_generic(self, p):
-    """compound_type : identifier LBRACKET many_parameters RBRACKET"""
+    """compound_type : identifier LBRACKET parameters COMMA RBRACKET"""
     p[0] = pytd.GenericType(base_type=p[1], parameters=p[3])
 
   def p_compound_type_paren(self, p):
@@ -514,10 +515,6 @@ class PyParser(object):
 
   def p_parameters_multi(self, p):
     """parameters : parameters COMMA parameter"""
-    p[0] = p[1] + (p[3],)
-
-  def p_many_parameters(self, p):
-    """many_parameters : parameters COMMA parameter"""
     p[0] = p[1] + (p[3],)
 
   def p_parameter(self, p):

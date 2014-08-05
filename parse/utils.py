@@ -29,12 +29,14 @@ def GetDataFile(filename=""):
         os.path.join(os.path.dirname(pytd.__file__), "builtins", filename))
 
 
-def Compile(filename):
-  if not Compile._parser:
-    Compile._parser = _parser.PyParser()
-  return parser.parse_file(filename)
+parser = None
 
-Compile._parser = None
+
+def Compile(filename):
+  global parser
+  if not parser:
+    parser = parser.PyParser()
+  return parser.parse_file(filename)
 
 
 def GetBuiltins():

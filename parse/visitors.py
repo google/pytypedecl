@@ -18,6 +18,7 @@
 
 # pylint: disable=g-importing-member
 
+import collections
 import re
 from .. import pytd
 
@@ -37,12 +38,19 @@ class PrintVisitor(object):
     else:
       return name
 
+  @staticmethod
+  def TemplateParameterString(parameters):
+    # The syntax for a parameterized type with one parameter is "X<T,>"
+    # (E.g. "tuple<int,>")
+    return parameters[0] + ", " + ", ".join(parameters[1:])
+
   def VisitTypeDeclUnit(self, node):
     """Convert the AST for an entire module back to a string."""
-    sections = [node.constants, node.functions, node.classes, node.modules]
-    sections_as_string = ("\n".join(section)
-                          for section in sections
-                          if section)
+    sections = [node.constants, node.functions,
+                node.classes, node.modules.values()]
+    sections_as_string = ("\n".join(section_suite)
+                          for section_suite in sections
+                          if section_suite)
     return "\n\n".join(sections_as_string)
 
   def VisitConstant(self, node):
@@ -110,16 +118,19 @@ class PrintVisitor(object):
     return "(" + ", ".join(node.params + optional) + ")" + ret + exc
 
   def VisitParameter(self, node):
-    """Convert a template parameter to a string."""
-    if node.type != "object":
-      return node.name + ": " + node.type
-    else:
+    """Convert a function parameter to a string."""
+    if node.type == "object":
       # Abbreviated form. "object" is the default.
       return node.name
+    else:
+      return node.name + ": " + node.type
 
   def VisitTemplateItem(self, node):
     """Convert a template (E.g. "<X extends list>") to a string."""
-    return node.name + "<" + node.within_type + ">"
+    if str(node.within_type) == "object":
+      return node.name
+    else:
+      return node.name + " extends " + node.within_type
 
   def VisitNamedType(self, node):
     """Convert a type to a string."""
@@ -133,10 +144,10 @@ class PrintVisitor(object):
     if node.cls is not None:
       return self.SafeName(node.cls.name)
     else:
-      # we mark unresolved classes with "~".
+      # We mark unresolved classes with "~".
       # You rarely see these - this only happens if you print the tree
       # while LookupClasses() is in the process of changing it.
-      return "~" + node.name
+      return "~" + self.SafeName(node.name)
 
   def VisitHomogeneousContainerType(self, node):
     """Convert a homogeneous container type to a string."""
@@ -144,7 +155,8 @@ class PrintVisitor(object):
 
   def VisitGenericType(self, node):
     """Convert a generic type (E.g. list<int>) to a string."""
-    return node.base_type + "<" + ", ".join(p for p in node.parameters) + ">"
+    param_str = self.TemplateParameterString(node.parameters)
+    return node.base_type + "<" + param_str + ">"
 
   def VisitUnionType(self, node):
     """Convert a union type ("x or y") to a string."""
@@ -283,6 +295,19 @@ class ReplaceType(object):
       return node
 
 
+class RemoveTemplates(object):
+  """Visitor for removing all templates from an AST.
+
+  This is a destructive operation.
+  """
+
+  def VisitHomogeneousContainerType(self, node):
+    return node.base_type
+
+  def VisitGenericType(self, node):
+    return node.base_type
+
+
 class ExtractSuperClasses(object):
   """Visitor for extracting all superclasses (i.e., the class hierarchy)."""
 
@@ -298,7 +323,7 @@ class ExtractSuperClasses(object):
     return (cls.name, [parent.name for parent in cls.parents])
 
 
-class InstantiateTemplates(object):
+class InstantiateTemplatesVisitor(object):
   """Tries to remove templates by instantiating the corresponding types.
 
   It will create classes that are named "base_type<element_type>", so e.g.
@@ -308,36 +333,23 @@ class InstantiateTemplates(object):
     symbol_table: Symbol table for looking up templated classes.
   """
 
-  def __init__(self, symbol_table):
-    self.symbol_table = symbol_table
-    self._instantiated_classes = {}
+  def __init__(self):
+    self.classes_to_instantiate = collections.OrderedDict()
 
-  def VisitTypeDeclUnit(self, node):
-    """Adds the instantiated classes to the module. Removes templates.
+  def _InstantiatedClass(self, name, node, symbol_table):
+    if isinstance(node, pytd.HomogeneousContainerType):
+      element_types = [node.element_type]
+    else:
+      element_types = node.parameters
 
-    This will add the instantiated classes to the module the original was
-    defined in.
-
-    Args:
-      node: Module to process. The elements of this module will already be
-        processsed once this method is called.
-
-    Returns:
-      A module that contains extra classes for all the templated classes
-      we encountered within this module.
-    """
-    # TODO: What if a class template is used outside of the module it's
-    # defined in?
-    old_classes = [c for c in node.classes if not c.template]
-    new_classes = self._instantiated_classes.values()
-    self._instantiated_classes = {}  # don't add class into more than one module
-    return node.Replace(classes=old_classes + new_classes)
-
-  def _InstantiateClass(self, name, base_type, element_types):
-    cls = self.symbol_table.Lookup(base_type.name)
+    cls = symbol_table.Lookup(node.base_type.name)
     names = [t.name for t in cls.template]
     mapping = {name: e for name, e in zip(names, element_types)}
     return cls.Replace(name=name, template=None).Visit(ReplaceType(mapping))
+
+  def InstantiatedClasses(self, symbol_table):
+    return [self._InstantiatedClass(name, node, symbol_table)
+            for name, node in self.classes_to_instantiate.viewitems()]
 
   def VisitHomogeneousContainerType(self, node):
     """Converts a template type (container type) to a concrete class.
@@ -353,14 +365,48 @@ class InstantiateTemplates(object):
     Returns:
       A new NamedType pointing to an instantiation of the class.
     """
-    base_type_name = node.base_type.Visit(PrintVisitor())
-    element_type_name = node.element_type.Visit(PrintVisitor())
-    name = "%s<%s>" % (base_type_name, element_type_name)
-    if name not in self._instantiated_classes:
-      self._instantiated_classes[name] = self._InstantiateClass(
-          name, node.base_type, [node.element_type])
+    name = node.Visit(PrintVisitor())
+    if name not in self.classes_to_instantiate:
+      self.classes_to_instantiate[name] = node
     return pytd.NamedType(name)
 
   def VisitGenericType(self, node):
-    # TODO: implement this
-    raise NotImplementedError()
+    """Converts a parameter-based template type (e.g. dict<str,int>) to a class.
+
+    This works by looking up the actual Class (using the lookup table passed
+    when initializing the visitor) and substituting the parameters of the
+    template everywhere in its definition. The new class is appended to the
+    list of classes of this module. (Later on, also all templates are removed.)
+
+    Args:
+      node: An instance of GenericType.
+
+    Returns:
+      A new NamedType pointing to an instantiation of the class.
+    """
+    name = node.Visit(PrintVisitor())
+    if name not in self.classes_to_instantiate:
+      self.classes_to_instantiate[name] = node
+    return pytd.NamedType(name)
+
+
+def InstantiateTemplates(node):
+  """Adds the instantiated classes to the module. Removes templates.
+
+  This will add the instantiated classes to the module the original was
+  defined in.
+
+  Args:
+    node: Module to process. The elements of this module will already be
+      processed once this method is called.
+
+  Returns:
+    A module that contains extra classes for all the templated classes
+    we encountered within this module.
+  """
+  v = InstantiateTemplatesVisitor()
+  node = node.Visit(v)
+  old_classes = [c for c in node.classes if not c.template]
+  new_classes = v.InstantiatedClasses(node)
+  return node.Replace(classes=old_classes + new_classes)
+
