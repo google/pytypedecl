@@ -84,6 +84,7 @@ class TestASTGeneration(unittest.TestCase):
         def f() -> a<x>
         def g() -> a<x,>
         def h() -> a<x,y>
+        def i() -> nothing  # never returns
     """)
     result = self.parser.Parse(src)
     ret = {f.name: f.signatures[0].return_type for f in result.functions}
@@ -95,6 +96,7 @@ class TestASTGeneration(unittest.TestCase):
     self.assertIsInstance(ret["f"], pytd.HomogeneousContainerType)
     self.assertIsInstance(ret["g"], pytd.GenericType)
     self.assertIsInstance(ret["h"], pytd.GenericType)
+    self.assertIsInstance(ret["i"], pytd.NothingType)
 
   def testTemplateReturn(self):
     src = textwrap.dedent("""

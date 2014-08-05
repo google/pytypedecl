@@ -234,6 +234,15 @@ class UnknownType(node.Node(), Type):
   __slots__ = ()
 
 
+class NothingType(node.Node(), Type):
+  """An "impossible" type, with no instances.
+
+  Also known as the "uninhabited" type. For representing empty lists, and
+  functions that never return.
+  """
+  __slots__ = ()
+
+
 class Scalar(node.Node('value'), Type):
   __slots__ = ()
 

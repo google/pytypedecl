@@ -60,13 +60,16 @@ class PyLexer(object):
   t_DEDENT = r'(?!d)d'
 
   reserved = [
+      # Python keywords:
       'class',
       'def',
       'pass',
-      'raises',
-      'extends',
       'and',
       'or',
+      # Keywords that are valid identifiers in Python:
+      'nothing',
+      'raises',
+      'extends',
   ]
 
   # Define keyword tokens, so parser knows about them.
@@ -577,6 +580,10 @@ class TypeDeclParser(object):
   def p_type_unknown(self, p):
     """type : QUESTIONMARK"""
     p[0] = pytd.UnknownType()
+
+  def p_type_nothing(self, p):
+    """type : NOTHING"""
+    p[0] = pytd.NothingType()
 
   def p_type_constant(self, p):
     """type : scalar"""

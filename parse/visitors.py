@@ -158,6 +158,10 @@ class PrintVisitor(object):
     """Convert an unknown type to a string."""
     return "?"
 
+  def VisitNothingType(self, unused_node):
+    """Convert the nothing type to a string."""
+    return "nothing"
+
   def VisitClassType(self, node):
     if node.cls is not None:
       return self.SafeName(node.cls.name)
