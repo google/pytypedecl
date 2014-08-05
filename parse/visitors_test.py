@@ -49,6 +49,19 @@ class TestVisitors(parser_test.ParserTest):
     self.AssertSourceEquals(new_tree, src)
     new_tree.Visit(VerifyLookup())
 
+  def testMaybeFillInClasses(self):
+    src = """
+        class A:
+          def a(self, a: A, b: B) -> A or B raises A, B
+    """
+    tree = self.Parse(src)
+    ty_a = pytd.ClassType("A")
+    visitors.FillInClasses(ty_a, tree)
+    self.assertIsNotNone(ty_a.cls)
+    ty_b = pytd.ClassType("B")
+    visitors.FillInClasses(ty_b, tree)
+    self.assertIsNone(ty_b.cls)
+
   def testReplaceType(self):
     src = """
         class A:

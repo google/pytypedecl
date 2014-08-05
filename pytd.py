@@ -234,6 +234,14 @@ class Scalar(node.Node('value'), Type):
 class UnionType(node.Node('type_list'), Type):
   __slots__ = ()
 
+  def __eq__(self, other):
+    if isinstance(other, UnionType):
+      return set(self.type_list) == set(other.type_list)
+    return NotImplemented
+
+  def __ne__(self, other):
+    return not (self == other)
+
 
 class IntersectionType(node.Node('type_list'), Type):
   __slots__ = ()

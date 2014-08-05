@@ -681,46 +681,37 @@ class float:
     def __init__(self, x: int or float)
     def __init__(self)
     def __abs__(self) -> float or int
-    def __add__(self, y: int or float) -> float or int
-    def __and__(self, y: int or float) -> int
+    def __add__(self, y: int or float) -> float
     def __cmp__(self, y: int or float) -> int
     def __coerce__(self, y: int or float) -> tuple<float, float> or tuple<int, int>
     def __div__(self, y: int) -> float or int
     def __div__(self, y: float) -> float
-    def __divmod__(self, y: int) -> tuple<float, float> or tuple<int, int>
-    def __divmod__(self, y: float) -> tuple<float, float>
+    def __divmod__(self, y: int or float) -> tuple<float, float>
     def __float__(self) -> float
-    def __floordiv__(self, y: int) -> float or int
-    def __floordiv__(self, y: float) -> float
+    def __floordiv__(self, y: int or float) -> float
     def __hex__(self) -> str
     def __index__(self) -> int
     def __int__(self) -> int
     def __invert__(self) -> int
     def __long__(self) -> long
     def __lshift__(self, y: int or float) -> int
-    def __mod__(self, y: int) -> float or int
-    def __mod__(self, y: float) -> float
-    def __mul__(self, y: int or float) -> float or int
-    def __neg__(self) -> float or int
+    def __mod__(self, y: int or float) -> float
+    def __mul__(self, y: int or float) -> float
+    def __neg__(self) -> float
     def __nonzero__(self) -> bool
     def __oct__(self) -> str
-    def __or__(self, y: int or float) -> int
-    def __pos__(self) -> float or int
-    def __pow__(self, y: int or float, ...) -> float or int
-    def __radd__(self, y: int or float) -> float or int
-    def __rand__(self, y: int or float) -> int
+    def __pos__(self) -> float
+    def __pow__(self, y: int or float, ...) -> float
+    def __radd__(self, y: int or float) -> float
     def __rlshift__(self, y: int or float) -> int
-    def __rmul__(self, y: int or float) -> float or int
-    def __ror__(self, y: int or float) -> int
-    def __rpow__(self, x: int or float, ...) -> float or int
+    def __rmul__(self, y: int or float) -> float
+    def __rpow__(self, x: int or float, ...) -> float
     def __rrshift__(self, y: int or float) -> int
     def __rshift__(self, y: int or float) -> int
-    def __rsub__(self, y: int or float) -> float or int
-    def __rxor__(self, y: int or float) -> int
-    def __sub__(self, y: int or float) -> float or int
+    def __rsub__(self, y: int or float) -> float
+    def __sub__(self, y: int or float) -> float
     def __truediv__(self, y: int or float) -> float
     def __trunc__(self, ...) -> int
-    def __xor__(self, y: int or float) -> int
     def bit_length(self) -> int
     def conjugate(self, ...) -> float or int
     def __eq__(self, y: int or float) -> bool

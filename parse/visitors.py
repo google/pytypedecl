@@ -226,7 +226,10 @@ class _FillInClasses(object):
       try:
         node.cls = self._local_lookup.Lookup(node.name)
       except KeyError:
-        node.cls = self._global_lookup.Lookup(node.name)
+        try:
+          node.cls = self._global_lookup.Lookup(node.name)
+        except KeyError:
+          pass
     return node
 
 
@@ -245,23 +248,29 @@ class NamedTypeToClassType(object):
     return pytd.ClassType(node.name)
 
 
-def FillInClasses(module, global_module=None):
-  """Fill in class pointers in ClassType nodes for a module.
+def FillInClasses(target, global_module=None):
+  """Fill in class pointers in ClassType nodes for a PyTD object.
 
   Args:
-    module: Module to change. Changes will happen in-place.
-    global_module: Global symbols. Tried if a name doesn't exist locally.
+    target: The PyTD object to operate on. Changes will happen in-place. If this
+    is a TypeDeclUnit it will also be used for lookups.
+    global_module: Global symbols. Tried if a name doesn't exist locally. This
+    is required if target is not a TypeDeclUnit.
   """
   if global_module is None:
-    global_module = module
+    global_module = target
 
-  for submodule in module.modules.values():
-    FillInClasses(submodule, global_module)
+  if hasattr(target, "modules"):
+    for submodule in target.modules.values():
+      FillInClasses(submodule, global_module)
 
   # Fill in classes for this module, bottom up.
   # TODO: Node.Visit() should support blacklisting of attributes so
   # we don't recurse into submodules multiple times.
-  module.Visit(_FillInClasses(module, global_module))
+  if isinstance(target, pytd.TypeDeclUnit):
+    target.Visit(_FillInClasses(target, global_module))
+  else:
+    target.Visit(_FillInClasses(global_module, global_module))
 
 
 def LookupClasses(module):
@@ -409,4 +418,3 @@ def InstantiateTemplates(node):
   old_classes = [c for c in node.classes if not c.template]
   new_classes = v.InstantiatedClasses(node)
   return node.Replace(classes=old_classes + new_classes)
-
