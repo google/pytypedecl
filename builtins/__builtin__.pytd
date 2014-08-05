@@ -3,8 +3,7 @@ def abs(number: int) -> int
 def abs(number: float or complex) -> float
 def all(iterable) -> bool
 def any(iterable) -> bool
-def apply(object: callable, ...) -> NoneType
-def apply(object: type, ...)
+def apply(object: function or type, ...) -> NoneType
 def bin(number: int) -> str
 def callable(object) -> bool
 def chr(i: int) -> str
@@ -33,9 +32,9 @@ def filter(function_or_None, sequence: str or bytearray) -> str
 def filter(function_or_None, sequence: unicode) -> unicode
 def filter(function_or_None, sequence: list or set or iterator) -> list
 def filter(function_or_None, sequence: tuple) -> tuple
-def filter(function_or_None: callable or type, sequence: list or set) -> list<object> or list
-def filter(function_or_None: callable or type, sequence: tuple) -> tuple<object, object, object> or tuple
-def filter(function_or_None: callable or type, sequence: iterator) -> list<str> or list<unicode> or list
+def filter(function_or_None: function or type, sequence: list or set) -> list<object> or list
+def filter(function_or_None: function or type, sequence: tuple) -> tuple<object, object, object> or tuple
+def filter(function_or_None: function or type, sequence: iterator) -> list<str> or list<unicode> or list
 def format(value, ...) -> str
 def format(value: unicode, ...) -> unicode
 def globals() -> dict<str, object>
@@ -79,7 +78,7 @@ def reduce(function, sequence: str, ...) -> str
 def reduce(function, sequence: set, ...)
 def repr(object) -> str
 def round(number: int or float, ...) -> float
-def setattr(object: callable, name: str or unicode or bytearray, value) -> NoneType
+def setattr(object: function, name: str or unicode or bytearray, value) -> NoneType
 def sorted(iterable: str or bytearray, ...) -> list<str> or list
 def sorted(iterable: unicode, ...) -> list<unicode> or list
 def sorted(iterable: list or tuple or set, ...) -> list<object> or list
@@ -809,7 +808,7 @@ class generator:
     def send(self, arg)
 
 class instancemethod:
-    def __init__(self, function: callable or type or instancemethod, instance, cls)
+    def __init__(self, function: function or type or instancemethod, instance, cls)
     def __cmp__(self, y: instancemethod) -> int
     def __get__(self, obj, ...) -> instancemethod
 
@@ -846,9 +845,6 @@ class staticmethod:
 class classmethod:
     def __init__(self, function)
     def __get__(self, obj, ...) -> instancemethod
-
-class callable(object):
-    pass
 
 class iterator:
     def __iter__(self) -> iterator

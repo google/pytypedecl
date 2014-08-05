@@ -558,6 +558,15 @@ def make_syntax_error(parser_or_tokenizer, msg, p):
   # TODO: add test cases for this (including beginning/end of file,
   #                  lexer error, parser error)
 
+  if isinstance(p, yacc.YaccProduction):
+    # TODO: pretty-print lexpos / lineno
+    lexpos = p.lexpos(1)
+    lineno = p.lineno(1)
+    # TODO: The code below only works in the tokenizer, not in the
+    # parser. Additionally, ply's yacc catches SyntaxError, but has broken
+    # error handling (so we throw a SystemError for the time being).
+    raise SystemError(msg, (lexpos, lineno))
+
   # Convert the lexer's offset to an offset within the line with the error
   # TODO: use regexp to split on r'[\r\n]' (for Windows, old MacOS):
   last_line_offset = parser_or_tokenizer.data.rfind('\n', 0, p.lexpos) + 1

@@ -1,4 +1,4 @@
-def poll() -> poll
+def poll() -> `poll-type`
 def select(...) -> tuple raises OverflowError, TypeError
 
 class epoll:
@@ -10,5 +10,5 @@ class epoll:
     def register(fd, ...) -> NoneType
     def unregister(fd) -> NoneType
 
-class poll:
+class `poll-type`:
     pass

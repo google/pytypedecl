@@ -29,16 +29,6 @@ def GetDataFile(filename=""):
         os.path.join(os.path.dirname(pytd.__file__), "builtins", filename))
 
 
-parser = None
-
-
-def Compile(filename):
-  global parser
-  if not parser:
-    parser = parser.PyParser()
-  return parser.parse_file(filename)
-
-
 def GetBuiltins():
   """Get the "default" AST used to lookup built in types.
 
@@ -49,11 +39,11 @@ def GetBuiltins():
     A pytd.TypeDeclUnit instance. It'll directly contain the builtin classes
     and functions, and submodules for each of the standard library modules.
   """
-  builtins = Compile(GetDataFile("__builtin__.pytd"))
+  builtins = parser.parse_file(GetDataFile("__builtin__.pytd"))
   for mod in [
       "array", "errno", "fcntl", "gc", "itertools", "marshal", "posix", "pwd",
       "select", "signal", "_sre", "_struct", "strop", "sys", "_warnings",
       "_weakref"]:
-    builtins.modules[mod] = Compile(GetDataFile(mod + ".pytd"))
+    builtins.modules[mod] = parser.parse_file(GetDataFile(mod + ".pytd"))
   return builtins
 
