@@ -140,12 +140,12 @@ class TestASTGeneration(unittest.TestCase):
     result1 = self.parser.Parse(data1)
     result2 = self.parser.Parse(data2)
     expect = pytd.TypeDeclUnit(
-        constants=[],
-        classes=[],
-        functions=[
+        constants=(),
+        classes=(),
+        functions=(
             pytd.Function(
                 name="foo",
-                signatures=[pytd.Signature(
+                signatures=(pytd.Signature(
                     params=(
                         pytd.Parameter(
                             name="a",
@@ -160,7 +160,7 @@ class TestASTGeneration(unittest.TestCase):
                         ),),
                     return_type=pytd.NamedType("object"),
                     template=(), has_optional=False, provenance="",
-                    exceptions=())])],
+                    exceptions=()),)),),
         modules={})
     self.assertEqual(expect, result1)
     self.assertEqual(expect, result2)
@@ -174,12 +174,12 @@ class TestASTGeneration(unittest.TestCase):
 
     result = self.parser.Parse(data)
     expect = pytd.TypeDeclUnit(
-        constants=[],
-        classes=[],
-        functions=[
+        constants=(),
+        classes=(),
+        functions=(
             pytd.Function(
                 name="interface",
-                signatures=[pytd.Signature(
+                signatures=(pytd.Signature(
                     params=(
                         pytd.Parameter(name="abcde",
                                        type=pytd.Scalar(value="xyz")),
@@ -188,10 +188,10 @@ class TestASTGeneration(unittest.TestCase):
                         pytd.Parameter(name="b",
                                        type=pytd.Scalar(value=-1.0)),
                         pytd.Parameter(name="c",
-                                       type=pytd.Scalar(value=666)),),
+                                       type=pytd.Scalar(value=666))),
                     return_type=pytd.NamedType("int"),
                     exceptions=(),
-                    template=(), has_optional=False, provenance="")])],
+                    template=(), has_optional=False, provenance=""),)),),
         modules={})
     self.assertEqual(expect, result)
 
