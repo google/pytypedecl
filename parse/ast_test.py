@@ -80,6 +80,17 @@ class TestASTGeneration(unittest.TestCase):
     """)
     self.TestRoundTrip(src)
 
+  def testIndent(self):
+    src = textwrap.dedent("""
+        class Foo:
+          def bar()
+        def baz(i: int)
+    """)
+    result = self.parser.Parse(src)
+    foo = result.Lookup("Foo")
+    self.assertEquals(["bar"], [f.name for f in foo.methods])
+    self.assertEquals(["baz"], [f.name for f in result.functions])
+
   def testMultiFunction(self):
     """Test parsing of multiple function defs including overloaded version."""
 

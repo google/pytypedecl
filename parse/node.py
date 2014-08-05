@@ -205,8 +205,6 @@ def _VisitNode(node, visitor, *args, **kwargs):
 
     # Now call the user supplied visitor, if it exists. Notice we only do this
     # for tuples.
-    # TODO: Do we need the Visit prefix? It would be nicer to just
-    #              have functions called after the class name.
     visit_function = "Visit" + node.__class__.__name__
     if hasattr(visitor, visit_function):
       return getattr(visitor, visit_function)(new_node, *args, **kwargs)

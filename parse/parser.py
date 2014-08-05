@@ -46,6 +46,7 @@ class PyLexer(object):
     self.filename = filename
     self.indent_stack = [0]
     self.open_brackets = 0
+    self.queued_dedents = 0
 
   # The ply parsing library expects class members to be named in a specific way.
   t_ARROW = r'->'
@@ -110,12 +111,16 @@ class PyLexer(object):
 
   def t_TAB(self, t):
     r"""\t"""
-    # Since nobody can agree anymore what how wide tab characters are supposed
+    # Since nobody can agree anymore how wide tab characters are supposed
     # to be, disallow them altogether.
     raise make_syntax_error(self, 'Use spaces, not tabs', t)
 
   def t_WHITESPACE(self, t):
     r"""[\n\r ]+"""  # explicit [...] instead of \s, to omit tab
+    if self.queued_dedents:
+      self.queued_dedents -= 1
+      t.type = 'DEDENT'
+      return t
     t.lexer.lineno += t.value.count('\n')
     if self.open_brackets:
       # inside (...) and <...>, we allow any kind of whitespace and indentation.
@@ -128,9 +133,15 @@ class PyLexer(object):
     indent = len(spaces_and_newlines) - i - 1
     if indent < self.indent_stack[-1]:
       self.indent_stack.pop()
-      if indent < self.indent_stack[-1]:
-        # TODO: support multi-level dedent?
+      while indent < self.indent_stack[-1]:
+        self.indent_stack.pop()
+        # Since we can't return multiple tokens at once, we instead queue them
+        # and make the lexer reprocess the last whitespace.
+        self.queued_dedents += 1
+      if indent != self.indent_stack[-1]:
         make_syntax_error(self, 'invalid dedent', t)
+      if self.queued_dedents:
+        t.lexer.skip(-1)  # reprocess this whitespace
       t.type = 'DEDENT'
       return t
     elif indent > self.indent_stack[-1]:
