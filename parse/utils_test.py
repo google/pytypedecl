@@ -1,8 +1,9 @@
 """Tests for parse.utils."""
 
+import unittest
 
 
-class UtilsTest(googletest.TestCase):
+class UtilsTest(unittest.TestCase):
 
   def testGetBuiltins(self):
     builtins = utils.GetBuiltins()
@@ -11,4 +12,4 @@ class UtilsTest(googletest.TestCase):
 
 
 if __name__ == '__main__':
-  googletest.main()
+  unittest.main()
