@@ -50,7 +50,8 @@ def GetBuiltins():
   builtins = Compile(GetDataFile("__builtin__.pytd"))
   for mod in [
       "array", "errno", "fcntl", "gc", "itertools", "marshal", "posix", "pwd",
-      "select", "signal", "_sre", "_struct", "sys", "_warnings", "_weakref"]:
+      "select", "signal", "_sre", "_struct", "strop", "sys", "_warnings",
+      "_weakref"]:
     builtins.modules[mod] = Compile(GetDataFile(mod + ".pytd"))
   return builtins
 
