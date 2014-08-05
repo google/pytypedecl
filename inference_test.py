@@ -381,7 +381,7 @@ class PyTreeTests(InferenceTestCase):
 
   def setUp(self):
     with open(utils.GetDataFile("examples/pytree.py"), "r") as infile:
-      self.ty = self.infer(infile.read())
+      self.ty = self.Infer(infile.read())
 
   def testTypeRepr(self):
     self.assertHasOnlySignatures(self.ty.Lookup("type_repr"),
@@ -399,7 +399,7 @@ class StringIOTests(InferenceTestCase):
 
   def setUp(self):
     with open(utils.GetDataFile("examples/StringIO.py"), "r") as infile:
-      self.ty = self.infer(infile.read())
+      self.ty = self.Infer(infile.read())
     try:
       self.stringio_cls = self.ty.Lookup("StringIO")
     except KeyError:

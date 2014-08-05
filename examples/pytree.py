@@ -11,8 +11,6 @@ This is a very concrete parse tree; we need to keep every token and
 even the comments and whitespace between tokens.
 """
 
-import warnings
-
 def type_repr(type_num):
     """Map a type number to its string representation."""
     return str(type_num)
@@ -118,8 +116,7 @@ class Base(object):
 
         DEPRECATED; use the prefix property directly.
         """
-        warnings.warn("set_prefix() is deprecated; use the prefix property",
-                      DeprecationWarning, stacklevel=2)
+        print("set_prefix() is deprecated; use the prefix property")
         self.prefix = prefix
 
     def get_prefix(self):
@@ -128,8 +125,7 @@ class Base(object):
 
         DEPRECATED; use the prefix property directly.
         """
-        warnings.warn("get_prefix() is deprecated; use the prefix property",
-                      DeprecationWarning, stacklevel=2)
+        print("get_prefix() is deprecated; use the prefix property")
         return self.prefix
 
     def replace(self, new):
@@ -235,10 +231,6 @@ class Base(object):
             return u""
         return next_sib.prefix
 
-    if sys.version_info < (3, 0):
-        def __str__(self):
-            return unicode(self).encode("ascii")
-
     @property
     def type_repr(self):
         """Get the type as a human-readable string."""
@@ -327,9 +319,6 @@ class Node(Base):
         This reproduces the input source exactly.
         """
         return u"".join(map(unicode, self.children))
-
-    if sys.version_info > (3, 0):
-        __str__ = __unicode__
 
     def _eq(self, other):
         """Compare two nodes for equality (using type, children) -
@@ -456,9 +445,6 @@ class Leaf(Base):
         """
         return self.prefix + unicode(self.value)
 
-    if sys.version_info > (3, 0):
-        __str__ = __unicode__
-
     def _eq(self, other):
         """Compare two nodes for equality (type and value)."""
         return (self.type, self.value) == (other.type, other.value)
@@ -496,3 +482,284 @@ class Leaf(Base):
         self._prefix = prefix
 
     prefix = property(_prefix_getter, _prefix_setter)
+
+
+def assertTrue(b):
+    assert b
+def assertFalse(b):
+    assert not b
+def assertEqual(a, b):
+    assert a == b
+def assertNotEqual(a, b):
+    assert a != b
+
+if __name__ == "__main__":
+    # This code is just the concatenation of all the tests for pytree. The blank
+    # lines are the divisions between the original tests.
+    l1 = Leaf(100, "foo")
+    assertEqual(l1.type, 100)
+    assertEqual(l1.value, "foo")
+
+    l1 = Leaf(100, "foo")
+    assertEqual(repr(l1), "Leaf(100, 'foo')")
+
+    l1 = Leaf(100, "foo")
+    assertEqual(str(l1), "foo")
+    l2 = Leaf(100, "foo", context=(" ", (10, 1)))
+    assertEqual(str(l2), " foo")
+
+    # Make sure that the Leaf's value is stringified. Failing to
+    #  do this can cause a TypeError in certain situations.
+    l1 = Leaf(2, 5)
+    l1.prefix = "foo_"
+    assertEqual(str(l1), "foo_5")
+
+    l1 = Leaf(100, "foo")
+    l2 = Leaf(100, "foo", context=(" ", (1, 0)))
+    assertEqual(l1, l2)
+    l3 = Leaf(101, "foo")
+    l4 = Leaf(100, "bar")
+    assertNotEqual(l1, l3)
+    assertNotEqual(l1, l4)
+
+    l1 = Leaf(100, "foo")
+    assertEqual(l1.prefix, "")
+    assertFalse(l1.was_changed)
+    l1.prefix = "  ##\n\n"
+    assertEqual(l1.prefix, "  ##\n\n")
+    assertTrue(l1.was_changed)
+
+    l1 = Leaf(100, "foo")
+    l2 = Leaf(200, "bar")
+    n1 = Node(1000, [l1, l2])
+    assertEqual(n1.type, 1000)
+    assertEqual(n1.children, [l1, l2])
+
+    l1 = Leaf(100, "foo")
+    l2 = Leaf(100, "bar", context=(" ", (1, 0)))
+    n1 = Node(1000, [l1, l2])
+    assertEqual(repr(n1),
+                     "Node(1000, [%s, %s])" % (repr(l1), repr(l2)))
+
+    l1 = Leaf(100, "foo")
+    l2 = Leaf(100, "bar", context=(" ", (1, 0)))
+    n1 = Node(1000, [l1, l2])
+    assertEqual(str(n1), "foo bar")
+
+    l1 = Leaf(100, "foo")
+    assertEqual(l1.prefix, "")
+    n1 = Node(1000, [l1])
+    assertEqual(n1.prefix, "")
+    n1.prefix = " "
+    assertEqual(n1.prefix, " ")
+    assertEqual(l1.prefix, " ")
+
+    l1 = Leaf(100, "foo", prefix="a")
+    l2 = Leaf(100, "bar", prefix="b")
+    n1 = Node(1000, [l1, l2])
+    assertEqual(l1.get_suffix(), l2.prefix)
+    assertEqual(l2.get_suffix(), "")
+    assertEqual(n1.get_suffix(), "")
+
+    l3 = Leaf(100, "bar", prefix="c")
+    n2 = Node(1000, [n1, l3])
+    assertEqual(n1.get_suffix(), l3.prefix)
+    assertEqual(l3.get_suffix(), "")
+    assertEqual(n2.get_suffix(), "")
+
+    n1 = Node(1000, ())
+    n2 = Node(1000, [], context=(" ", (1, 0)))
+    assertEqual(n1, n2)
+    n3 = Node(1001, ())
+    assertNotEqual(n1, n3)
+
+    l1 = Leaf(100, "foo")
+    l2 = Leaf(100, "foo")
+    n1 = Node(1000, [l1])
+    n2 = Node(1000, [l2])
+    assertEqual(n1, n2)
+    l3 = Leaf(100, "bar")
+    n3 = Node(1000, [l3])
+    assertNotEqual(n1, n3)
+
+    l1 = Leaf(100, "foo")
+    l2 = Leaf(100, "+")
+    l3 = Leaf(100, "bar")
+    n1 = Node(1000, [l1, l2, l3])
+    assertEqual(n1.children, [l1, l2, l3])
+    assertTrue(isinstance(n1.children, list))
+    assertFalse(n1.was_changed)
+    l2new = Leaf(100, "-")
+    l2.replace(l2new)
+    assertEqual(n1.children, [l1, l2new, l3])
+    assertTrue(isinstance(n1.children, list))
+    assertTrue(n1.was_changed)
+
+    l1 = Leaf(100, "foo")
+    l2 = Leaf(100, "+")
+    l3 = Leaf(100, "bar")
+    n1 = Node(1000, [l1, l2, l3])
+    l2.replace([Leaf(100, "*"), Leaf(100, "*")])
+    assertEqual(str(n1), "foo**bar")
+    assertTrue(isinstance(n1.children, list))
+
+    l1 = Leaf(100, "foo")
+    l2 = Leaf(100, "bar")
+    l3 = Leaf(100, "fooey")
+    n2 = Node(1000, [l1, l2])
+    n3 = Node(1000, [l3])
+    n1 = Node(1000, [n2, n3])
+    assertEqual(list(n1.leaves()), [l1, l2, l3])
+
+    l1 = Leaf(100, "foo")
+    l2 = Leaf(100, "bar")
+    n2 = Node(1000, [l1, l2])
+    n3 = Node(1000, [])
+    n1 = Node(1000, [n2, n3])
+    assertEqual(l1.depth(), 2)
+    assertEqual(n3.depth(), 1)
+    assertEqual(n1.depth(), 0)
+
+    l1 = Leaf(100, "foo")
+    l2 = Leaf(100, "bar")
+    l3 = Leaf(100, "fooey")
+    c1 = Node(1000, [l1, l2])
+    n1 = Node(1000, [c1, l3])
+    assertEqual(list(n1.post_order()), [l1, l2, c1, l3, n1])
+
+    l1 = Leaf(100, "foo")
+    l2 = Leaf(100, "bar")
+    l3 = Leaf(100, "fooey")
+    c1 = Node(1000, [l1, l2])
+    n1 = Node(1000, [c1, l3])
+    assertEqual(list(n1.pre_order()), [n1, c1, l1, l2, l3])
+
+    l1 = Leaf(100, "f")
+    assertFalse(l1.was_changed)
+    l1.changed()
+    assertTrue(l1.was_changed)
+
+    l1 = Leaf(100, "f")
+    n1 = Node(1000, [l1])
+    assertFalse(n1.was_changed)
+    n1.changed()
+    assertTrue(n1.was_changed)
+
+    l1 = Leaf(100, "foo")
+    l2 = Leaf(100, "+")
+    l3 = Leaf(100, "bar")
+    n1 = Node(1000, [l1, l2, l3])
+    n2 = Node(1000, [n1])
+    assertFalse(l1.was_changed)
+    assertFalse(n1.was_changed)
+    assertFalse(n2.was_changed)
+    n1.changed()
+    assertTrue(n1.was_changed)
+    assertTrue(n2.was_changed)
+    assertFalse(l1.was_changed)
+
+    for prefix in ("xyz_", ""):
+        l1 = Leaf(100, "self", prefix=prefix)
+        assertTrue(str(l1), prefix + "self")
+        assertEqual(l1.prefix, prefix)
+
+    for prefix in ("xyz_", ""):
+        l1 = Leaf(100, "self")
+        l2 = Leaf(100, "foo", prefix="_")
+        n1 = Node(1000, [l1, l2], prefix=prefix)
+        assertTrue(str(n1), prefix + "self_foo")
+        assertEqual(n1.prefix, prefix)
+        assertEqual(l1.prefix, prefix)
+        assertEqual(l2.prefix, "_")
+
+    l1 = Leaf(100, "foo")
+    l2 = Leaf(100, "foo")
+    n1 = Node(1000, [l1, l2])
+    n2 = Node(1000, [n1])
+    assertEqual(n1.remove(), 0)
+    assertEqual(n2.children, [])
+    assertEqual(l1.parent, n1)
+    assertEqual(n1.parent, None)
+    assertEqual(n2.parent, None)
+    assertFalse(n1.was_changed)
+    assertTrue(n2.was_changed)
+    assertEqual(l2.remove(), 1)
+    assertEqual(l1.remove(), 0)
+    assertEqual(n1.children, [])
+    assertEqual(l1.parent, None)
+    assertEqual(n1.parent, None)
+    assertEqual(n2.parent, None)
+    assertTrue(n1.was_changed)
+    assertTrue(n2.was_changed)
+
+    n1 = Node(1000, [])
+    n1.remove()
+    assertEqual(n1.parent, None)
+
+    l1 = Leaf(100, "foo")
+    l1.remove()
+    assertEqual(l1.parent, None)
+
+    l1 = Leaf(100, "foo")
+    n1 = Node(1000, [l1])
+
+    l2 = Leaf(100, "bar")
+    n1.set_child(0, l2)
+    assertEqual(l1.parent, None)
+    assertEqual(l2.parent, n1)
+    assertEqual(n1.children, [l2])
+
+    n2 = Node(1000, [l1])
+    n2.set_child(0, n1)
+    assertEqual(l1.parent, None)
+    assertEqual(n1.parent, n2)
+    assertEqual(n2.parent, None)
+    assertEqual(n2.children, [n1])
+
+    l1 = Leaf(100, "foo")
+    n1 = Node(1000, [l1])
+    l2 = Leaf(100, "bar")
+    n1.insert_child(0, l2)
+    assertEqual(l2.parent, n1)
+    assertEqual(n1.children, [l2, l1])
+    l3 = Leaf(100, "abc")
+    n1.insert_child(2, l3)
+    assertEqual(n1.children, [l2, l1, l3])
+
+    n1 = Node(1000, [])
+    l1 = Leaf(100, "foo")
+    n1.append_child(l1)
+    assertEqual(l1.parent, n1)
+    assertEqual(n1.children, [l1])
+    l2 = Leaf(100, "bar")
+    n1.append_child(l2)
+    assertEqual(l2.parent, n1)
+    assertEqual(n1.children, [l1, l2])
+
+    n1 = Node(1000, [])
+    n2 = Node(1000, [])
+    p1 = Node(1000, [n1, n2])
+    assertTrue(n1.next_sibling is n2)
+    assertEqual(n2.next_sibling, None)
+    assertEqual(p1.next_sibling, None)
+
+    l1 = Leaf(100, "a")
+    l2 = Leaf(100, "b")
+    p1 = Node(1000, [l1, l2])
+    assertTrue(l1.next_sibling is l2)
+    assertEqual(l2.next_sibling, None)
+    assertEqual(p1.next_sibling, None)
+
+    n1 = Node(1000, [])
+    n2 = Node(1000, [])
+    p1 = Node(1000, [n1, n2])
+    assertTrue(n2.prev_sibling is n1)
+    assertEqual(n1.prev_sibling, None)
+    assertEqual(p1.prev_sibling, None)
+
+    l1 = Leaf(100, "a")
+    l2 = Leaf(100, "b")
+    p1 = Node(1000, [l1, l2])
+    assertTrue(l2.prev_sibling is l1)
+    assertEqual(l1.prev_sibling, None)
+    assertEqual(p1.prev_sibling, None)
