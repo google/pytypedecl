@@ -74,6 +74,28 @@ class TestASTGeneration(unittest.TestCase):
     """).strip()
     self.TestRoundTrip(src)
 
+  def testReturnTypes(self):
+    src = textwrap.dedent("""
+        def a()  # implicitly ?
+        def b() -> ?
+        def c() -> object
+        def d() -> None
+        def e() -> a or b
+        def f() -> a<x>
+        def g() -> a<x,>
+        def h() -> a<x,y>
+    """)
+    result = self.parser.Parse(src)
+    ret = {f.name: f.signatures[0].return_type for f in result.functions}
+    self.assertIsInstance(ret["a"], pytd.UnknownType)
+    self.assertIsInstance(ret["b"], pytd.UnknownType)
+    self.assertEquals(ret["c"], pytd.NamedType("object"))
+    self.assertEquals(ret["d"], pytd.NamedType("None"))
+    self.assertIsInstance(ret["e"], pytd.UnionType)
+    self.assertIsInstance(ret["f"], pytd.HomogeneousContainerType)
+    self.assertIsInstance(ret["g"], pytd.GenericType)
+    self.assertIsInstance(ret["h"], pytd.GenericType)
+
   def testTemplateReturn(self):
     src = textwrap.dedent("""
         def foo(a: int or float, c: bool) -> list<int> raises Foo, Test
@@ -174,8 +196,8 @@ class TestASTGeneration(unittest.TestCase):
   def testComplexCombinedType(self):
     """Test parsing a type with both union and intersection."""
 
-    data1 = r"def foo(a: Foo or Bar and Zot)"
-    data2 = r"def foo(a: Foo or (Bar and Zot))"
+    data1 = r"def foo(a: Foo or Bar and Zot) -> object"
+    data2 = r"def foo(a: Foo or (Bar and Zot)) -> object"
     result1 = self.parser.Parse(data1)
     result2 = self.parser.Parse(data2)
     expect = pytd.TypeDeclUnit(

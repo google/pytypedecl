@@ -110,8 +110,8 @@ class PrintVisitor(object):
     """
     # TODO: template
 
-    # Potentially abbreviate. "object" is the default.
-    ret = " -> " + node.return_type if node.return_type != "object" else ""
+    # Potentially abbreviate. "?" is the default.
+    ret = " -> " + node.return_type if node.return_type != "?" else ""
 
     exc = " raises " + ", ".join(node.exceptions) if node.exceptions else ""
     optional = ("...",) if node.has_optional else ()
@@ -153,6 +153,10 @@ class PrintVisitor(object):
   def VisitNativeType(self, node):
     """Convert a native type to a string."""
     return self.SafeName(node.python_type.__name__)
+
+  def VisitUnknownType(self, unused_node):
+    """Convert an unknown type to a string."""
+    return "?"
 
   def VisitClassType(self, node):
     if node.cls is not None:

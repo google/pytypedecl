@@ -55,6 +55,7 @@ class PyLexer(object):
   t_COLONEQUALS = r':='
   t_COMMA = r','
   t_DOT = r'\.'
+  t_QUESTIONMARK = r'\?'
   t_INDENT = r'(?!i)i'
   t_DEDENT = r'(?!d)d'
 
@@ -86,6 +87,7 @@ class PyLexer(object):
       'LPAREN',
       'NAME',
       'NUMBER',
+      'QUESTIONMARK',
       'RBRACKET',
       'RPAREN',
       'STRING',
@@ -437,7 +439,7 @@ class TypeDeclParser(object):
   # We interpret a missing "-> type" as: "Type not specified"
   def p_return_null(self, p):
     """return :"""
-    p[0] = pytd.NamedType('object')
+    p[0] = pytd.UnknownType()
 
   def p_params_multi(self, p):
     """params : params COMMA param"""
@@ -571,6 +573,10 @@ class TypeDeclParser(object):
   def p_type_name(self, p):
     """type : NAME"""
     p[0] = pytd.NamedType(p[1])
+
+  def p_type_unknown(self, p):
+    """type : QUESTIONMARK"""
+    p[0] = pytd.UnknownType()
 
   def p_type_constant(self, p):
     """type : scalar"""

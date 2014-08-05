@@ -31,7 +31,6 @@ class Type(object):
   pass
 
 
-# TODO: Rename "TypeDeclUnit" to "Module".
 class TypeDeclUnit(node.Node('constants', 'classes', 'functions', 'modules')):
   """Module node. Holds module contents (classes / functions) and submodules.
 
@@ -188,7 +187,6 @@ class TemplateItem(node.Node('name', 'within_type', 'level')):
 #     Points back to a Class in the AST. (This makes the AST circular)
 # visitors.py contains tools for converting between the corresponding AST
 # representations.
-# TODO: Add a fourth type, "UnknownType", for type inference.
 
 
 class NamedType(node.Node('name'), Type):
@@ -229,6 +227,11 @@ class ClassType(node.Node('name'), Type):
         'Unresolved' if self.cls is None else '',
         self.name
     )
+
+
+class UnknownType(node.Node(), Type):
+  """A type we know nothing about yet."""
+  __slots__ = ()
 
 
 class Scalar(node.Node('value'), Type):
