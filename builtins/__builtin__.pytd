@@ -18,7 +18,7 @@ def coerce(x, y) -> tuple<object, object>
 def coerce(x: list, y: list) -> tuple<list, list>
 def coerce(x: tuple, y: tuple) -> tuple<tuple, tuple>
 def coerce(x: complex, y: int or float) -> tuple<complex, complex>
-def coerce(x: callable, y: callable) -> tuple<function, function>
+def coerce(x: function, y: function) -> tuple<function, function>
 def coerce(x: type, y: type) -> tuple<type, type>
 def coerce(x: iterator, y: iterator) -> tuple<iterator, iterator>
 def dir(...) -> list<str>
@@ -848,7 +848,11 @@ class classmethod:
 
 class iterator:
     def __iter__(self) -> iterator
-    def next(self) -> str
+    def next(self)
+
+class callable-iterator:
+    def __iter__(self) -> `callable-iterator`
+    def next(self)
 
 class super:
     def __init__(self, type: type)

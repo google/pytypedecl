@@ -60,5 +60,8 @@ class starmap:
 class takewhile:
     pass
 
+class tee:
+    def __copy__()
+
 class tee_dataobject:
     pass
