@@ -32,6 +32,17 @@ class TestOptimize(parser_test.ParserTest):
   def AssertOptimizeEquals(self, src, new_src):
     self.AssertSourceEquals(self.OptimizedString(src), new_src)
 
+  def testJoinTypes(self):
+    """Test that JoinTypes() does recursive flattening."""
+    n1, n2, n3, n4, n5, n6 = [pytd.NamedType("n%d" % i) for i in xrange(6)]
+    # n1 or (n2 or (n3))
+    nested1 = pytd.UnionType((n1, pytd.UnionType((n2, pytd.UnionType((n3,))))))
+    # ((n4) or n5) or n6
+    nested2 = pytd.UnionType((pytd.UnionType((pytd.UnionType((n4,)), n5)), n6))
+    joined = optimize.JoinTypes([nested1, nested2])
+    self.assertEquals(joined.type_list,
+                      (n1, n2, n3, n4, n5, n6))
+
   def testOneFunction(self):
     src = """
         def foo(a: int, c: bool) -> int raises Foo, Test

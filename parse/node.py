@@ -119,9 +119,9 @@ def Node(*child_names):
         Representation of this tuple as a string, including the class name.
       """
       if len(self) == 1:
-        return self.__class__.__name__ + "(" + repr(self[0]) + ")"
+        return "%s(%r)" % (self.__class__.__name__, self[0])
       else:
-        return self.__class__.__name__ + repr(tuple(self))
+        return "%s%r" % (self.__class__.__name__, tuple(self))
 
     # Expose namedtuple._replace as "Replace", so avoid lint warnings
     # and have consistent method names.

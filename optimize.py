@@ -86,23 +86,29 @@ def JoinTypes(types):
     so, they are flattened.
 
   Returns:
-    A type that represents the union of the types passed in.
-  """
-  assert types
+    A type that represents the union of the types passed in. Order is preserved.
 
-  if len(types) == 1:
-    return types[0]
+  Raises:
+    ValueError: If you pass a malformed (i.e., empty) list.
+  """
+  if not types:
+    raise ValueError("Can't join empty type list")
+
+  queue = collections.deque(types)
+  seen = set()
+  new_types = []
+  while queue:
+    t = queue.popleft()
+    if isinstance(t, pytd.UnionType):
+      queue.extendleft(reversed(t.type_list))
+    elif t not in seen:
+      new_types.append(t)
+      seen.add(t)
+
+  if len(new_types) == 1:
+    return new_types.pop()
   else:
-    seen = set()
-    new_types = []
-    for t in types:
-      if isinstance(t, pytd.UnionType):
-        types_to_add = t.type_list
-      else:
-        types_to_add = [t]
-      new_types.extend(t for t in types_to_add if t not in seen)
-      seen.update(types_to_add)
-    return pytd.UnionType(tuple(new_types))
+    return pytd.UnionType(tuple(new_types))  # tuple() to make unions hashable
 
 
 class CombineReturnsAndExceptions(object):
@@ -164,7 +170,7 @@ class CombineReturnsAndExceptions(object):
 
 
 class ExpandSignatures(object):
-  """Remove parameters with multiple types, by splitting functions in two.
+  """Expand to Cartesian product of parameter types.
 
   For example, this transforms
     def f(x: int or float, y: int or float)
@@ -174,10 +180,10 @@ class ExpandSignatures(object):
     def f(x: float, y: int)
     def f(x: float, y: float)
 
-  This is also called the "cartesian product".  The expansion by this class
-  is typically *not* an optimization. But it can be the precursor for
-  optimizations that need the expanded signatures, and it can simplify code
-  generation, e.g. when generating type declarations for a type inferencer.
+  The expansion by this class is typically *not* an optimization. But it can be
+  the precursor for optimizations that need the expanded signatures, and it can
+  simplify code generation, e.g. when generating type declarations for a type
+  inferencer.
   """
 
   def VisitFunction(self, f):
@@ -269,10 +275,10 @@ class Factorize(object):
 
       stripped_signature = sig.Replace(params=tuple(params))
       existing = groups.get(stripped_signature)
-      if not existing:
-        groups[stripped_signature] = [param_i.type]
-      else:
+      if existing:
         existing.append(param_i.type)
+      else:
+        groups[stripped_signature] = [param_i.type]
     return groups.items()
 
   def VisitFunction(self, f):
@@ -293,17 +299,17 @@ class Factorize(object):
     max_argument_count = max(len(s.params) for s in f.signatures)
     signatures = f.signatures
 
-    for i in range(max_argument_count):
+    for i in xrange(max_argument_count):
       new_sigs = []
       for sig, types in self._GroupByOmittedArg(signatures, i):
-        if types is None:
-          # A signature that doesn't have argument <i>
-          new_sigs.append(sig)
-        else:
-          # A signature that has one or more options for argument <i>
+        if types:
+          # One or more options for argument <i>:
           new_params = list(sig.params)
           new_params[i] = pytd.Parameter(sig.params[i].name, JoinTypes(types))
           sig = sig.Replace(params=tuple(new_params))
+          new_sigs.append(sig)
+        else:
+          # Signature doesn't have argument <i>, so we store the original:
           new_sigs.append(sig)
       signatures = new_sigs
 
@@ -345,6 +351,7 @@ class ApplyOptionalArguments(object):
       shortened = sig.Replace(params=sig.params[0:i], has_optional=True)
       if shortened in optional_arg_sigs:
         return True
+    return False
 
   def VisitFunction(self, f):
     """Remove all signatures that have a shorter version.
