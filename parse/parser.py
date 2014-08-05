@@ -53,8 +53,6 @@ class PyLexer(object):
   t_COLON = r':'
   t_COMMA = r','
   t_DOT = r'\.'
-  t_MINUS = r'-'
-  t_PLUS = r'\+'
   t_INDENT = r'(?!i)i'
   t_DEDENT = r'(?!d)d'
 
@@ -83,10 +81,8 @@ class PyLexer(object):
       'INDENT',
       'LBRACKET',
       'LPAREN',
-      'MINUS',
       'NAME',
       'NUMBER',
-      'PLUS',
       'RBRACKET',
       'RPAREN',
       'STRING',
