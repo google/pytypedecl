@@ -19,6 +19,18 @@ class SatEncoderTest(unittest.TestCase):
     builtins = visitors.LookupClasses(builtins)
     self.builtins = builtins
 
+    list_cls = builtins.Lookup("list")
+    self.list_type = pytd.ClassType("list")
+    self.list_type.cls = list_cls
+
+    bytearray_cls = builtins.Lookup("bytearray")
+    self.bytearray_type = pytd.ClassType("bytearray")
+    self.bytearray_type.cls = bytearray_cls
+
+    str_cls = builtins.Lookup("str")
+    self.str_type = pytd.ClassType("str")
+    self.str_type.cls = str_cls
+
     int_cls = builtins.Lookup("int")
     self.int_type = pytd.ClassType("int")
     self.int_type.cls = int_cls
@@ -38,21 +50,23 @@ class SatEncoderTest(unittest.TestCase):
   def _Solve(self, incomplete_classes):
     sat = sat_encoder.SatEncoder()
     sat.Generate(self.builtins.classes, incomplete_classes)
-    return sat.Solve()
+    res = sat.Solve()
+    return res
 
   def testMembersDirectFromClass(self):
     cls_a = pytd.Class("A", (),
-                       (self.builtins.Lookup("int").Lookup("__add__"),),
+                       (self.builtins.Lookup("float").Lookup("__add__"),),
                        (), ())
     cls_b = pytd.Class("B", (),
                        (self.builtins.Lookup("bytearray").Lookup("__add__"),),
                        (), ())
     res = self._Solve([cls_a, cls_b])
 
-    self.assertEqual(res[cls_a], self.builtins.Lookup("int"))
-    self.assertEqual(res[cls_b], self.builtins.Lookup("bytearray"))
+    self.assertEqual(res[cls_a], self.float_type)
+    self.assertEqual(res[cls_b], self.bytearray_type)
 
-  def testSingleList(self):
+  @unittest.skip("Not yet implemented")
+  def testUnion(self):
     cls_d = pytd.Class("D", (), (pytd.Function("append", (
         pytd.Signature((pytd.Parameter("self", self.object_type),
                         pytd.Parameter("v", self.int_type)),
@@ -60,14 +74,50 @@ class SatEncoderTest(unittest.TestCase):
                        (), ())
     res = self._Solve([cls_d])
 
-    self.assertEqual(res[cls_d], self.builtins.Lookup("list"))
+    self.assertEqual(res[cls_d],
+                     pytd.UnionType((self.list_type, self.bytearray_type)))
     self.assertEqual(res[pytd.Class("D#.T", (), (), (), ())],
-                     self.builtins.Lookup("int"))
+                     self.int_type)
+
+  def testSingleList(self):
+    cls_d = pytd.Class("D", (), (pytd.Function("append", (
+        pytd.Signature((pytd.Parameter("self", self.object_type),
+                        pytd.Parameter("v", self.float_type)),
+                       self.none_type, (), (), False),)),),
+                       (), ())
+    res = self._Solve([cls_d])
+
+    self.assertEqual(res[cls_d], self.list_type)
+    self.assertEqual(res[pytd.Class("D#.T", (), (), (), ())],
+                     self.float_type)
+
+  def testSingleListInOut(self):
+    cls_a = pytd.Class("A", (),
+                       (self.builtins.Lookup("float").Lookup("__add__"),),
+                       (), ())
+    type_a = pytd.ClassType("A")
+    type_a.cls = cls_a
+
+    cls_d = pytd.Class("D", (), (
+        pytd.Function("append", (
+            pytd.Signature((pytd.Parameter("self", self.object_type),
+                            pytd.Parameter("v", type_a)),
+                           self.none_type, (), (), False),)),
+        pytd.Function("__getitem__", (
+            pytd.Signature((pytd.Parameter("self", self.object_type),
+                            pytd.Parameter("i", self.object_type)),
+                           type_a, (), (), False),))),
+                       (), ())
+    res = self._Solve([cls_d, cls_a])
+
+    self.assertEqual(res[cls_d], self.list_type)
+    self.assertEqual(res[pytd.Class("D#.T", (), (), (), ())],
+                     self.float_type)
 
   def testTwoLists(self):
     cls_d = pytd.Class("D", (), (pytd.Function("append", (
         pytd.Signature((pytd.Parameter("self", self.object_type),
-                        pytd.Parameter("v", self.int_type)),
+                        pytd.Parameter("v", self.none_type)),
                        self.none_type, (), (), False),)),),
                        (), ())
     cls_d2 = pytd.Class("D2", (), (pytd.Function("remove", (
@@ -77,27 +127,27 @@ class SatEncoderTest(unittest.TestCase):
                         (), ())
     res = self._Solve([cls_d, cls_d2])
 
-    self.assertEqual(res[cls_d], self.builtins.Lookup("list"))
+    self.assertEqual(res[cls_d], self.list_type)
     self.assertEqual(res[pytd.Class("D#.T", (), (), (), ())],
-                     self.builtins.Lookup("int"))
-    self.assertEqual(res[cls_d2], self.builtins.Lookup("list"))
+                     self.none_type)
+    self.assertEqual(res[cls_d2], self.list_type)
     self.assertEqual(res[pytd.Class("D2#.T", (), (), (), ())],
-                     self.builtins.Lookup("float"))
+                     self.float_type)
 
-  @unittest.skip("Not yet supported.")
-  def testUnion(self):
+  def testUseOneOfManySignatures(self):
     cls_a = pytd.Class("A", (), (pytd.Function("__add__", (
-        self.builtins.Lookup("int").Lookup("__add__").signatures +
-        self.builtins.Lookup("float").Lookup("__add__").signatures)),),
+        pytd.Signature((pytd.Parameter("self", self.object_type),
+                        pytd.Parameter("v", self.int_type)),
+                       self.float_type, (), (), False),)),),
                        (), ())
     res = self._Solve([cls_a])
 
     self.assertEqual(res[cls_a],
-                     pytd.UnionType((self.int_type, self.float_type)))
+                     self.float_type)
 
   def testAllAtOnce(self):
     cls_a = pytd.Class("A", (),
-                       (self.builtins.Lookup("int").Lookup("__add__"),),
+                       (self.builtins.Lookup("float").Lookup("__add__"),),
                        (), ())
     cls_b = pytd.Class("B", (),
                        (self.builtins.Lookup("bytearray").Lookup("__add__"),),
@@ -106,7 +156,7 @@ class SatEncoderTest(unittest.TestCase):
                        (), ())
     cls_d = pytd.Class("D", (), (pytd.Function("append", (
         pytd.Signature((pytd.Parameter("self", self.object_type),
-                        pytd.Parameter("v", self.int_type)),
+                        pytd.Parameter("v", self.none_type)),
                        self.none_type, (), (), False),)),),
                        (), ())
     cls_d2 = pytd.Class("D2", (), (pytd.Function("remove", (
@@ -117,15 +167,15 @@ class SatEncoderTest(unittest.TestCase):
 
     res = self._Solve([cls_a, cls_b, cls_c, cls_d, cls_d2])
 
-    self.assertEqual(res[cls_a], self.builtins.Lookup("int"))
-    self.assertEqual(res[cls_b], self.builtins.Lookup("bytearray"))
-    self.assertEqual(res[cls_c], self.builtins.Lookup("str"))
-    self.assertEqual(res[cls_d], self.builtins.Lookup("list"))
+    self.assertEqual(res[cls_a], self.float_type)
+    self.assertEqual(res[cls_b], self.bytearray_type)
+    self.assertEqual(res[cls_c], self.str_type)
+    self.assertEqual(res[cls_d], self.list_type)
     self.assertEqual(res[pytd.Class("D#.T", (), (), (), ())],
-                     self.builtins.Lookup("int"))
-    self.assertEqual(res[cls_d2], self.builtins.Lookup("list"))
+                     self.none_type)
+    self.assertEqual(res[cls_d2], self.list_type)
     self.assertEqual(res[pytd.Class("D2#.T", (), (), (), ())],
-                     self.builtins.Lookup("float"))
+                     self.float_type)
 
 
 if __name__ == "__main__":

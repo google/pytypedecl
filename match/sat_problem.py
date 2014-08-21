@@ -102,14 +102,13 @@ class SATProblem(object):
     """
     log.info("%d formulli, %d variables",
              len(self.problem.constraints), len(self._variables))
-    log.info("Inserting variable names")
     self.problem.num_variables = self._next_id - 1
-    self.problem.var_names.extend(str(v) for v in self._variables)
-
-    # objective = pb.LinearObjective()
-    # for i in xrange(1, len(var_map)+1):
-    #   objective.literals.append(i)
-    #   objective.coefficients.append(1)
+    # We don't actually need variable names in the buffer, so leave them out to
+    # save space.
+    # self.problem.var_names.extend(str(v) for v in self._variables)
+    if log.isEnabledFor(logging.DEBUG):
+      for i, var in enumerate(self._variables):
+        log.debug("%d: %r", i+1, var)
 
     log.info("Storing SAT problem buffer")
     with tempfile.NamedTemporaryFile(delete=False, mode="wb") as fi:
@@ -121,7 +120,8 @@ class SATProblem(object):
     solutionfi.write("")
     solutionfile = solutionfi.name
     solutionfi.close()
-    os.system("{} "
+    os.system("{} -logtostderr "
+              "-params initial_polarity:0 "
               "-input={inbuffer} "
               "-output={outbuffer} "
               "-use_lp_proto=false".format(
@@ -130,16 +130,22 @@ class SATProblem(object):
                   outbuffer=solutionfile))
 
     log.info("Loading SAT problem buffer: %r", solutionfile)
+    solution = None
     try:
+      solution = boolean_problem_pb2.LinearBooleanProblem()
+
       with open(solutionfile, "rb") as fi:
-        self.problem.ParseFromString(fi.read())
+        solution.ParseFromString(fi.read())
 
       self._results = {v: None for v in self._variables}
-      for varid in self.problem.assignment.literals:
+      for varid in solution.assignment.literals:
         self._results[self._variables[abs(varid)-1]] = varid > 0
     finally:
-      # log.info(text_format.MessageToString(self.problem))
-      pass
+      if log.isEnabledFor(logging.INFO):
+        if solution and solution.HasField("assignment"):
+          log.info(text_format.MessageToString(solution))
+        else:
+          log.info(text_format.MessageToString(self.problem))
 
   def __getitem__(self, var):
     return self._results[var]
@@ -147,7 +153,7 @@ class SATProblem(object):
   def __iter__(self):
     return self._results.iteritems()
 
-  def Implies(self, name, cond, implicand):
+  def Implies(self, name, cond, implicand, nodup=False):
     """Add the implication cond ==> implicand."""
     if implicand is False:
       self.Equals(name, cond, implicand)
@@ -158,10 +164,11 @@ class SATProblem(object):
         self.Implies(name, expr, implicand)
     else:
       # Ignore duplicate constraints
-      ident = (self.Implies, cond, implicand)
-      if ident in self.constraints:
-        return
-      self.constraints.add(ident)
+      if not nodup:
+        ident = (self.Implies, cond, implicand)
+        if ident in self.constraints:
+          return
+        self.constraints.add(ident)
 
       constraint = self.problem.constraints.add()
       constraint.name = name
@@ -269,7 +276,8 @@ class SATProblem(object):
       self._variables.append(var)
       return i
 
-  def Hint(self, unused_var, unused_value):
+  def Hint(self, var, value):
     """Hint the solver than var should have value."""
     # TODO(ampere): Add support for hinting the SAT solver with variable values.
-    return
+    #  self.problem.objective.literals.append(self._GetVariableID(var))
+    #  self.problem.objective.coefficients.append(1 if value else -1)

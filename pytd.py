@@ -22,6 +22,10 @@
 from pytypedecl.parse import node
 
 
+# TODO(ampere): Add __new__ to Type subclasses that contain sequences to
+#               convertion arguments to tuples?
+
+
 class Type(object):
   """The superclass of all types.
 
@@ -250,6 +254,7 @@ class Scalar(node.Node('value'), Type):
 class UnionType(node.Node('type_list'), Type):
   """A union type that contains all types in self.type_list."""
   __slots__ = ()
+  # TODO(ampere): Add __new__ that converts type_list to tuple?
 
   def __hash__(self):
     return hash(frozenset(self.type_list))

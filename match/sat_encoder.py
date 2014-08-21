@@ -40,6 +40,9 @@ class Type(object):
     else:
       raise TypeError("Cannot convert: {} ({})".format(td, td.__class__))
 
+  def ToPyTD(self):
+    raise NotImplementedError()
+
   def __gt__(self, other):
     return str(self) < str(other)
 
@@ -68,6 +71,11 @@ class ClassType(Type):
         return True
     else:
       return True
+
+  def ToPyTD(self):
+    td = pytd.ClassType(self.cls.name)
+    td.cls = self.cls
+    return td
 
   def __hash__(self):
     return hash(self.cls)
@@ -129,6 +137,9 @@ class UnionType(Type):
   def IsNominallyCompatibleWith(self, other):
     # Unions could be the same as anything else because they are not named.
     return True
+
+  def ToPyTD(self):
+    return pytd.UnionType(tuple(t.ToPyTD() for t in self.subtypes))
 
   def __hash__(self):
     return hash(self.subtypes)
@@ -195,8 +206,20 @@ class SatEncoder(object):
   def _SATEqual(self, a, b):
     self.sat.Equals("{} <==> {}".format(a, b), a, b)
 
-  def _SATImplies(self, a, b):
-    self.sat.Implies("{} ==> {}".format(a, b), a, b)
+  def _SATImplies(self, a, b, nodup=False):
+    self.sat.Implies("{} ==> {}".format(a, b), a, b, nodup=nodup)
+
+  def _TypeFromPyTD(self, td, path):
+    if isinstance(td, pytd.ClassType):
+      matches = [ty for ty in self.types
+                 if isinstance(ty, ClassType) and td.name == ty.cls.name]
+      if len(matches) > 1:
+        raise ValueError(
+            "There is more than one class with name {}".format(td.name))
+      elif matches:
+        ty, = matches
+        return ty
+    return Type.FromPyTD(td, path=path)
 
   def _SignaturesEqual(self, a, b, a_path=None, b_path=None):
     if len(a.params) == len(b.params):
@@ -204,12 +227,12 @@ class SatEncoder(object):
       for aparam, bparam in zip(a.params, b.params):
         if aparam.type != bparam.type:
           param_equalities.append(self._NewEquality(
-              Type.FromPyTD(aparam.type, path=a_path),
-              Type.FromPyTD(bparam.type, path=b_path)))
+              self._TypeFromPyTD(aparam.type, path=a_path),
+              self._TypeFromPyTD(bparam.type, path=b_path)))
       if a.return_type != b.return_type:
         return_equalities = [self._NewEquality(
-            Type.FromPyTD(a.return_type, path=a_path),
-            Type.FromPyTD(b.return_type, path=b_path))]
+            self._TypeFromPyTD(a.return_type, path=a_path),
+            self._TypeFromPyTD(b.return_type, path=b_path))]
       else:
         return_equalities = []
       return sat_problem.Conjunction(itertools.chain(param_equalities,
@@ -239,10 +262,12 @@ class SatEncoder(object):
             # The path for left is right and the path for right is left. This is
             # because we want to know where a type variables was bound TO not
             # where it was bound FROM.
-            conj.add(self._FunctionsEqualOneWay(left_func, right_func,
-                                                right, left))
-            conj.add(self._FunctionsEqualOneWay(right_func, left_func,
-                                                left, right))
+            if right.complete:
+              conj.add(self._FunctionsEqualOneWay(left_func, right_func,
+                                                  right, left))
+            if left.complete:
+              conj.add(self._FunctionsEqualOneWay(right_func, left_func,
+                                                  left, right))
           elif (name not in left.structure and left.complete or
                 name not in right.structure and right.complete):
             conj.add(False)
@@ -250,10 +275,9 @@ class SatEncoder(object):
         requirement = sat_problem.Conjunction(conj)
         if left.complete and right.complete:
           self._SATEqual(var, requirement)
-        elif requirement is True:
-          self._SATHint(var, requirement)
         else:
           self._SATImplies(var, requirement)
+          self._SATHint(var, True)
 
   def Generate(self, complete_classes, incomplete_classes):
     """Generate the constraints from the given classes.
@@ -269,46 +293,70 @@ class SatEncoder(object):
     class_types.update(ClassType(cls, False) for cls in incomplete_classes)
     class_variables = set(self._NewEquality(*p)
                           for p in itertools.combinations(class_types, 2))
+    self.types.update(class_types)
+    # self.types.update(UnionType(tys)
+    #                   for tys in itertools.combinations(class_types, 2))
+    variables = class_variables
+    added_variables = variables
+    while added_variables:
+      self._GenerateConstraints(added_variables)
+      new_variables = set(Equality(*p)
+                          for p in itertools.combinations(self.types, 2))
+      added_variables = new_variables - variables
+      log.warning("New variables: %r", added_variables)
+      variables = new_variables
 
-    self._GenerateConstraints(class_variables)
-    variables = set(Equality(*p)
-                    for p in itertools.combinations(self.types, 2))
-    self._GenerateConstraints(variables)
-    new_variables = set(Equality(*p)
-                        for p in itertools.combinations(self.types, 2))
-    if variables != new_variables:
-      log.warning("New variables: %r", new_variables - variables)
-
-    use_transitivity_constraints = False
-    if use_transitivity_constraints:
-      for a, b in itertools.product(variables, variables):
-        if a.right in b and not a.right.complete:
-          eq = Equality(a.left, b.Other(a.right))
-          if eq.left != eq.right:
-            assert eq in variables
-            self._SATImplies(sat_problem.Conjunction((a, b)), eq)
-        if a.left in b and not a.left.complete:
-          eq = Equality(a.right, b.Other(a.left))
-          if eq.left != eq.right:
-            assert eq in variables
-            self._SATImplies(sat_problem.Conjunction((a, b)), eq)
+    log.info("# Types: %r", len(self.types))
+    log.info("# Vars: %r", len(variables))
 
     log.debug("Types: %r", self.types)
     log.debug("Vars: %r", variables)
 
+    use_transitivity_constraints = True
+    if use_transitivity_constraints:
+      incomplete_types = [t for t in self.types
+                          if not t.complete]
+      for a in self.types:
+        for b in incomplete_types:
+          if a == b:
+            continue
+          for c in self.types:
+            if a == c or b == c:
+              continue
+            eq1 = Equality(a, b)
+            eq2 = Equality(b, c)
+            eq3 = Equality(a, c)
+            assert eq1 in variables
+            assert eq2 in variables
+            assert eq3 in variables
+            self._SATImplies(sat_problem.Conjunction((eq1, eq2)), eq3)
+
     log.info("Writing SAT problem")
     for ty in self.types:
-      if not ty.complete:
+      if isinstance(ty, ClassType) and not ty.complete:
         vs = [v for v in variables
               if ty in v and v.Other(ty).complete]
-        log.info("%r", vars)
-        self.sat.BetweenNM("Force assign", vs, 1, 1)
+        # log.info("%r", vs)
+        self.sat.BetweenNM("Force assign", vs, 1, None)
 
   def Solve(self):
+    """Solve the constraints generated by calls to generate.
+
+    Returns:
+      A map from pytd.Class to pytd.Type that had all the incomplete types that
+      can been assigned by the solver.
+    """
     self.sat.Solve()
     results = {}
     for var, value in self.sat:
-      if value:
+      if value is not False:
+        log.info("%s = %r", var, value)
+      if value and isinstance(var, Equality):
         incomp = var.left if not var.left.complete else var.right
-        results[incomp.cls] = var.Other(incomp).cls
+        if var.Other(incomp).complete:
+          if incomp.cls in results:
+            log.warning("%r is assigned more than once to a complete type: "
+                        "%r, %r", incomp, results[incomp.cls],
+                        var.Other(incomp))
+          results[incomp.cls] = var.Other(incomp).ToPyTD()
     return results

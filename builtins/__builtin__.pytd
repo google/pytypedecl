@@ -404,7 +404,7 @@ class <T> list:
     def __delslice__(self, i: int, j: int) -> NoneType
     def __eq__(self, y: list) -> bool
     def __ge__(self, y: list) -> bool
-    def __getitem__(self, y)
+    def __getitem__(self, y) -> T
     def __getslice__(self, i: int, j: int) -> list<T>
     def __gt__(self, y: list) -> bool
     def __iadd__(self, y) -> list
