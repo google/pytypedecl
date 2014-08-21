@@ -31,6 +31,9 @@ from ply import yacc
 from pytypedecl import pytd
 
 
+DEFAULT_VERSION = (2, 7, 6)
+
+
 class PyLexer(object):
   """Lexer for type declaration language."""
 
@@ -53,6 +56,8 @@ class PyLexer(object):
   t_AT = r'@'
   t_COLON = r':'
   t_COLONEQUALS = r':='
+  t_EQ = r'=='
+  t_NE = r'!='
   t_COMMA = r','
   t_DOT = r'\.'
   t_QUESTIONMARK = r'\?'
@@ -63,6 +68,8 @@ class PyLexer(object):
       # Python keywords:
       'class',
       'def',
+      'else',
+      'if',
       'pass',
       'and',
       'or',
@@ -85,6 +92,10 @@ class PyLexer(object):
       # 'COMMENT',  # Not used in the grammar; only used to discard comments
       'DEDENT',
       'DOT',
+      'LE',
+      'GE',
+      'EQ',
+      'NE',
       'INDENT',
       'LBRACKET',
       'LPAREN',
@@ -95,6 +106,22 @@ class PyLexer(object):
       'RPAREN',
       'STRING',
   ] + [id.upper() for id in reserved]
+
+  def CancelLBracket(self):
+    self.open_brackets -= 1
+
+  def CancelRBracket(self):
+    self.open_brackets += 1
+
+  # LE and GE need to be functions (not constants) because ply prioritizes
+  # functions, and we need them before LBRACKET / RBRACKET.
+  def t_LE(self, t):
+    r"""<="""
+    return t
+
+  def t_GE(self, t):
+    r""">="""
+    return t
 
   def t_LBRACKET(self, t):
     r"""<"""
@@ -181,10 +208,10 @@ class PyLexer(object):
     return t
 
   def t_NUMBER(self, t):
-    r"""[-+]?[0-9]+(\.[0-9]*)?"""
+    r"""[-+]?[0-9]+(\.[0-9]*)*"""
     # TODO: full Python number syntax
     # TODO: move +/- to grammar?
-    t.value = float(t.value) if '.' in t.value else int(t.value)
+    t.value = Number(t.value)
     return t
 
   def t_COMMENT(self, t):
@@ -197,6 +224,23 @@ class PyLexer(object):
 
 Params = collections.namedtuple('Params', ['required', 'has_optional'])
 NameAndSig = collections.namedtuple('NameAndSig', ['name', 'signature'])
+
+
+class Number(collections.namedtuple('Number', ['string'])):
+  """Store a number token (float or int, or a version number)."""
+
+  def AsFloatOrInt(self):
+    return float(self.string) if '.' in self.string else int(self.string)
+
+  def AsVersion(self, parser, p):
+    components = self.string.split('.')
+    if (len(components) not in (1, 2, 3) or
+        any(not digit.isdigit() for digit in components) or
+        not all(0 <= int(digit) <= 9 for digit in components)):
+      raise make_syntax_error(parser,
+                              'Illegal version \"%s\"' % self.string, p)
+    prefix = tuple(int(digit) for digit in components)
+    return (prefix + (0,0,0))[0:3]
 
 
 def MergeSignatures(signatures):
@@ -247,12 +291,26 @@ class Mutator(object):
       return p
 
 
+def CheckStringIsPython(parser, string, p):
+  if string == 'python':
+    return
+  raise make_syntax_error(
+      parser, 'If conditions can only depend on the \'python\' variable', p)
+
+
 class TypeDeclParser(object):
   """Parser for type declaration language."""
 
   # TODO: Check for name clashes.
 
-  def __init__(self, **kwargs):
+  def __init__(self, python_version, **kwargs):
+    """Initialize.
+
+    Parameters:
+      python_version: A tuple of three numbers: (major, minor, micro).
+                      E.g. (3,4,0).
+      kwargs: Additional parameters to pass to yacc.yacc().
+    """
     # TODO: Don't generate the lex/yacc tables each time. This should
     #                  be done by a separate program that imports this module
     #                  and calls yacc.yacc(write_tables=True,
@@ -263,6 +321,7 @@ class TypeDeclParser(object):
     #                  [might also need optimize=True]
     self.lexer = PyLexer()
     self.tokens = self.lexer.tokens
+    self.python_version = python_version
 
     self.parser = yacc.yacc(
         start='start',  # warning: ply ignores this
@@ -316,9 +375,61 @@ class TypeDeclParser(object):
     """alldefs : alldefs funcdef"""
     p[0] = p[1] + [p[2]]
 
+  def p_alldefs_if(self, p):
+    """alldefs : alldefs toplevel_if"""
+    p[0] = p[1] + p[2]
+
   def p_alldefs_null(self, p):
     """alldefs :"""
     p[0] = []
+
+  def p_toplevel_if(self, p):
+    """toplevel_if : IF version_expr COLON INDENT alldefs DEDENT"""
+    p[0] = p[5] if p[2] else []
+
+  def p_toplevel_if_else(self, p):
+    """toplevel_if : IF version_expr COLON INDENT alldefs DEDENT ELSE COLON INDENT alldefs DEDENT"""
+    p[0] = p[5] if p[2] else p[10]
+
+  def p_funcdefs_if(self, p):
+    """funcdefs_if : IF version_expr COLON INDENT funcdefs DEDENT"""
+    p[0] = p[5] if p[2] else []
+
+  def p_funcdefs_if_else(self, p):
+    """funcdefs_if : IF version_expr COLON INDENT funcdefs DEDENT ELSE COLON INDENT funcdefs DEDENT"""
+    p[0] = p[5] if p[2] else p[10]
+
+  def p_version_expr_lt(self, p):
+    """version_expr : NAME RBRACKET NUMBER"""
+    self.lexer.CancelRBracket()
+    CheckStringIsPython(self, p[1], p)
+    p[0] = self.python_version > p[3].AsVersion(self, p)
+
+  def p_version_expr_gt(self, p):
+    """version_expr : NAME LBRACKET NUMBER"""
+    self.lexer.CancelLBracket()
+    CheckStringIsPython(self, p[1], p)
+    p[0] = self.python_version < p[3].AsVersion(self, p)
+
+  def p_version_expr_ge(self, p):
+    """version_expr : NAME GE NUMBER"""
+    CheckStringIsPython(self, p[1], p)
+    p[0] = self.python_version >= p[3].AsVersion(self, p)
+
+  def p_version_expr_le(self, p):
+    """version_expr : NAME LE NUMBER"""
+    CheckStringIsPython(self, p[1], p)
+    p[0] = self.python_version <= p[3].AsVersion(self, p)
+
+  def p_version_expr_eq(self, p):
+    """version_expr : NAME EQ NUMBER"""
+    CheckStringIsPython(self, p[1], p)
+    p[0] = self.python_version == p[3].AsVersion(self, p)
+
+  def p_version_expr_ne(self, p):
+    """version_expr : NAME NE NUMBER"""
+    CheckStringIsPython(self, p[1], p)
+    p[0] = self.python_version != p[3].AsVersion(self, p)
 
   # TODO(raoulDoc): doesn't support nested classes
   # TODO: parents is redundant -- should match what's in .py file
@@ -392,6 +503,10 @@ class TypeDeclParser(object):
   def p_funcdefs_constant(self, p):
     """funcdefs : funcdefs constantdef"""
     p[0] = p[1] + [p[2]]
+
+  def p_funcdefs_conditional(self, p):
+    """funcdefs : funcdefs funcdefs_if"""
+    p[0] = p[1] + p[2]
 
   # TODO(raoulDoc): doesn't support nested functions
   def p_funcdefs_null(self, p):
@@ -595,13 +710,14 @@ class TypeDeclParser(object):
 
   def p_scalar_number(self, p):
     """scalar : NUMBER"""
-    p[0] = pytd.Scalar(p[1])
+    p[0] = pytd.Scalar(p[1].AsFloatOrInt())
 
   def p_error(self, p):
     raise make_syntax_error(self, 'Parse error', p)
 
 
 def make_syntax_error(parser_or_tokenizer, msg, p):
+  """Convert a parser error into a SyntaxError and throw it."""
   # SyntaxError(msg, (filename, lineno, offset, line))
   # is output in a nice format by traceback.print_exception
   # TODO: add test cases for this (including beginning/end of file,
@@ -626,10 +742,10 @@ def make_syntax_error(parser_or_tokenizer, msg, p):
                      p.lineno, p.lexpos - last_line_offset + 1, line))
 
 
-def parse_file(filename):
+def parse_file(filename, version=DEFAULT_VERSION):
   with open(filename) as f:
     try:
-      return TypeDeclParser().Parse(f.read(), filename)
+      return TypeDeclParser(version).Parse(f.read(), filename)
     except SyntaxError as unused_exception:
       # without all the tedious traceback stuff from PLY:
       # TODO: What happens if we don't catch SyntaxError?

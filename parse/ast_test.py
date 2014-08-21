@@ -23,7 +23,10 @@ from pytypedecl.parse import parser
 class TestASTGeneration(unittest.TestCase):
 
   def setUp(self):
-    self.parser = parser.TypeDeclParser()
+    self.parser = parser.TypeDeclParser(parser.DEFAULT_VERSION)
+
+  def ParseWithVersion(self, src, version):
+    return parser.TypeDeclParser(version).Parse(src)
 
   def TestRoundTrip(self, src, old_src=None):
     """Compile a string, and convert the result back to a string. Compare."""
@@ -266,6 +269,104 @@ class TestASTGeneration(unittest.TestCase):
 
     self.TestRoundTrip(data1)
     self.TestRoundTrip(data2)
+
+  def testVersionSplitFunction(self):
+    """Test version conditionals."""
+    data = textwrap.dedent("""
+    if python < 3:
+      c1: int
+      def f()
+      class A:
+        pass
+    else:
+      c2: int
+      def g()
+      class B:
+        pass
+
+    class Foo:
+      if python > 2.7.3:
+        attr2 : int
+        def m2()
+      else:
+        attr1 : int
+        def m1()
+    """)
+    unit = self.ParseWithVersion(data, (2, 7, 3))
+    self.assertEquals([f.name for f in unit.functions], ["f"])
+    self.assertEquals([f.name for f in unit.classes], ["A", "Foo"])
+    self.assertEquals([f.name for f in unit.constants], ["c1"])
+    self.assertEquals([f.name for f in unit.Lookup("Foo").methods], ["m1"])
+    self.assertEquals([f.name for f in unit.Lookup("Foo").constants], ["attr1"])
+    unit = self.ParseWithVersion(data, (3, 3))
+    self.assertEquals([f.name for f in unit.functions], ["g"])
+    self.assertEquals([f.name for f in unit.classes], ["B", "Foo"])
+    self.assertEquals([f.name for f in unit.constants], ["c2"])
+    self.assertEquals([f.name for f in unit.Lookup("Foo").methods], ["m2"])
+    self.assertEquals([f.name for f in unit.Lookup("Foo").constants], ["attr2"])
+
+  def testVersionSyntax(self):
+    data = textwrap.dedent("""
+    if python < 3:
+      c1: int
+    if python < 3.1:
+      c2: int
+    if python < 3.1.1:
+      c3: int
+    if python <= 3:
+      c4: int
+    if python <= 3.1:
+      c5: int
+    if python <= 3.1.1:
+      c6: int
+    if python > 3:
+      c7: int
+    if python > 3.1:
+      c8: int
+    if python > 3.1.1:
+      c9: int
+    if python >= 3:
+      c10: int
+    if python >= 3.1:
+      c11: int
+    if python >= 3.1.1:
+      c12: int
+    if python == 3.0.0:
+      c13: int
+    if python != 3.0.0:
+      c14: int
+    """)
+    unit = self.ParseWithVersion(data, (3, 0, 0))
+    self.assertEquals([f.name for f in unit.constants],
+                      ["c2", "c3", "c4", "c5", "c6", "c10", "c13"])
+    unit = self.ParseWithVersion(data, (3, 1, 0))
+    self.assertEquals([f.name for f in unit.constants],
+                      ["c3", "c5", "c6", "c7", "c10", "c11", "c14"])
+    unit = self.ParseWithVersion(data, (3, 1, 1))
+    self.assertEquals([f.name for f in unit.constants],
+                      ["c6", "c7", "c8", "c10", "c11", "c12", "c14"])
+
+  def testVersionNormalization(self):
+    data = textwrap.dedent("""
+    if python <= 3:
+      c1: int
+    if python <= 3.0:
+      c2: int
+    if python <= 3.0.0:
+      c3: int
+    if python > 3:
+      c4: int
+    if python > 3.0:
+      c5: int
+    if python > 3.0.0:
+      c6: int
+    """)
+    unit = self.ParseWithVersion(data, (3, 0, 0))
+    self.assertEquals([f.name for f in unit.constants],
+                      ["c1", "c2", "c3"])
+    unit = self.ParseWithVersion(data, (3, 0, 1))
+    self.assertEquals([f.name for f in unit.constants],
+                      ["c4", "c5", "c6"])
 
   def testTemplates(self):
     """Test template parsing."""
