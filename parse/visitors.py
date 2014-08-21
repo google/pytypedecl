@@ -390,7 +390,7 @@ class InstantiateTemplatesVisitor(object):
 
   def InstantiatedClasses(self, symbol_table):
     return [self._InstantiatedClass(name, node, symbol_table)
-            for name, node in self.classes_to_instantiate.viewitems()]
+            for name, node in self.classes_to_instantiate.items()]
 
   def VisitHomogeneousContainerType(self, node):
     """Converts a template type (container type) to a concrete class.

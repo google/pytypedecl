@@ -221,7 +221,7 @@ def MergeSignatures(signatures):
 
   # TODO: Return this as a dictionary.
   return [pytd.Function(name, tuple(signatures))
-          for name, signatures in name_to_signatures.viewitems()]
+          for name, signatures in name_to_signatures.items()]
 
 
 class Mutator(object):

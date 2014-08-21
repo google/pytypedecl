@@ -159,7 +159,7 @@ class CombineReturnsAndExceptions(object):
     groups = self._GroupByArguments(f.signatures)
 
     new_signatures = []
-    for stripped_signature, ret_exc in groups.viewitems():
+    for stripped_signature, ret_exc in groups.items():
       ret = JoinTypes(ret_exc.return_types)
       exc = tuple(ret_exc.exceptions)
 
