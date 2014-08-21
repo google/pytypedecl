@@ -248,15 +248,19 @@ class Scalar(node.Node('value'), Type):
 
 
 class UnionType(node.Node('type_list'), Type):
+  """A union type that contains all types in self.type_list."""
   __slots__ = ()
+
+  def __hash__(self):
+    return hash(frozenset(self.type_list))
 
   def __eq__(self, other):
     if isinstance(other, UnionType):
-      return set(self.type_list) == set(other.type_list)
+      return frozenset(self.type_list) == frozenset(other.type_list)
     return NotImplemented
 
   def __ne__(self, other):
-    return not (self == other)
+    return not self == other
 
 
 class IntersectionType(node.Node('type_list'), Type):
