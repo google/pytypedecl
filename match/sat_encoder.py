@@ -213,11 +213,8 @@ class SatEncoder(object):
     if isinstance(td, pytd.ClassType):
       matches = [ty for ty in self.types
                  if isinstance(ty, ClassType) and td.name == ty.cls.name]
-      if len(matches) > 1:
-        raise ValueError(
-            "There is more than one class with name {}".format(td.name))
-      elif matches:
-        ty, = matches
+      if matches:
+        ty, = matches  # Fails if there is more than one class with name
         return ty
     return Type.FromPyTD(td, path=path)
 

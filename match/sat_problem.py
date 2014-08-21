@@ -8,7 +8,7 @@ variable name.
 
 import collections
 import logging
-import os
+import subprocess
 import tempfile
 
 
@@ -88,7 +88,7 @@ class SATProblem(object):
   def __init__(self, name=""):
     pb = boolean_problem_pb2
     problem = pb.LinearBooleanProblem()
-    # problem.type = pb.LinearBooleanProblem.MAXIMIZATION
+    problem.type = pb.LinearBooleanProblem.MAXIMIZATION
     problem.name = name
     self.problem = problem
     self.constraints = set()
@@ -120,18 +120,19 @@ class SATProblem(object):
     solutionfi.write("")
     solutionfile = solutionfi.name
     solutionfi.close()
-    os.system("{} -logtostderr "
-              "-params initial_polarity:0 "
-              "-input={inbuffer} "
-              "-output={outbuffer} "
-              "-use_lp_proto=false".format(
-                  GetSatRunnerBinary(),
-                  inbuffer=problemfile,
-                  outbuffer=solutionfile))
-
-    log.info("Loading SAT problem buffer: %r", solutionfile)
+    commandline = [GetSatRunnerBinary()]
+    if log.isEnabledFor(logging.INFO):
+      commandline.append("-logtostderr")
+    commandline.extend([
+        "-params", "initial_polarity:0",
+        "-input=" + problemfile,
+        "-output=" + solutionfile,
+        "-use_lp_proto=false"])
     solution = None
     try:
+      subprocess.check_call(commandline)
+
+      log.info("Loading SAT problem buffer: %r", solutionfile)
       solution = boolean_problem_pb2.LinearBooleanProblem()
 
       with open(solutionfile, "rb") as fi:
@@ -140,12 +141,17 @@ class SATProblem(object):
       self._results = {v: None for v in self._variables}
       for varid in solution.assignment.literals:
         self._results[self._variables[abs(varid)-1]] = varid > 0
+    except subprocess.CalledProcessError:
+      log.warning("SAT solver failed. Probably UNSAT, returning the empty "
+                  "result.", exc_info=True)
+      self._results = {}
+      return
     finally:
-      if log.isEnabledFor(logging.INFO):
+      if log.isEnabledFor(logging.DEBUG):
         if solution and solution.HasField("assignment"):
-          log.info(text_format.MessageToString(solution))
+          log.debug(text_format.MessageToString(solution))
         else:
-          log.info(text_format.MessageToString(self.problem))
+          log.debug(text_format.MessageToString(self.problem))
 
   def __getitem__(self, var):
     return self._results[var]
@@ -154,7 +160,7 @@ class SATProblem(object):
     return self._results.iteritems()
 
   def Implies(self, name, cond, implicand, nodup=False):
-    """Add the implication cond ==> implicand."""
+    """Add the implication: cond ==> implicand."""
     if implicand is False:
       self.Equals(name, cond, implicand)
     elif implicand is True:
@@ -185,7 +191,7 @@ class SATProblem(object):
         n_implicands_required = len(implicands)
 
       for v in conds:
-        constraint.literals.append(-self._GetVariableID(v))
+        constraint.literals.append(-self._GetVariableIDOrLift(v))
         # The coeff here matches the number of implicands that must be
         # true. This allows any condition being false to make the overall
         # constraint to be true.
@@ -221,11 +227,12 @@ class SATProblem(object):
 
     constraint = self.problem.constraints.add()
     constraint.name = name
+    # The polarity is set to negated literals (-1) if left is a conjunction
     polarity = -1 if isinstance(left, Conjunction) else 1
     for v in lefts:
       constraint.literals.append(polarity * self._GetVariableID(v))
       constraint.coefficients.append(1)
-    if (value and isinstance(left, Disjunction) or
+    if (value and not isinstance(left, Conjunction) or
         not value and isinstance(left, Conjunction)):
       constraint.lower_bound = 1
     else:
@@ -248,6 +255,14 @@ class SATProblem(object):
       constraint.lower_bound = n
     if m is not None:
       constraint.upper_bound = m
+
+  def Prefer(self, var, value):
+    assert isinstance(value, bool)
+    obj = self.problem.objective
+    # negate the ID to get a negated literal if we prefer the variable to be
+    # false.
+    obj.literals.append((1 if value else -1) * self._GetVariableID(var))
+    obj.coefficients.append(1)
 
   def _GetVariableIDOrLift(self, expr):
     if not isinstance(expr, (Disjunction, Conjunction, bool)):
@@ -279,5 +294,3 @@ class SATProblem(object):
   def Hint(self, var, value):
     """Hint the solver than var should have value."""
     # TODO(ampere): Add support for hinting the SAT solver with variable values.
-    #  self.problem.objective.literals.append(self._GetVariableID(var))
-    #  self.problem.objective.coefficients.append(1 if value else -1)

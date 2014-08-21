@@ -199,8 +199,8 @@ class StripSelf(object):
 
   def VisitClass(self, node):
     """Visits a Class, and removes "self" from all its methods."""
-    return node.Replace(methods=[self._StripFunction(m)
-                                 for m in node.methods])
+    return node.Replace(methods=tuple(self._StripFunction(m)
+                                      for m in node.methods))
 
   def _StripFunction(self, node):
     """Remove "self" from all signatures of a method."""
