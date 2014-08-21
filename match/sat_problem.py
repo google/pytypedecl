@@ -85,7 +85,7 @@ class Disjunction(collections.namedtuple("Disjunction", ["exprs"])):
 class SATProblem(object):
   """A simplified SAT solver interface."""
 
-  def __init__(self, name=""):
+  def __init__(self, name="", initial_polarity=True):
     pb = boolean_problem_pb2
     problem = pb.LinearBooleanProblem()
     problem.type = pb.LinearBooleanProblem.MAXIMIZATION
@@ -96,6 +96,8 @@ class SATProblem(object):
     self._next_id = 1
     self._id_table = {}
     self._variables = []
+
+    self.initial_polarity = initial_polarity
 
   def Solve(self):
     """Solve the SAT problem that has been created by calling methods on self.
@@ -123,8 +125,9 @@ class SATProblem(object):
     commandline = [GetSatRunnerBinary()]
     if log.isEnabledFor(logging.INFO):
       commandline.append("-logtostderr")
+    if self.initial_polarity:
+      commandline.extend(["-params", "initial_polarity:0"])
     commandline.extend([
-        "-params", "initial_polarity:0",
         "-input=" + problemfile,
         "-output=" + solutionfile,
         "-use_lp_proto=false"])
