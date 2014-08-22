@@ -368,10 +368,10 @@ class TestASTGeneration(unittest.TestCase):
     self.assertEquals([f.name for f in unit.constants],
                       ["c4", "c5", "c6"])
 
+  # TODO: re-enable this test
+  @unittest.skip("TODO: re-enable this test")
   def testTemplates(self):
     """Test template parsing."""
-
-    return  # TODO: re-enable this test
 
     data = textwrap.dedent("""
         class<C extends Cbase> MyClass:

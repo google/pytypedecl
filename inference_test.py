@@ -247,7 +247,7 @@ class ParametricTypeTests(InferenceTestCase):
     self.assertHasOnlySignatures(ty.Lookup("f"),
                                  ((),
                                   pytd.GenericType(self.tuple,
-                                                   (self.object,))))
+                                                   (pytd.NothingType(),))))
 
   def testSetsSanity(self):
     ty = self.InferDedent("""

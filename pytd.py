@@ -275,9 +275,17 @@ class IntersectionType(node.Node('type_list'), Type):
 class HomogeneousContainerType(node.Node('base_type', 'element_type'), Type):
   __slots__ = ()
 
+  @property
+  def parameters(self):
+    return (self.element_type,)
+
 
 class GenericType(node.Node('base_type', 'parameters'), Type):
   __slots__ = ()
+
+
+# TODO: Remove this and just get ride of HomogenousContainerType?
+PARAMETRIC_TYPES = (HomogeneousContainerType, GenericType)
 
 
 def Print(n):

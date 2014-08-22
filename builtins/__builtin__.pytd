@@ -1,3 +1,14 @@
+# Currently the type annotations are just enough to make the tests
+# work. These should be extended.
+# TODO: Add type to self parameter for every class or decide
+#              they should be added during parsing.
+# TODO: Add type parameters to many more types. Among them:
+#              iterators
+#              iterables
+# TODO: Add type parameters to many more methods.
+# TODO: Add mutatable parameter information to all the mutable collections.
+
+
 def __import__(name: str or unicode or bytearray, ...) -> module
 def abs(number: int) -> int
 def abs(number: float or complex) -> float
@@ -353,11 +364,12 @@ class <K, V> dict:
     def __contains__(self, k: K) -> bool
     def __delitem__(self, y: K) -> NoneType
     def __eq__(self, y: dict) -> bool
-    def __getitem__(self, y: K) -> V
+    def __getitem__(self: dict<K, V>, y: K) -> V
     def __iter__(self) -> `dictionary-keyiterator`
     def __len__(self) -> int
     def __ne__(self, y: dict) -> bool
-    def __setitem__(self, i: K, y: V) -> NoneType
+    def <K2, V2> __setitem__(self: dict<K, V>, i: K2, y: V2) -> NoneType:
+      self := dict<K or K2, V or V2>
     def clear(self) -> NoneType
     def copy(self) -> dict<object, object>
     def fromkeys(self, S: str or bytearray, ...) -> dict<str, NoneType> or dict
@@ -365,8 +377,8 @@ class <K, V> dict:
     def fromkeys(self, S: list or tuple or set, ...) -> dict<object, NoneType> or dict
     def fromkeys(self, S: iterator, ...) -> dict<str, NoneType> or dict<unicode, NoneType> or dict
     def fromkeys(self, S: dict, ...) -> dict<object, NoneType>
-    def get(self, k, ...)
-    def has_key(self, k) -> bool
+    def get(self: dict<K, V>, k: K, ...) -> V
+    def has_key(self: dict<K, V>, k: K) -> bool
     def items(self) -> list<tuple<K or V>>
     def iteritems(self) -> `dictionary-itemiterator`
     def iterkeys(self) -> `dictionary-keyiterator`
@@ -374,10 +386,10 @@ class <K, V> dict:
     def keys(self) -> list<K>
     def pop(self, k, ...)
     def popitem(self) -> tuple<unicode, object>
-    def setdefault(self, k: K, ...)
+    def setdefault(self: dict<K, V>, k: K, ...)
     def update(self, E, ...) -> NoneType
     def update(self) -> NoneType
-    def values(self) -> list<V>
+    def values(self: dict<K, V>) -> list<V>
     def viewitems(self) -> dict_items
     def viewkeys(self) -> dict_keys
     def viewvalues(self) -> dict_values
@@ -398,13 +410,13 @@ class listreverseiterator:
 class <T> list:
     def __init__(self, p0)
     def __init__(self)
-    def __add__(self, y: list<A>) -> list<T or A>
+    def <A> __add__(self: list<T>, y: list<A>) -> list<T or A>
     def __contains__(self, y: T) -> bool
     def __delitem__(self, y: int) -> NoneType
     def __delslice__(self, i: int, j: int) -> NoneType
     def __eq__(self, y: list) -> bool
     def __ge__(self, y: list) -> bool
-    def __getitem__(self, y) -> T
+    def __getitem__(self: list<T>, y) -> T
     def __getslice__(self, i: int, j: int) -> list<T>
     def __gt__(self, y: list) -> bool
     def __iadd__(self, y) -> list
@@ -419,13 +431,14 @@ class <T> list:
     def __rmul__(self, n: int) -> list<object> or list
     def __setitem__(self, i: int, y) -> NoneType
     def __setslice__(self, i: int, j: int, y) -> NoneType
-    def append(self, object: T) -> NoneType
+    def <A> append(self: list<T>, object: A) -> NoneType:
+      self := list<T or A>
     def count(self, value: T) -> int
-    def extend(self, iterable) -> NoneType
     def index(self, value, ...) -> int
-    def insert(self, index: int, object: T) -> NoneType
+    def <A> insert(self: list<T>, index: int, object: A) -> NoneType:
+      self := list<T or A>
     def pop(self, ...)
-    def remove(self, value: T) -> NoneType
+    def remove(self: list<T>, value: T) -> NoneType
     def reverse(self) -> NoneType
     def sort(self, ...) -> NoneType
 
@@ -437,11 +450,11 @@ class reversed:
 class <T> tuple:
     def __init__(self, p0)
     def __init__(self)
-    def __add__(self, y: tuple) -> tuple
+    def <A> __add__(self: tuple<T>, y: tuple<A>) -> tuple<T or A>
     def __contains__(self, y: T) -> bool
     def __eq__(self, y: tuple) -> bool
     def __ge__(self, y: tuple) -> bool
-    def __getitem__(self, y: int) -> T
+    def __getitem__(self: tuple<T>, y: int) -> T
     def __getslice__(self, i: int, j: int)
     def __gt__(self, y: tuple) -> bool
     def __iter__(self) -> tupleiterator
@@ -458,7 +471,7 @@ class tupleiterator:
     def __iter__(self) -> tupleiterator
     def next(self)
 
-class <T>set:
+class <T> set:
     def __init__(self, p0)
     def __init__(self)
     def __and__(self, y: set) -> set
@@ -490,7 +503,8 @@ class <T>set:
     def intersection_update(self, ...) -> NoneType
     def union(self, ...) -> set
     def update(self, ...) -> NoneType
-    def add(self, object: T) -> NoneType
+    def <A> add(self: set<T>, object: A) -> NoneType:
+        self := set<T or A>
 
 class frozenset:
     def __init__(self, p0)

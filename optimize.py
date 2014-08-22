@@ -78,8 +78,9 @@ class _ReturnsAndExceptions(object):
 def JoinTypes(types):
   """Combine a list of types into a union type, if needed.
 
-  Leaves singular return values alone, or wraps a UnionType around them if
-  there are multiple ones.
+  Leaves singular return values alone, or wraps a UnionType around them if there
+  are multiple ones, or if there are no elements in the list (or only
+  NothingType) return NothingType.
 
   Arguments:
     types: A list of types. This list might contain other UnionTypes. If
@@ -87,13 +88,7 @@ def JoinTypes(types):
 
   Returns:
     A type that represents the union of the types passed in. Order is preserved.
-
-  Raises:
-    ValueError: If you pass a malformed (i.e., empty) list.
   """
-  if not types:
-    raise ValueError("Can't join empty type list")
-
   queue = collections.deque(types)
   seen = set()
   new_types = []
@@ -101,14 +96,18 @@ def JoinTypes(types):
     t = queue.popleft()
     if isinstance(t, pytd.UnionType):
       queue.extendleft(reversed(t.type_list))
+    elif isinstance(t, pytd.NothingType):
+      pass
     elif t not in seen:
       new_types.append(t)
       seen.add(t)
 
   if len(new_types) == 1:
     return new_types.pop()
-  else:
+  elif new_types:
     return pytd.UnionType(tuple(new_types))  # tuple() to make unions hashable
+  else:
+    return pytd.NothingType()
 
 
 class CombineReturnsAndExceptions(object):
@@ -221,7 +220,9 @@ class ExpandSignatures(object):
       process this list further.
     """
     params = []
-    for name, param_type in sig.params:
+    for param in sig.params:
+      # To make this work with MutableParameter
+      name, param_type = param.name, param.type
       if isinstance(param_type, pytd.UnionType):
         # multiple types
         params.append([pytd.Parameter(name, t) for t in param_type.type_list])
