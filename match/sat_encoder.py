@@ -10,8 +10,6 @@ import logging
 from pytypedecl import pytd
 from pytypedecl.match import sat_problem
 
-log = logging.getLogger(__name__)
-
 
 @functools.total_ordering
 class Type(object):
@@ -198,7 +196,7 @@ class SatEncoder(object):
     return Equality(a, b)
 
   def _SATHint(self, a, b):
-    # log.info("{} ?= {}".format(a, b))
+    # logging.info("{} ?= {}".format(a, b))
     assert isinstance(a, Equality)
     assert isinstance(b, bool)
     self.sat.Hint(a, b)
@@ -300,14 +298,14 @@ class SatEncoder(object):
       new_variables = set(Equality(*p)
                           for p in itertools.combinations(self.types, 2))
       added_variables = new_variables - variables
-      log.warning("New variables: %r", added_variables)
+      logging.warning("New variables: %r", added_variables)
       variables = new_variables
 
-    log.info("# Types: %r", len(self.types))
-    log.info("# Vars: %r", len(variables))
+    logging.info("# Types: %r", len(self.types))
+    logging.info("# Vars: %r", len(variables))
 
-    log.debug("Types: %r", self.types)
-    log.debug("Vars: %r", variables)
+    logging.debug("Types: %r", self.types)
+    logging.debug("Vars: %r", variables)
 
     use_transitivity_constraints = True
     if use_transitivity_constraints:
@@ -328,12 +326,12 @@ class SatEncoder(object):
             assert eq3 in variables
             self._SATImplies(sat_problem.Conjunction((eq1, eq2)), eq3)
 
-    log.info("Writing SAT problem")
+    logging.info("Writing SAT problem")
     for ty in self.types:
       if isinstance(ty, ClassType) and not ty.complete:
         vs = [v for v in variables
               if ty in v and v.Other(ty).complete]
-        # log.info("%r", vs)
+        # logging.info("%r", vs)
         self.sat.BetweenNM("Force assign", vs, 1, None)
 
   def Solve(self):
@@ -347,12 +345,12 @@ class SatEncoder(object):
     results = {}
     for var, value in self.sat:
       if value is not False:
-        log.info("%s = %r", var, value)
+        logging.info("%s = %r", var, value)
       if value and isinstance(var, Equality):
         incomp = var.left if not var.left.complete else var.right
         if var.Other(incomp).complete:
           if incomp.cls in results:
-            log.warning("%r is assigned more than once to a complete type: "
+            logging.warning("%r is assigned more than once to a complete type: "
                         "%r, %r", incomp, results[incomp.cls],
                         var.Other(incomp))
           results[incomp.cls] = var.Other(incomp).ToPyTD()

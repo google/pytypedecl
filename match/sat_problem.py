@@ -15,8 +15,6 @@ import tempfile
 from pytypedecl import utils
 
 
-log = logging.getLogger(__name__)
-
 
 def GetSatRunnerBinary():
   return "sat_runner"  # pylint: disable=unreachable
@@ -102,28 +100,28 @@ class SATProblem(object):
   def Solve(self):
     """Solve the SAT problem that has been created by calling methods on self.
     """
-    log.info("%d formulli, %d variables",
+    logging.info("%d formulae, %d variables",
              len(self.problem.constraints), len(self._variables))
     self.problem.num_variables = self._next_id - 1
     # We don't actually need variable names in the buffer, so leave them out to
     # save space.
     # self.problem.var_names.extend(str(v) for v in self._variables)
-    if log.isEnabledFor(logging.DEBUG):
+    if logging.getLogger().isEnabledFor(logging.DEBUG):
       for i, var in enumerate(self._variables):
-        log.debug("%d: %r", i+1, var)
+        logging.debug("%d: %r", i+1, var)
 
-    log.info("Storing SAT problem buffer")
+    logging.info("Storing SAT problem buffer")
     with tempfile.NamedTemporaryFile(delete=False, mode="wb") as fi:
       fi.write(self.problem.SerializeToString())
       problemfile = fi.name
 
-    log.info("Solving: %r", problemfile)
+    logging.info("Solving: %r", problemfile)
     solutionfi = tempfile.NamedTemporaryFile(delete=False)
     solutionfi.write("")
     solutionfile = solutionfi.name
     solutionfi.close()
     commandline = [GetSatRunnerBinary()]
-    if log.isEnabledFor(logging.INFO):
+    if logging.getLogger().isEnabledFor(logging.INFO):
       commandline.append("-logtostderr")
     if self.initial_polarity:
       commandline.extend(["-params", "initial_polarity:0"])
@@ -135,7 +133,7 @@ class SATProblem(object):
     try:
       subprocess.check_call(commandline)
 
-      log.info("Loading SAT problem buffer: %r", solutionfile)
+      logging.info("Loading SAT problem buffer: %r", solutionfile)
       solution = boolean_problem_pb2.LinearBooleanProblem()
 
       with open(solutionfile, "rb") as fi:
@@ -145,16 +143,16 @@ class SATProblem(object):
       for varid in solution.assignment.literals:
         self._results[self._variables[abs(varid)-1]] = varid > 0
     except subprocess.CalledProcessError:
-      log.warning("SAT solver failed. Probably UNSAT, returning the empty "
+      logging.warning("SAT solver failed. Probably UNSAT, returning the empty "
                   "result.", exc_info=True)
       self._results = {}
       return
     finally:
-      if log.isEnabledFor(logging.DEBUG):
+      if logging.getLogger().isEnabledFor(logging.DEBUG):
         if solution and solution.HasField("assignment"):
-          log.debug(text_format.MessageToString(solution))
+          logging.debug(text_format.MessageToString(solution))
         else:
-          log.debug(text_format.MessageToString(self.problem))
+          logging.debug(text_format.MessageToString(self.problem))
 
   def __getitem__(self, var):
     return self._results[var]
