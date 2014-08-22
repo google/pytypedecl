@@ -189,6 +189,17 @@ class FunctionTypeTests(InferenceTestCase):
     self.assertHasSignature(ty.Lookup("A").Lookup("get_x"),
                             (pytd.ClassType("A"),), self.intorfloat)
 
+  @unittest.skip("This will not work until proper stack handling during out "
+                 "of order traversal is implemented. And __lt__ and __gt__.")
+  def testBooleanOp(self):
+    ty = self.InferDedent("""
+      def f(x, y):
+        return 1 < x < 10
+        return 1 > x > 10
+      f(1, 2)
+    """)
+    self.assertHasSignature(ty.Lookup("f"), (self.int, self.int), self.bool)
+
 
 class ParametricTypeTests(InferenceTestCase):
 
