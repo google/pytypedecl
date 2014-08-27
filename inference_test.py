@@ -89,13 +89,13 @@ class InferenceTestCase(PyTDTestCase):
     srccode = textwrap.dedent(srccode)
     print "========== source =========="
     print srccode
-    print "=="
+    print "============================"
     sys.stdout.flush()
     types = self.Infer(srccode)
     sys.stdout.flush()
     print "=========== PyTD ==========="
     print pytd.Print(types)
-    print "=="
+    print "============================"
     return types
 
 
