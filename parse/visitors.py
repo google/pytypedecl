@@ -380,7 +380,7 @@ class ExtractSuperClasses(object):
   def VisitTypeDeclUnit(self, module):
     result = {base_class: superclasses
               for base_class, superclasses in module.classes}
-    for module_name, module_dict in module.modules:
+    for module_name, module_dict in module.modules.items():
       result.update({module_name + "." + name: superclasses
                      for name, superclasses in module_dict.items()})
     return result

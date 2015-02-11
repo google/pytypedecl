@@ -32,6 +32,9 @@ def _FindBuiltinFile(name):
   return utils.GetDataFile(os.path.join("builtins", name))
 
 
+_cached_builtins = None
+
+
 def GetBuiltins():
   """Get the "default" AST used to lookup built in types.
 
@@ -42,6 +45,9 @@ def GetBuiltins():
     A pytd.TypeDeclUnit instance. It'll directly contain the builtin classes
     and functions, and submodules for each of the standard library modules.
   """
+  global _cached_builtins
+  if _cached_builtins:
+    return _cached_builtins
   # TODO: This can be fairly slow; suggest pickling the result and
   #                  reusing if possible (see lib2to3.pgen2.grammar)
 
@@ -56,11 +62,12 @@ def GetBuiltins():
              "strop", "_struct", "sys", "_warnings", "warnings", "_weakref"]
   for mod in modules:
     builtins.modules[mod] = p.Parse(_FindBuiltinFile(mod + ".pytd"))
+  _cached_builtins = builtins
   return builtins
 
 
 def GetBuiltinsHierarchy():
-  builtins = ParseBuiltinsFile("__builtin__.pytd")
+  builtins = GetBuiltins()
   return builtins.Visit(visitors.ExtractSuperClasses())
 
 
