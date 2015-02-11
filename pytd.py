@@ -26,14 +26,6 @@ from pytypedecl.parse import node
 #               convert arguments to tuples?
 
 
-# Explanation of TYPE_MIXIN: It's only used by
-# pytype.typegraph.atomic_abstract_value.known_no_subtype ... if a.TYPE_MIXIN
-# then don't do a = a.to_type()
-
-# TODO: Need a better explanation
-# TODO: Need a better name
-
-
 class TypeDeclUnit(node.Node('constants', 'classes', 'functions', 'modules')):
   """Module node. Holds module contents (classes / functions) and submodules.
 
@@ -146,7 +138,6 @@ class Signature(node.Node('params', 'return_type', 'exceptions', 'template',
     template: names for bindings for bounded types in params/return_type
     has_optional: Do we have optional parameters ("...")?
   """
-  TYPE_MIXIN = True
   __slots__ = ()
 
 
@@ -204,7 +195,6 @@ class TemplateItem(node.Node('name', 'within_type')):
 
 class NamedType(node.Node('name')):
   """A type specified by name."""
-  TYPE_MIXIN = True
   __slots__ = ()
 
   def __str__(self):
@@ -213,7 +203,6 @@ class NamedType(node.Node('name')):
 
 class NativeType(node.Node('python_type')):
   """A type specified by a native Python type. Used during runtime checking."""
-  TYPE_MIXIN = True
   __slots__ = ()
 
 
@@ -229,7 +218,6 @@ class ClassType(node.Node('name')):
   #     to classes that are back at the top of the tree, that would generate
   #     cycles.
 
-  TYPE_MIXIN = True
   __slots__ = ()
 
   def __new__(cls, name):
@@ -243,7 +231,8 @@ class ClassType(node.Node('name')):
   def __repr__(self):
     # TODO: can name and cls.name ever differ?
     #                  -- should remove this redundancy
-    assert self.name == self.cls.name, (self.name, self.cls.name, self)
+    if self.cls:
+      assert self.name == self.cls.name, (self.name, self.cls.name, self)
     return '{type}{cls}({name})'.format(
         type=type(self).__name__,
         name=self.name,
@@ -254,7 +243,6 @@ class ClassType(node.Node('name')):
 
 class UnknownType(node.Node()):
   """A type we know nothing about yet."""
-  TYPE_MIXIN = True
   __slots__ = ()
 
 
@@ -264,18 +252,15 @@ class NothingType(node.Node()):
   Also known as the "uninhabited" type. For representing empty lists, and
   functions that never return.
   """
-  TYPE_MIXIN = True
   __slots__ = ()
 
 
 class Scalar(node.Node('value')):
-  TYPE_MIXIN = True
   __slots__ = ()
 
 
 class UnionType(node.Node('type_list')):
   """A union type that contains all types in self.type_list."""
-  TYPE_MIXIN = True
   __slots__ = ()
 
   # TODO(ampere): Add __new__ that converts type_list to tuple?
@@ -293,7 +278,6 @@ class UnionType(node.Node('type_list')):
 
 
 class IntersectionType(node.Node('type_list')):
-  TYPE_MIXIN = True
   __slots__ = ()
 
 
@@ -304,7 +288,6 @@ class GenericType(node.Node('base_type', 'parameters')):
     base_type: The base type. Instance of Type.
     parameters: Type paramters. Tuple of instances of Type.
   """
-  TYPE_MIXIN = True
   __slots__ = ()
 
 
