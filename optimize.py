@@ -938,7 +938,7 @@ OptimizeFlags = collections.namedtuple("_",
                                         "remove_mutable"])
 
 
-def Optimize(node, flags=None, contains_unresolved=False):
+def Optimize(node, flags=None):
   """Optimize a PYTD tree.
 
   Tries to shrink a PYTD tree by applying various optimizations.
@@ -949,9 +949,6 @@ def Optimize(node, flags=None, contains_unresolved=False):
     flags: An instance of OptimizeFlags, to control which optimizations
         happen and what parameters to use for the ones that take parameters. Can
         be None, in which case defaults will be applied.
-    contains_unresolved: If the caller knows that it might be generating class
-        names that can't be resolved. If this is True, this function will make
-        no attempt to resolve any names.
 
   Returns:
     An optimized node.
@@ -972,7 +969,6 @@ def Optimize(node, flags=None, contains_unresolved=False):
     node = node.Visit(CombineContainers())
     node = node.Visit(MergeTypeParameters())
     node = node.Visit(visitors.AdjustSelf(force=True))
-  if not contains_unresolved:
-    node = visitors.LookupClasses(node, parse_utils.GetBuiltins())
-    node = node.Visit(RemoveInheritedMethods())
+  node = visitors.LookupClasses(node, parse_utils.GetBuiltins())
+  node = node.Visit(RemoveInheritedMethods())
   return node
