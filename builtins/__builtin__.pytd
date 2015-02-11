@@ -458,7 +458,7 @@ class <T> tuple:
     def __eq__(self, y: tuple) -> bool
     def __ge__(self, y: tuple) -> bool
     def __getitem__(self: tuple<T>, y: int) -> T
-    def __getslice__(self, i: int, j: int)
+    def __getslice__(self, i: int, j: int) -> tuple<T>
     def __gt__(self, y: tuple) -> bool
     def __iter__(self) -> tupleiterator
     def __le__(self, y: tuple) -> bool
