@@ -20,11 +20,11 @@ class SATEncoderTest(unittest.TestCase):
 
     # TODO: sat_inferencer.TypeInferencer()
     cls.inferencer = sat_inferencer.TypeInferencer(
-        builtins=parse_utils.GetBuiltinsFile(
+        builtins=parse_utils.ParseBuiltinsFile(
             # The original builtins, but without all the other modules:
             #    "builtins/__builtin__.pytd"))
             # The stripped-down builtins:
-            "match/builtin_for_testing.pytd"))
+            "../match/builtin_for_testing.pytd"))
 
   def _ParseSolveCheck(self, src, expected):
     res = self.inferencer.ParseAndSolve(textwrap.dedent(src))

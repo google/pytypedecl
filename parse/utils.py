@@ -18,7 +18,6 @@
 """Utilities for parsing type declaration files.
 """
 
-import glob
 import os.path
 
 from pytypedecl import utils
@@ -37,15 +36,17 @@ def GetBuiltins():
   """
   # TODO: This can be fairly slow; suggest pickling the result and
   #                  reusing if possible (see lib2to3.pgen2.grammar)
-  builtins_dir = utils.GetDataFile("builtins")
-  builtins = parser.parse_file(os.path.join(builtins_dir, "__builtin__.pytd"))
-  for mod_file in glob.iglob(os.path.join(builtins_dir, "*.pytd")):
-    mod, _ = os.path.splitext(os.path.basename(mod_file))
-    if mod != "__builtin__.pytd":
-      builtins.modules[mod] = parser.parse_file(mod_file)
+  builtins = ParseBuiltinsFile("__builtin__.pytd")
+  # We list modules explicitly, because we might have to extract them out of
+  # a PAR file, which doesn't have good support for listing directories.
+  modules = ["array", "codecs", "errno", "fcntl", "gc", "itertools", "marshal",
+             "os", "posix", "pwd", "select", "signal", "_sre", "StringIO",
+             "strop", "_struct", "sys", "_warnings", "warnings", "_weakref"]
+  for mod in modules:
+    builtins.modules[mod] = ParseBuiltinsFile(mod + ".pytd")
   return builtins
 
 
-def GetBuiltinsFile(file):
+def ParseBuiltinsFile(file):
   """GetBuiltins(), but for a single files, not adding to builtins.modules."""
-  return parser.parse_file(utils.GetDataFile(file))
+  return parser.parse_string(utils.GetDataFile(os.path.join("builtins", file)))

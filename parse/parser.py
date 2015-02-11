@@ -820,12 +820,16 @@ def make_syntax_error(parser_or_tokenizer, msg, p):
                      p.lineno, p.lexpos - last_line_offset + 1, line))
 
 
+def parse_string(string, version=DEFAULT_VERSION):
+  try:
+    return TypeDeclParser(version).Parse(string)
+  except SyntaxError as unused_exception:
+    # without all the tedious traceback stuff from PLY:
+    # TODO: What happens if we don't catch SyntaxError?
+    traceback.print_exception(sys.exc_type, sys.exc_value, None)
+    sys.exit(1)
+
+
 def parse_file(filename, version=DEFAULT_VERSION):
   with open(filename) as f:
-    try:
-      return TypeDeclParser(version).Parse(f.read(), filename)
-    except SyntaxError as unused_exception:
-      # without all the tedious traceback stuff from PLY:
-      # TODO: What happens if we don't catch SyntaxError?
-      traceback.print_exception(sys.exc_type, sys.exc_value, None)
-      sys.exit(1)
+    return parse_string(f.read(), version)

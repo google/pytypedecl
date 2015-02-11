@@ -11,8 +11,10 @@ from pytypedecl import pytd
 
 
 def GetDataFile(filename=""):
-    return os.path.abspath(
+    full_filename = os.path.abspath(
         os.path.join(os.path.dirname(pytd.__file__), filename))
+    with open(full_filename, "rb") as fi:
+      return fi.read()
 
 
 def UnpackUnion(t):

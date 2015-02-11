@@ -13,8 +13,6 @@ import subprocess
 import tempfile
 
 
-from pytypedecl import utils
-
 
 
 def GetSATRunnerBinary():
