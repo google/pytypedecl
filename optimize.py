@@ -25,6 +25,7 @@
 
 import collections
 import itertools
+import logging
 
 from pytypedecl import abc_hierarchy
 from pytypedecl import pytd
@@ -49,6 +50,23 @@ class RemoveDuplicates(object):
     # We remove duplicates, but keep existing entries in the same order.
     ordered_set = collections.OrderedDict(zip(node.signatures, node.signatures))
     return node.Replace(signatures=tuple(ordered_set))
+
+
+class SimplifyUnions(object):
+  """Remove duplicate or redundant entries in union types.
+
+  For example, this transforms
+    a: int or int
+    b: int or ?
+    c: int or (int or float)
+  to
+    a: int
+    b: ?
+    c: int or float
+  """
+
+  def VisitUnionType(self, union):
+    return utils.JoinTypes(union.type_list)
 
 
 class _ReturnsAndExceptions(object):
@@ -805,6 +823,112 @@ class AbsorbMutableParameters(object):
 
   def VisitMutableParameter(self, p):
     return pytd.Parameter(p.name, utils.JoinTypes([p.type, p.new_type]))
+
+
+class TypeParameterScope(object):
+  """Common superclass for optimizations that track type parameters."""
+
+  def __init__(self):
+    self.type_params_stack = [{}]
+
+  def EnterClass(self, cls):
+    new = self.type_params_stack[-1].copy()
+    new.update({t.type_param: cls for t in cls.template})
+    self.type_params_stack.append(new)
+
+  def EnterSignature(self, sig):
+    new = self.type_params_stack[-1].copy()
+    new.update({t.type_param: sig for t in sig.template})
+    self.type_params_stack.append(new)
+
+  def IsClassTypeParameter(self, type_param):
+    class_or_sig = self.type_params_stack[-1].get(type_param)
+    return isinstance(class_or_sig, pytd.Class)
+
+  def IsFunctionTypeParameter(self, type_param):
+    class_or_sig = self.type_params_stack[-1].get(type_param)
+    return isinstance(class_or_sig, pytd.Signature)
+
+  def LeaveClass(self, _):
+    self.type_params_stack.pop()
+
+  def LeaveSignature(self, _):
+    self.type_params_stack.pop()
+
+
+class MergeTypeParameters(TypeParameterScope):
+  """Remove all function type parameters in a union with a class type param.
+
+  For example, this will change
+    class A<T>:
+      def append<T2>(self, T or T2) -> T2
+  to
+    class A<T>:
+      def append(self, T) -> T
+  .
+  """
+
+  def __init__(self):
+    super(MergeTypeParameters, self).__init__()
+    self.type_param_union = collections.defaultdict(set)
+
+  def VisitUnionType(self, u):
+    type_params = [t for t in u.type_list if isinstance(t, pytd.TypeParameter)]
+    for t in type_params:
+      if self.IsFunctionTypeParameter(t):
+        self.type_param_union[id(t)].update(type_params)
+    return u
+
+  def _AllContaining(self, type_param, seen=None):
+    """Gets all type parameters that are in a union with the passed one."""
+    seen = seen or set()
+    result = set([type_param])
+    for other in self.type_param_union[id(type_param)]:
+      if other in seen:
+        continue  # break cycles
+      seen.add(other)
+      result.update(self._AllContaining(other, seen) or [other])
+    return result
+
+  def _ReplaceByOuterIfNecessary(self, item, substitutions):
+    """Potentially replace a function type param with a class type param.
+
+    Args:
+      item: A pytd.TemplateItem
+      substitutions: A dictionary to update with what we replaced.
+    Returns:
+      Either [item] or [].
+    """
+    containing_union = self._AllContaining(item.type_param)
+    if not containing_union:
+      return [item]
+    class_type_parameters = [type_param
+                             for type_param in containing_union
+                             if self.IsClassTypeParameter(type_param)]
+    if class_type_parameters:
+      if len(class_type_parameters) > 1:
+        logging.warn("Multiple class type parameters combined into a union: %r",
+                     [t.name for t in class_type_parameters])
+        class_type_parameters = class_type_parameters[0]
+      new_param, = class_type_parameters
+      substitutions[item.type_param] = new_param
+      return []
+    else:
+      # It's a function type parameter that appears in a union with other
+      # function type parameters.
+      # TODO: We could merge those, too.
+      return [item]
+
+  def VisitSignature(self, sig):
+    new_template = []
+    substitutions = {k: k for k in self.type_params_stack[-1].keys()}
+    for item in sig.template:
+      new_template += self._ReplaceByOuterIfNecessary(item, substitutions)
+    if sig.template == new_template:
+      return sig  # Nothing changed.
+    else:
+      return sig.Replace(template=tuple(new_template)).Visit(
+          visitors.ReplaceTypeParameters(substitutions)).Visit(SimplifyUnions())
 
 
 OptimizeFlags = collections.namedtuple("_", ["lossy", "use_abcs", "max_union"])

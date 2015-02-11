@@ -135,6 +135,21 @@ class TestOptimize(parser_test.ParserTest):
         optimize.Optimize(self.Parse(src), flags),
         src)
 
+  def testSimplifyUnions(self):
+    src = textwrap.dedent("""
+      a: int or int
+      b: int or ?
+      c: int or (int or float)
+    """)
+    new_src = textwrap.dedent("""
+      a: int
+      b: ?
+      c: int or float
+    """)
+    self.AssertSourceEquals(
+        self.ApplyVisitorToString(src, optimize.SimplifyUnions()),
+        new_src)
+
   def testExpand(self):
     src = textwrap.dedent("""
         def foo(a: int or float, z: complex or str, u: bool) -> file
@@ -430,6 +445,33 @@ class TestOptimize(parser_test.ParserTest):
     tree = self.Parse(src)
     new_tree = tree.Visit(optimize.AbsorbMutableParameters())
     new_tree = new_tree.Visit(optimize.CombineContainers())
+    self.AssertSourceEquals(new_tree, expected)
+
+  def testMergeTypeParameters(self):
+    src = textwrap.dedent("""
+      class A<T>:
+          def foo<T2>(self, x: T or T2) -> T2
+          def bar<T2, T3>(self, x: T or T2 or T3) -> T3
+          def baz<T2, T3>(self, x: T or T2, y: T2 or T3)
+
+      class D<K, V>:
+          def foo<T>(self, x: T) -> K or T
+          def bar<T>(self, x: T) -> V or T
+          def baz(self, x: K or V) -> K or V
+    """)
+    expected = textwrap.dedent("""
+      class A<T>:
+          def foo(self, x: T) -> T
+          def bar(self, x: T) -> T
+          def baz(self, x: T, y: T)
+
+      class D<K, V>:
+          def foo(self, x: K) -> K
+          def bar(self, x: V) -> V
+          def baz(self, x: K or V) -> K or V
+    """)
+    tree = self.Parse(src)
+    new_tree = tree.Visit(optimize.MergeTypeParameters())
     self.AssertSourceEquals(new_tree, expected)
 
 if __name__ == "__main__":
