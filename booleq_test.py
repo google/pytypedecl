@@ -166,12 +166,12 @@ class TestBoolEq(unittest.TestCase):
     self.assertEquals(And([Eq("x", "1"), Eq("y", "1")]),
                       equation.simplify(values))
 
-  def _MakeSolver(self):
+  def _MakeSolver(self, variables=("x", "y"), values=("1", "2")):
     solver = booleq.Solver()
-    solver.register_variable("x")
-    solver.register_variable("y")
-    solver.register_value("1")
-    solver.register_value("2")
+    for variable in variables:
+      solver.register_variable(variable)
+    for value in values:
+      solver.register_value(str(value))
     return solver
 
   def testImplication(self):
@@ -189,6 +189,29 @@ class TestBoolEq(unittest.TestCase):
     self.assertDictEqual(solver.solve(),
                          {"x": set(["1"]),
                           "y": set(["1"])})
+
+  def testFilter(self):
+    solver = self._MakeSolver(["x", "y"], ["1", "2", "3"])
+    solver.implies(Eq("x", "1"), booleq.TRUE)
+    solver.implies(Eq("x", "2"), booleq.FALSE)
+    solver.implies(Eq("x", "3"), booleq.FALSE)
+    solver.implies(Eq("y", "1"), Or([Eq("x", "1"), Eq("x", "2"), Eq("x", "3")]))
+    solver.implies(Eq("y", "2"), Or([Eq("x", "2"), Eq("x", "3")]))
+    solver.implies(Eq("y", "3"), Or([Eq("x", "2")]))
+    self.assertDictEqual(solver.solve(),
+                         {"x": set(["1"]),
+                          "y": set(["1"])})
+
+  def testSolveAnd(self):
+    solver = self._MakeSolver(["x", "y", "z"], ["1", "2", "3"])
+    solver.always_true(Eq("x", "1"))
+    solver.implies(Eq("y", "1"), And([Eq("x", "1"), Eq("z", "1")]))
+    solver.implies(Eq("x", "1"), And([Eq("y", "1"), Eq("z", "1")]))
+    solver.implies(Eq("z", "1"), And([Eq("x", "1"), Eq("y", "1")]))
+    self.assertDictEqual(solver.solve(),
+                         {"x": set(["1"]),
+                          "y": set(["1"]),
+                          "z": set(["1"])})
 
 if __name__ == "__main__":
   unittest.main()

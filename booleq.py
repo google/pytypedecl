@@ -389,7 +389,7 @@ class Solver(object):
           e = Eq(var, value)
           if self.implications[e].simplify(assignments) is FALSE:
             # As an example of what kind of code triggers this,
-            # see MatchTest.test_filter.
+            # see TestBoolEq.testFilter
             assignments[var].remove(value)
             something_changed = True
           terms.append(self.implications[e])
