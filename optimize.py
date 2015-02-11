@@ -33,6 +33,8 @@ from pytypedecl import utils
 from pytypedecl.parse import builtins
 from pytypedecl.parse import visitors
 
+log = logging.getLogger(__name__)
+
 
 class RemoveDuplicates(object):
   """Remove duplicate function signatures.
@@ -933,8 +935,8 @@ class MergeTypeParameters(TypeParameterScope):
                              if self.IsClassTypeParameter(type_param)]
     if class_type_parameters:
       if len(class_type_parameters) > 1:
-        logging.warn("Multiple class type parameters combined into a union: %r",
-                     [t.name for t in class_type_parameters])
+        log.warn("Multiple class type parameters combined into a union: %r",
+                 [t.name for t in class_type_parameters])
         class_type_parameters = class_type_parameters[0]
       new_param, = class_type_parameters
       substitutions[item.type_param] = new_param
