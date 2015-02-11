@@ -282,10 +282,17 @@ class IntersectionType(node.Node('type_list'), Type):
 
 
 class GenericType(node.Node('base_type', 'parameters'), Type):
+  """Generic type. Takes a base type and type paramters.
+
+  Attributes:
+    base_type: The base type. Instance of Type.
+    parameters: Type paramters. Tuple of instances of Type.
+  """
   __slots__ = ()
 
 
 class HomogeneousContainerType(GenericType):
+  """Special generic type for homogeneous containers."""
   __slots__ = ()
 
   @property

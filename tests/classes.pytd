@@ -25,4 +25,4 @@ class Utils:
   def Repeat(self, s: str, number: float) -> str
 
 class Comparators:
-  def IsGreater(self, a: int, b: int) -> bool
+  def IsGreater(cls, a: int, b: int) -> bool

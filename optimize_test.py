@@ -270,5 +270,31 @@ class TestOptimize(parser_test.ParserTest):
                                         optimize.CombineContainers())
     self.AssertSourceEquals(new_src, expected)
 
+  @unittest.skip("code doesn't exist yet")
+  def testPullInMethodClasses(self):
+    src = """
+        class A:
+          mymethod1: Method1
+          mymethod2: Method2
+          member: Method3
+        class Method1:
+          def __call__(self: A, x: int)
+        class Method2:
+          def __call__(self: A, x: int)
+        class Method3:
+          def __call__(x: bool, y: int)
+    """
+    expected = """
+        class A:
+          member: Method3
+          def mymethod1(self, x: int)
+          def mymethod2(self, x: int)
+        class Method3:
+          def __call__(x: bool, y: int)
+    """
+    new_src = self.ApplyVisitorToString(src,
+                                        optimize.PullInMethodClasses())
+    self.AssertSourceEquals(new_src, expected)
+
 if __name__ == "__main__":
   unittest.main()

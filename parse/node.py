@@ -175,9 +175,13 @@ def _VisitNode(node, visitor, *args, **kwargs):
           with <Name> the name of the Node class, a callback will be triggered,
           and the transformed version of this node will be whatever the
           callback returned, or the original node if the callback returned None.
-          Before calling the callback, the following attribute(s) on the Visitor
-          class will be populated:
+          Before calling the Visit callback, the following attribute(s) on the
+          Visitor class will be populated:
           vistor.old_node: The node before the child nodes were visited.
+          Additionally, if the visitor has a "Enter<Name>" method, that method
+          will be called on the original node before descending into it. If
+          "Enter<Name>" returns False, the visitor will not visit children of
+          this node.
     *args: Passed to visitor callbacks.
     **kwargs: Passed to visitor callbacks.
   Returns:
@@ -188,6 +192,16 @@ def _VisitNode(node, visitor, *args, **kwargs):
     # Node with an overloaded Visit() function. It'll do its own processing.
     return node.Visit(visitor, *args, **kwargs)
   elif isinstance(node, tuple):
+    enter_function = "Enter" + node.__class__.__name__
+    if hasattr(visitor, enter_function):
+      # The visitor wants to be informed that we're descending into this part
+      # of the tree.
+      status = getattr(visitor, enter_function)(node, *args, **kwargs)
+      # Don't descend if Enter<Node> explicitly returns False, but not None,
+      # since None is the default return of Python functions.
+      if status is False:
+        return node
+
     new_children = [_VisitNode(child, visitor, *args, **kwargs)
                     for child in node]
     if any(c1 is not c2 for c1, c2 in zip(new_children, node)):
@@ -206,13 +220,18 @@ def _VisitNode(node, visitor, *args, **kwargs):
       # object the same.
       new_node = node
 
-    # Now call the user supplied visitor, if it exists. Notice we only do this
-    # for tuples.
+    visitor.old_node = node
+    # Now call the user supplied callback(s), if they exists. Notice we only do
+    # this for tuples.
     visit_function = "Visit" + node.__class__.__name__
     if hasattr(visitor, visit_function):
-      visitor.old_node = node
       new_node = getattr(visitor, visit_function)(new_node, *args, **kwargs)
-      del visitor.old_node
+    leave_function = "Leave" + node.__class__.__name__
+    if hasattr(visitor, leave_function):
+      # Let the visitor know we're done with this node.
+      getattr(visitor, leave_function)(node, *args, **kwargs)
+    del visitor.old_node
+
     return new_node
   elif isinstance(node, list):
     new_list_entries = [_VisitNode(child, visitor, *args, **kwargs)

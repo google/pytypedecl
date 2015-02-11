@@ -29,6 +29,9 @@ class PrintVisitor(object):
   INDENT = " "*4
   VALID_NAME = re.compile(r"^[a-zA-Z_]\w*$")
 
+  def __init__(self):
+    self.class_name = None
+
   def SafeName(self, name):
     if not self.VALID_NAME.match(name):
       # We can do this because name will never contain backticks. Everything
@@ -57,6 +60,15 @@ class PrintVisitor(object):
     """Convert a class-level or module-level constant to a string."""
     return node.name + ": " + node.type
 
+  def EnterClass(self, cls):
+    self.class_name = cls.name + self.ClassTemplateString(cls)
+
+  def LeaveClass(self, _):
+    self.class_name = None
+
+  def ClassTemplateString(self, cls):
+    return "<" + ", ".join(cls.template) + ">" if cls.template else ""
+
   def VisitClass(self, node):
     """Visit a class, producing a string.
 
@@ -70,7 +82,7 @@ class PrintVisitor(object):
       string representation of this class
     """
     parents = "(" + ", ".join(node.parents) + ")" if node.parents else ""
-    template = "<" + ", ".join(node.template) + ">" if node.template else ""
+    template = self.ClassTemplateString(node)
     if node.methods or node.constants:
       # We have multiple methods, and every method has multiple signatures
       # (i.e., the method string will have multiple lines). Combine this into
@@ -132,6 +144,8 @@ class PrintVisitor(object):
     """Convert a function parameter to a string."""
     if node.type == "object":
       # Abbreviated form. "object" is the default.
+      return node.name
+    elif node.name == "self" and node.type == self.class_name:
       return node.name
     else:
       return node.name + ": " + node.type

@@ -373,11 +373,11 @@ class <K, V> dict:
     def __contains__(self, k: K) -> bool
     def __delitem__(self, y: K) -> NoneType
     def __eq__(self, y: dict) -> bool
-    def __getitem__(self: dict<K, V>, y: K) -> V
+    def __getitem__(self, y: K) -> V
     def __iter__(self) -> `dictionary-keyiterator`
     def __len__(self) -> int
     def __ne__(self, y: dict) -> bool
-    def <K2, V2> __setitem__(self: dict<K, V>, i: K2, y: V2) -> NoneType:
+    def <K2, V2> __setitem__(self, i: K2, y: V2) -> NoneType:
       self := dict<K or K2, V or V2>
     def clear(self) -> NoneType
     def copy(self) -> dict<object, object>
@@ -386,8 +386,8 @@ class <K, V> dict:
     def fromkeys(self, S: list or tuple or set, ...) -> dict<object, NoneType> or dict
     def fromkeys(self, S: iterator, ...) -> dict<str, NoneType> or dict<unicode, NoneType> or dict
     def fromkeys(self, S: dict, ...) -> dict<object, NoneType>
-    def get(self: dict<K, V>, k: K, ...) -> V
-    def has_key(self: dict<K, V>, k: K) -> bool
+    def get(self, k: K, ...) -> V
+    def has_key(self, k: K) -> bool
     def items(self) -> list<tuple<K or V>>
     def iteritems(self) -> `dictionary-itemiterator`
     def iterkeys(self) -> `dictionary-keyiterator`
@@ -395,7 +395,7 @@ class <K, V> dict:
     def keys(self) -> list<K>
     def pop(self, k, ...)
     def popitem(self) -> tuple<unicode, object>
-    def setdefault(self: dict<K, V>, k: K, ...)
+    def setdefault(self, k: K, ...)
     def update(self, E, ...) -> NoneType
     def update(self) -> NoneType
     def values(self: dict<K, V>) -> list<V>
@@ -420,20 +420,20 @@ class <T> list:
     # TODO: The type of self should be automatic
     def __init__(self: list<T>):
         self := list<nothing>
-    def <N> __init__(self: list<T>, iterable: list<N>):
+    def <N> __init__(self, iterable: list<N>):
         self := list<N>
-    def <N> __init__(self: list<T>, generator: generator<N>):
+    def <N> __init__(self, generator: generator<N>):
         # TODO: We should be able to just write "T := N"
         self := list<N>
-    def __init__(self: list<T>, x):
+    def __init__(self, x):
         self := list<?>
-    def <A> __add__(self: list<T>, y: list<A>) -> list<T or A>
+    def <A> __add__(self, y: list<A>) -> list<T or A>
     def __contains__(self, y: T) -> bool
     def __delitem__(self, y: int) -> NoneType
     def __delslice__(self, i: int, j: int) -> NoneType
     def __eq__(self, y: list) -> bool
     def __ge__(self, y: list) -> bool
-    def __getitem__(self: list<T>, y) -> T
+    def __getitem__(self, y) -> T
     def __getslice__(self, i: int, j: int) -> list<T>
     def __gt__(self, y: list) -> bool
     def __iadd__(self, y) -> list
@@ -448,14 +448,14 @@ class <T> list:
     def __rmul__(self, n: int) -> list<object> or list
     def __setitem__(self, i: int, y) -> NoneType
     def __setslice__(self, i: int, j: int, y) -> NoneType
-    def <A> append(self: list<T>, object: A) -> NoneType:
+    def <A> append(self, object: A) -> NoneType:
       self := list<T or A>
     def count(self, value: T) -> int
     def index(self, value, ...) -> int
-    def <A> insert(self: list<T>, index: int, object: A) -> NoneType:
+    def <A> insert(self, index: int, object: A) -> NoneType:
       self := list<T or A>
     def pop(self, ...)
-    def remove(self: list<T>, value: T) -> NoneType
+    def remove(self, value: T) -> NoneType
     def reverse(self) -> NoneType
     def sort(self, ...) -> NoneType
 
@@ -465,22 +465,22 @@ class reversed:
     def next(self) -> str
 
 class <T> tuple:
-    def __init__(self: tuple<T>, p0)
+    def __init__(self, p0)
     def __init__(self: tuple<T>)
-    def <A> __add__(self: tuple<T>, y: tuple<A>) -> tuple<T or A>
+    def <A> __add__(self, y: tuple<A>) -> tuple<T or A>
     def __contains__(self, y: T) -> bool
     def __eq__(self, y: tuple) -> bool
     def __ge__(self, y: tuple) -> bool
-    def __getitem__(self: tuple<T>, y: int) -> T
+    def __getitem__(self, y: int) -> T
     def __getslice__(self, i: int, j: int) -> tuple<T>
     def __gt__(self, y: tuple) -> bool
     def __iter__(self: tuple<T>) -> tupleiterator<T>
     def __le__(self, y: tuple) -> bool
     def __len__(self) -> int
     def __lt__(self, y: tuple) -> bool
-    def __mul__(self: tuple<T>, n: int) -> tuple<T>
+    def __mul__(self, n: int) -> tuple<T>
     def __ne__(self, y: tuple) -> bool
-    def __rmul__(self: tuple<T>, n: int) -> tuple<T>
+    def __rmul__(self, n: int) -> tuple<T>
     def count(self, value: T) -> int
     def index(self, value, ...) -> int
 
@@ -491,9 +491,9 @@ class<T> tupleiterator:
 class <T> set:
     def __init__(self: set<T>):
         self := set<nothing>
-    def <N> __init__(self: set<T>, iterable: list<N>):
+    def <N> __init__(self, iterable: list<N>):
         self := set<N>
-    def __init__(self: set<T>, x):
+    def __init__(self, x):
         self := set<nothing>  # TODO: should be set<?>
     def __and__(self, y: set) -> set
     def __contains__(self, y) -> bool
@@ -524,7 +524,7 @@ class <T> set:
     def intersection_update(self, ...) -> NoneType
     def union(self, ...) -> set
     def update(self, ...) -> NoneType
-    def <A> add(self: set<T>, object: A) -> NoneType:
+    def <A> add(self, object: A) -> NoneType:
         self := set<T or A>
 
 class frozenset:
@@ -842,7 +842,7 @@ class function:
 
 class<T> generator:
     def __iter__(self: generator<T>) -> generator<T>
-    def send(self: generator<T>, arg)
+    def send(self, arg)
     def close(self) -> NoneType
     def next(self) -> T
 
@@ -869,13 +869,13 @@ class memoryview:
     def tolist(self, ...) -> list<int>
 
 class<G, S> property:
-    def<GET, SET> __init__(self: property<G, S>, get: GET, set: SET):
+    def<GET, SET> __init__(self, get: GET, set: SET):
         self := property<GET, SET>
-    def<GET> __init__(self: property<G, S>, get: GET):
+    def<GET> __init__(self, get: GET):
         self := property<GET, nothing>
-    def __delete__(self: property<G, S>, ...) -> NoneType
-    def __get__(self: property<G, S>, ...) -> G
-    def __set__(self: property<G, S>, ...) -> S
+    def __delete__(self, ...) -> NoneType
+    def __get__(self, ...) -> G
+    def __set__(self, ...) -> S
 
 class type:
     def __init__(self, object)

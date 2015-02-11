@@ -52,9 +52,9 @@ class ParserTest(unittest.TestCase):
 
     if simplified1 != simplified2:
       print "Source files differ:"
-      print "-"*80
+      print "-"*36, " Actual ", "-"*36
       print textwrap.dedent(src1).strip()
-      print "-"*80
+      print "-"*36, "Expected", "-"*36
       print textwrap.dedent(src2).strip()
       print "-"*80
       self.fail("source files differ")

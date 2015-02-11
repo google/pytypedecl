@@ -19,6 +19,13 @@ class UtilsTest(unittest.TestCase):
     append = builtins.Lookup("list").Lookup("append")
     self.assertIsInstance(append.signatures[0].params[0], pytd.MutableParameter)
 
+  def testHasCorrectSelf(self):
+    builtins = utils.GetBuiltins()
+    update = builtins.Lookup("dict").Lookup("update")
+    t = update.signatures[0].params[0].type
+    self.assertIsInstance(t, pytd.GenericType)
+    self.assertEquals(t.base_type, pytd.NamedType("dict"))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
   unittest.main()
