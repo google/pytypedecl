@@ -108,6 +108,7 @@ def print(value, ...)
 False: bool
 True: bool
 NotImplemented: NotImplementedType
+None: NoneType
 
 class object:
     def __init__(self, ...)
