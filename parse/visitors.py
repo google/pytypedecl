@@ -584,8 +584,7 @@ class RemoveUnknownClasses(object):
 class VerifyVisitor(object):
   """Visitor for verifying pytd ASTs. For tests."""
 
-  # TODO: implements_all_node_types should also work if we only define
-  # Enter* methods.
+  implements_all_node_types = True
 
   def EnterTypeDeclUnit(self, node):
     assert isinstance(node.constants, (list, tuple)), node
@@ -676,6 +675,9 @@ class VerifyVisitor(object):
   def EnterIntersectionType(self, node):
     assert isinstance(node.type_list, tuple), node
     assert all(isinstance(t, pytd.TYPE) for t in node.type_list), node
+
+  def EnterScalar(self, node):
+    pass
 
 
 # TODO: Move PrologConstraintsVisitor and _SafeAtom / _AtomCmp to a

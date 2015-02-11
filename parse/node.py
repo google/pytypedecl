@@ -246,7 +246,8 @@ def _VisitNode(node, visitor, *args, **kwargs):
     visit_function = getattr(visitor, "Visit" + node_class_name, False)
     if (getattr(visitor, "implements_all_node_types", False)
         and node_class_name != "tuple"):
-      assert visit_function, "Unimplemented visitor: " + node_class_name
+      if not enter_function and not visit_function:
+        raise AssertionError("Unimplemented visitor: " + node_class_name)
     if visit_function:
       new_node = visit_function(new_node, *args, **kwargs)
     leave_function = getattr(visitor, "Leave" + node_class_name, False)
