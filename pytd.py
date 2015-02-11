@@ -312,6 +312,9 @@ class UnionType(node.Node('type_list')):
   # NOTE: type_list is kept as a tuple, to preserve the original order
   #       even though in most respects it acts like a frozenset
 
+  def __new__(cls, type_list):
+    return super(UnionType, cls).__new__(cls, tuple(type_list))
+
   def __hash__(self):
     # See __eq__ - order doesn't matter, so use frozenset
     return hash(frozenset(self.type_list))

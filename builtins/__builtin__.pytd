@@ -399,14 +399,14 @@ class dict<K, V>:
         self := dict<K or K2, V or V2>
     def update(self, E, ...) -> NoneType
     def update(self) -> NoneType
-    def values(self: dict<K, V>) -> list<V>
+    def values(self) -> list<V>
     def viewitems(self) -> dict_items
     def viewkeys(self) -> dict_keys
     def viewvalues(self) -> dict_values
 
 class listiterator<T>:
-    def __iter__(self: listiterator<T>) -> listiterator<T>
-    def next(self: listiterator<T>) -> T
+    def __iter__(self) -> listiterator<T>
+    def next(self) -> T
 
 class enumerate<T>:
     def __init__<T2>(self, iterable: list<T2>, ...):
@@ -425,8 +425,7 @@ class listreverseiterator:
     def next(self)
 
 class list<T>:
-    # TODO: The type of self should be automatic
-    def __init__(self: list<T>):
+    def __init__(self):
         self := list<nothing>
     def __init__<N>(self, iterable: list<N>):
         self := list<N>
@@ -446,7 +445,7 @@ class list<T>:
     def __gt__(self, y: list) -> bool
     def __iadd__(self, y) -> list
     def __imul__(self, y: int) -> list
-    def __iter__(self: list<T>) -> listiterator<T>
+    def __iter__(self) -> listiterator<T>
     def __le__(self, y: list) -> bool
     def __len__(self) -> int
     def __lt__(self, y: list) -> bool
@@ -474,7 +473,7 @@ class reversed:
 
 class tuple<T>:
     def __init__(self, p0)
-    def __init__(self: tuple<T>)
+    def __init__(self)
     def __add__<A>(self, y: tuple<A>) -> tuple<T or A>
     def __contains__(self, y: T) -> bool
     def __eq__(self, y: tuple) -> bool
@@ -482,7 +481,7 @@ class tuple<T>:
     def __getitem__(self, y: int) -> T
     def __getslice__(self, i: int, j: int) -> tuple<T>
     def __gt__(self, y: tuple) -> bool
-    def __iter__(self: tuple<T>) -> tupleiterator<T>
+    def __iter__(self) -> tupleiterator<T>
     def __le__(self, y: tuple) -> bool
     def __len__(self) -> int
     def __lt__(self, y: tuple) -> bool
@@ -493,11 +492,11 @@ class tuple<T>:
     def index(self, value, ...) -> int
 
 class tupleiterator<T>:
-    def __iter__(self: tupleiterator<T>) -> tupleiterator<T>
-    def next(self: tupleiterator<T>) -> T
+    def __iter__(self) -> tupleiterator<T>
+    def next(self) -> T
 
 class set<T>:
-    def __init__(self: set<T>):
+    def __init__(self):
         self := set<nothing>
     def __init__<N>(self, iterable: list<N>):
         self := set<N>
@@ -511,7 +510,7 @@ class set<T>:
     def __iand__(self, y: set) -> set
     def __ior__(self, y: set) -> set
     def __isub__(self, y: set) -> set
-    def __iter__(self: set<T>) -> setiterator<T>
+    def __iter__(self) -> setiterator<T>
     def __ixor__(self, y: set) -> set
     def __le__(self, y: set) -> bool
     def __len__(self) -> int
@@ -565,8 +564,8 @@ class frozenset:
     def union(self, ...) -> frozenset
 
 class setiterator<T>:
-    def __iter__(self: setiterator<T>) -> setiterator<T>
-    def next(self: setiterator<T>) -> T
+    def __iter__(self) -> setiterator<T>
+    def next(self) -> T
 
 class bool(int):
     def __init__(self, x)
@@ -849,7 +848,7 @@ class function:
     def __get__(self, obj, ...) -> instancemethod
 
 class generator<T>:
-    def __iter__(self: generator<T>) -> generator<T>
+    def __iter__(self) -> generator<T>
     def send(self, arg)
     def close(self) -> NoneType
     def next(self) -> T
