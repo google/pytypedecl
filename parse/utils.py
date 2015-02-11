@@ -79,7 +79,7 @@ def GetBuiltinsHierarchy():
   return builtins.Visit(visitors.ExtractSuperClassesByName())
 
 
-# TODO: memoize?
+# TODO: memoize (like GetBuiltins)
 def ParseBuiltinsFile(filename):
   """GetBuiltins(), but for a single file, not adding to builtins.modules.
 
