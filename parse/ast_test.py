@@ -104,6 +104,13 @@ class TestASTGeneration(parser_test.ParserTest):
     """)
     self.TestRoundTrip(src)
 
+  def testPass(self):
+    src = textwrap.dedent("""
+        class Foo(Bar):
+            pass
+    """)
+    self.TestRoundTrip(src)
+
   def testIndent(self):
     src = textwrap.dedent("""
         class Foo:

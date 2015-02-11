@@ -372,5 +372,42 @@ class TestOptimize(parser_test.ParserTest):
     ast = ast.Visit(optimize.AddInheritedMethods())
     self.AssertSourceEquals(ast, expected)
 
+  def testRemoveInheritedMethods(self):
+    src = textwrap.dedent("""
+        class A(nothing):
+            def f(self, y: int) -> bool
+            def g(self) -> float
+
+        class B(A):
+            def b(self) -> B
+            def f(self, y: int) -> bool
+
+        class C(A):
+            def c(self) -> C
+            def f(self, y: int) -> bool
+
+        class D(B):
+            def g(self) -> float
+            def d(self) -> D
+    """)
+    expected = textwrap.dedent("""
+        class A(nothing):
+            def f(self, y: int) -> bool
+            def g(self) -> float
+
+        class B(A):
+            def b(self) -> B
+
+        class C(A):
+            def c(self) -> C
+
+        class D(B):
+            def d(self) -> D
+    """)
+    ast = self.Parse(src)
+    ast = visitors.LookupClasses(ast, utils.GetBuiltins())
+    ast = ast.Visit(optimize.RemoveInheritedMethods())
+    self.AssertSourceEquals(ast, expected)
+
 if __name__ == "__main__":
   unittest.main()

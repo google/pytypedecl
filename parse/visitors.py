@@ -617,6 +617,7 @@ class VerifyVisitor(object):
 
   def EnterFunction(self, node):
     assert isinstance(node.name, str), node
+    assert node.signatures, node
     assert isinstance(node.signatures, tuple), node
     assert all(isinstance(sig, pytd.Signature) for sig in node.signatures)
 

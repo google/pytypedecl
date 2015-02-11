@@ -47,6 +47,7 @@ class ParserTest(unittest.TestCase):
       # This depends on pytd.Print not changing indents, which shouldn't happen:
       return src_or_tree
     else:  # isinstance(src_or_tree, tuple):
+      src_or_tree.Visit(visitors.VerifyVisitor())
       return pytd.Print(src_or_tree)
 
   def AssertSourceEquals(self, src_or_tree_1, src_or_tree_2):
@@ -56,6 +57,8 @@ class ParserTest(unittest.TestCase):
     # Due to differing opinions on the form of debug output, do
     # two checks:
     if src1 != src2:
+      sys.stdout.flush()
+      sys.stderr.flush()
       print >>sys.stderr, "Source files differ:"
       print >>sys.stderr, "-" * 36, " Actual ", "-" * 36
       print >>sys.stderr, textwrap.dedent(src1).strip()

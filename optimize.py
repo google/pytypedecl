@@ -589,8 +589,8 @@ class AddInheritedMethods(object):
     """Add superclass methods and constants to this Class."""
     if any(base for base in cls.parents if isinstance(base, pytd.NamedType)):
       raise AssertionError("AddInheritedMethods needs a resolved AST")
-    # It's not straightforward to do this for UnionTypes, GenericTypes etc.,
-    # so only use ClassType instances as base classes.
+    # Filter out only the types we can reason about.
+    # TODO: Do we want handle UnionTypes and GenericTypes at some point?
     bases = [base.cls
              for base in cls.parents
              if isinstance(base, pytd.ClassType)]
@@ -606,6 +606,105 @@ class AddInheritedMethods(object):
         if c.name not in names)
     cls = cls.Replace(methods=new_methods, constants=new_constants)
     return cls.Visit(visitors.AdjustSelf(force=True))
+
+
+class RemoveInheritedMethods(object):
+  """Removes methods from classes if they also exist in their superclass.
+
+  E.g. this changes
+        class A:
+            def f(self, y: int) -> bool
+        class B(A):
+            def f(self, y: int) -> bool
+  to
+        class A:
+            def f(self, y: int) -> bool
+        class B(A):
+            pass
+  .
+  """
+
+  def __init__(self):
+    self.class_to_stripped_signatures = {}
+    self.function = None
+    self.class_stack = []
+
+  def EnterClass(self, cls):
+    self.class_stack.append(cls)
+
+  def LeaveClass(self, _):
+    self.class_stack.pop()
+
+  def EnterFunction(self, function):
+    self.function = function
+
+  def LeaveFunction(self, _):
+    self.function = None
+
+  def _StrippedSignatures(self, t):
+    """Given a class, list method name + signature without "self".
+
+    Args:
+      t: A pytd.TYPE.
+
+    Returns:
+      A set of name + signature tuples, with the self parameter of the
+      signature removed.
+    """
+    if not isinstance(t, pytd.ClassType):
+      # For union types, generic types etc., inheritance is more complicated.
+      # Be conservative and default to not removing methods inherited from
+      # those.
+      return frozenset()
+
+    stripped_signatures = set()
+    for method in t.cls.methods:
+      for sig in method.signatures:
+        if (sig.params and
+            sig.params[0].name == "self" or
+            isinstance(sig.params[0].type, pytd.ClassType)):
+          stripped_signatures.add((method.name,
+                                   sig.Replace(params=sig.params[1:])))
+    return stripped_signatures
+
+  def _FindSigAndName(self, t, sig_and_name):
+    """Find a tuple(name, signature) in all methods of a type/class."""
+    if t not in self.class_to_stripped_signatures:
+      self.class_to_stripped_signatures[t] = self._StrippedSignatures(t)
+    if sig_and_name in self.class_to_stripped_signatures[t]:
+      return True
+    if isinstance(t, pytd.ClassType):
+      for base in t.cls.parents:
+        if self._FindSigAndName(base, sig_and_name):
+          return True
+    return False
+
+  def VisitSignature(self, sig):
+    """Visit a Signature and return None if we can remove it."""
+    if (not self.class_stack or
+        not sig.params or
+        sig.params[0].name != "self" or
+        not isinstance(sig.params[0].type, pytd.ClassType)):
+      return sig  # Not a method
+    cls = sig.params[0].type.cls
+    if cls is None:
+      # TODO: Remove once pytype stops generating ClassType(name, None).
+      return sig
+    sig_and_name = (self.function.name, sig.Replace(params=sig.params[1:]))
+    if any(self._FindSigAndName(base, sig_and_name) for base in cls.parents):
+      return None  # remove (see VisitFunction)
+    return sig
+
+  def VisitFunction(self, f):
+    """Visit a Function and return None if we can remove it."""
+    signatures = tuple(sig for sig in f.signatures if sig)
+    if signatures:
+      return f.Replace(signatures=signatures)
+    else:
+      return None  # delete function
+
+  def VisitClass(self, cls):
+    return cls.Replace(methods=tuple(m for m in cls.methods if m))
 
 
 class PullInMethodClasses(object):
@@ -743,6 +842,7 @@ def Optimize(node, flags=None):
   node = node.Visit(Factorize())
   node = node.Visit(ApplyOptionalArguments())
   node = node.Visit(CombineContainers())
+  node = node.Visit(RemoveInheritedMethods())
   if flags and flags.lossy:
     hierarchy = node.Visit(visitors.ExtractSuperClasses())
     node = node.Visit(
