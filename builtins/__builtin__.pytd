@@ -1,7 +1,5 @@
 # Currently the type annotations are just enough to make the tests
 # work. These should be extended.
-# TODO: Add type to self parameter for every class or decide
-#              they should be added during parsing.
 # TODO: Add type parameters to many more types. Among them:
 #              iterators
 #              iterables
@@ -21,32 +19,30 @@ def chr(i: int) -> str
 def cmp(x, y) -> int
 def cmp(x, y: int or float) -> int
 def cmp(x, y: complex) -> int
-def coerce(x: int, y: int) -> tuple<int, int>
-def coerce(x: int or float, y: float) -> tuple<float, float>
-def coerce(x: int or float or complex, y: complex) -> tuple<complex, complex>
-def coerce(x: float, y: int) -> tuple<float, float>
-def coerce(x, y) -> tuple<object, object>
-def coerce(x: list, y: list) -> tuple<list, list>
-def coerce(x: tuple, y: tuple) -> tuple<tuple, tuple>
-def coerce(x: complex, y: int or float) -> tuple<complex, complex>
-def coerce(x: function, y: function) -> tuple<function, function>
-def coerce(x: type, y: type) -> tuple<type, type>
-def coerce(x: iterator, y: iterator) -> tuple<iterator, iterator>
+def coerce(x: int, y: int) -> tuple<int>  # tuple<int, int>
+def coerce(x: int or float, y: float) -> tuple<float>  # tuple<float, float>
+def coerce(x: int or float or complex, y: complex) -> tuple<complex>  # tuple<complex, complex>
+def coerce(x: float, y: int) -> tuple<float>  # tuple<float, float>
+def coerce(x, y) -> tuple<object>  # tuple<object, object>
+def coerce(x: list, y: list) -> tuple<list>  # tuple<list, list>
+def coerce(x: tuple, y: tuple) -> tuple<tuple>  # tuple<tuple, tuple>
+def coerce(x: complex, y: int or float) -> tuple<complex>  # tuple<complex, complex>
+def coerce(x: function, y: function) -> tuple<function>  # tuple<function, function>
+def coerce(x: type, y: type) -> tuple<type>  # tuple<type, type>
+def coerce(x: iterator, y: iterator) -> tuple<iterator>  # tuple<iterator, iterator>
 def dir(...) -> list<str>
-def divmod(x: int, y: int) -> tuple<int, int>
-def divmod(x: int or float, y: float) -> tuple<float, float>
-def divmod(x: int or float or complex, y: complex) -> tuple<complex, complex>
-def divmod(x: float, y: int) -> tuple<float, float>
-def divmod(x: complex, y: int or float) -> tuple<complex, complex>
+def divmod(x: int, y: int) -> tuple<int>  # tuple<int, int>
+def divmod(x: int or float, y: float) -> tuple<float>  # tuple<float, float>
+def divmod(x: int or float or complex, y: complex) -> tuple<complex>  # tuple<complex, complex>
+def divmod(x: float, y: int) -> tuple<float>  # tuple<float, float>
+def divmod(x: complex, y: int or float) -> tuple<complex>  # tuple<complex, complex>
 def eval(src, ...) -> ?
 def execfile(filename: str, ...) -> NoneType
-def filter(function_or_None, sequence: str or bytearray) -> str
+def filter(function_or_None, sequence: str) -> str
+def filter(function_or_None, sequence: bytearray) -> list<int>
 def filter(function_or_None, sequence: unicode) -> unicode
 def filter(function_or_None, sequence: list or set or iterator) -> list
-def filter(function_or_None, sequence: tuple) -> tuple
-def filter(function_or_None: function or type, sequence: list or set) -> list<object> or list
-def filter(function_or_None: function or type, sequence: tuple) -> tuple<object, object, object> or tuple
-def filter(function_or_None: function or type, sequence: iterator) -> list<str> or list<unicode> or list
+def filter<A>(function_or_None, sequence: tuple<A>) -> tuple<A>
 def format(value, ...) -> str
 def format(value: unicode, ...) -> unicode
 def globals() -> dict<str, object>
@@ -165,16 +161,16 @@ class str(basestring):
     def ljust(self, width: int, ...) -> str
     def lower(self) -> str
     def lstrip(self, ...) -> str
-    def partition(self, sep: str or bytearray) -> tuple<str, str, str>
-    def partition(self, sep: unicode) -> tuple<unicode, unicode, unicode>
+    def partition(self, sep: str or bytearray) -> tuple<str>  # tuple<str, str, str>
+    def partition(self, sep: unicode) -> tuple<unicode>  # tuple<unicode, unicode, unicode>
     def replace(self, old: str or bytearray, new: str or bytearray, ...) -> str
     def replace(self, old: str or unicode or bytearray, new: unicode, ...) -> unicode
     def replace(self, old: unicode, new: str or bytearray, ...) -> unicode
     def rfind(self, sub: str or unicode or bytearray, ...) -> int
     def rindex(self, sub: str or unicode or bytearray, ...) -> int
     def rjust(self, width: int, ...) -> str
-    def rpartition(self, sep: str or bytearray) -> tuple<str, str, str>
-    def rpartition(self, sep: unicode) -> tuple<unicode, unicode, unicode>
+    def rpartition(self, sep: str or bytearray) -> tuple<str>  # tuple<str, str, str>
+    def rpartition(self, sep: unicode) -> tuple<unicode>  # tuple<unicode, unicode, unicode>
     def rsplit(self, ...) -> list<str>
     def rstrip(self, ...) -> str
     def split(self, ...) -> list<str>
@@ -228,12 +224,12 @@ class unicode(basestring):
     def ljust(self, width: int, ...) -> unicode
     def lower(self) -> unicode
     def lstrip(self, ...) -> unicode
-    def partition(self, sep: str or unicode or bytearray) -> tuple<unicode, unicode, unicode>
+    def partition(self, sep: str or unicode or bytearray) -> tuple<unicode>  # tuple<unicode, unicode, unicode>
     def replace(self, old: str or unicode or bytearray, new: str or unicode or bytearray, ...) -> unicode
     def rfind(self, sub: str or unicode or bytearray, ...) -> int
     def rindex(self, sub: str or unicode or bytearray, ...) -> int
     def rjust(self, width: int, ...) -> unicode
-    def rpartition(self, sep: str or unicode or bytearray) -> tuple<unicode, unicode, unicode>
+    def rpartition(self, sep: str or unicode or bytearray) -> tuple<unicode>  # tuple<unicode, unicode, unicode>
     def rsplit(self, ...) -> list<unicode>
     def rstrip(self, ...) -> unicode
     def split(self, ...) -> list<unicode>
@@ -289,7 +285,7 @@ class bytearray:
     def ljust(self, width: int, ...) -> bytearray
     def lower(self) -> bytearray
     def lstrip(self, ...) -> bytearray
-    def partition(self, sep: str or int or bytearray or iterator) -> tuple<bytearray, bytearray, bytearray>
+    def partition(self, sep: str or int or bytearray or iterator) -> tuple<bytearray>  # tuple<bytearray, bytearray, bytearray>
     def pop(self, ...) -> int
     def remove(self, int: str or int) -> NoneType
     def replace(self, old: str or bytearray, new: str or bytearray, ...) -> bytearray
@@ -297,7 +293,7 @@ class bytearray:
     def rfind(self, sub: str or bytearray, ...) -> int
     def rindex(self, sub: str or bytearray, ...) -> int
     def rjust(self, width: int, ...) -> bytearray
-    def rpartition(self, sep: str or int or bytearray or iterator) -> tuple<bytearray, bytearray, bytearray>
+    def rpartition(self, sep: str or int or bytearray or iterator) -> tuple<bytearray>  # tuple<bytearray, bytearray, bytearray>
     def rsplit(self, sep: str or bytearray, ...) -> list<bytearray>
     def rsplit(self) -> list<bytearray>
     def rstrip(self, ...) -> bytearray
@@ -324,7 +320,7 @@ class `dictionary-valueiterator`:
 
 class `dictionary-itemiterator`:
     def __iter__(self) -> `dictionary-itemiterator`
-    def next(self) -> tuple<object, object>
+    def next(self) -> tuple<object>  # tuple<object, object>
 
 class dict_keys:
     def __and__(self, y) -> set
@@ -389,14 +385,14 @@ class dict<K, V>:
     def fromkeys(self, S: dict, ...) -> dict<object, NoneType>
     def get(self, k: K, ...) -> V
     def has_key(self, k: K) -> bool
-    def items(self) -> list<tuple<K or V>>
+    def items(self) -> list<tuple<K or V>>  # list<tuple<K, V>>
     def iteritems(self) -> `dictionary-itemiterator`
     def iterkeys(self) -> `dictionary-keyiterator`
     def itervalues(self) -> `dictionary-valueiterator`
     def keys(self) -> list<K>
     def pop(self, k) -> V
     def pop<V2>(self, k, d: V2) -> V or V2
-    def popitem(self) -> tuple<unicode, object>
+    def popitem(self) -> tuple<K or V>  # tuple<K, V>
     def setdefault<K2>(self, k: K2) -> V or NoneType:
         self := dict<K or K2, V or NoneType>
     def setdefault<K2, V2>(self, k: K2, v: V2) -> V or V2:
@@ -412,10 +408,17 @@ class listiterator<T>:
     def __iter__(self: listiterator<T>) -> listiterator<T>
     def next(self: listiterator<T>) -> T
 
-class enumerate:
-    def __init__(self, iterable, ...)
-    def __iter__(self) -> enumerate
-    def next(self) -> tuple<int, object>
+class enumerate<T>:
+    def __init__<T2>(self, iterable: list<T2>, ...):
+        self := enumerate<T2>
+    def __init__<T2>(self, iterable: tuple<T2>, ...):
+        self := enumerate<T2>
+    def __init__<T2>(self, iterable: generator<T2>, ...):
+        self := enumerate<T2>
+    def __init__(self, ...):
+        self := enumerate<?>
+    def __iter__(self) -> enumerate<T>  # enumerate.__iter__() returns itself
+    def next(self) -> tuple<int or long or T>  # tuple<int or long, T>
 
 class listreverseiterator:
     def __iter__(self) -> listreverseiterator
@@ -573,10 +576,10 @@ class bool(int):
     def __and__(self, y: int) -> int
     def __and__(self, y: bool) -> bool
     def __cmp__(self, y: int or bool) -> int
-    def __coerce__(self, y: int) -> tuple<bool, int>
-    def __coerce__(self, y: bool) -> tuple<bool, bool>
+    def __coerce__(self, y: int) -> tuple<bool or int>  # tuple<bool, int>
+    def __coerce__(self, y: bool) -> tuple<bool>  # tuple<bool, bool>
     def __div__(self, y: int or bool) -> int
-    def __divmod__(self, y: int or bool) -> tuple<int, int>
+    def __divmod__(self, y: int or bool) -> tuple<int>  # tuple<int, int>
     def __float__(self) -> float
     def __floordiv__(self, y: int or bool) -> int
     def __hex__(self) -> str
@@ -599,7 +602,7 @@ class bool(int):
     def __rand__(self, y: int) -> int
     def __rand__(self, y: bool) -> bool
     def __rdiv__(self, y: int or bool) -> int
-    def __rdivmod__(self, y: int or bool) -> tuple<int, int>
+    def __rdivmod__(self, y: int or bool) -> tuple<int>  # tuple<int, int>
     def __rfloordiv__(self, y: int or bool) -> int
     def __rlshift__(self, y: int or bool) -> int
     def __rmod__(self, y: int or bool) -> int
@@ -628,9 +631,9 @@ class int:
     def __add__(self, y: int) -> int
     def __and__(self, y: int) -> int
     def __cmp__(self, y: int) -> int
-    def __coerce__(self, y: int) -> tuple<int, int>
+    def __coerce__(self, y: int) -> tuple<int>  # tuple<int, int>
     def __div__(self, y: int) -> int
-    def __divmod__(self, y: int) -> tuple<int, int>
+    def __divmod__(self, y: int) -> tuple<int>  # tuple<int, int>
     def __float__(self) -> float
     def __floordiv__(self, y: int) -> int
     def __hex__(self) -> str
@@ -670,7 +673,7 @@ class int:
     def bit_length(self) -> int
     def conjugate(self, ...) -> int
     def __rdiv__(self, y: int) -> int
-    def __rdivmod__(self, y: int) -> tuple<int, int>
+    def __rdivmod__(self, y: int) -> tuple<int>  # tuple<int, int>
     def __rfloordiv__(self, y: int) -> int
     def __rmod__(self, y: int) -> int
     def __rtruediv__(self, y: int) -> float
@@ -682,9 +685,9 @@ class long:
     def __add__(self, y: int or long) -> long
     def __and__(self, y: int or long) -> long
     def __cmp__(self, y: long) -> int
-    def __coerce__(self, y: int or long) -> tuple<long, long>
+    def __coerce__(self, y: int or long) -> tuple<long>  # tuple<long, long>
     def __div__(self, y: int or long) -> long
-    def __divmod__(self, y: int or long) -> tuple<long, long>
+    def __divmod__(self, y: int or long) -> tuple<long>  # tuple<long, long>
     def __float__(self) -> float
     def __floordiv__(self, y: int or long) -> long
     def __hex__(self) -> str
@@ -725,7 +728,7 @@ class long:
     def bit_length(self) -> int
     def conjugate(self, ...) -> long
     def __rdiv__(self, y: int or long) -> long
-    def __rdivmod__(self, y: int or long) -> tuple<long, long>
+    def __rdivmod__(self, y: int or long) -> tuple<long>  # tuple<long, long>
     def __rfloordiv__(self, y: int or long) -> long
     def __rmod__(self, y: int or long) -> long
     def __rtruediv__(self, y: int or long) -> float
@@ -736,10 +739,10 @@ class float:
     def __abs__(self) -> float or int
     def __add__(self, y: int or float) -> float
     def __cmp__(self, y: int or float) -> int
-    def __coerce__(self, y: int or float) -> tuple<float, float> or tuple<int, int>
+    def __coerce__(self, y: int or float) -> tuple<float or int>  # tuple<float, float> or tuple<int, int>
     def __div__(self, y: int) -> float or int
     def __div__(self, y: float) -> float
-    def __divmod__(self, y: int or float) -> tuple<float, float>
+    def __divmod__(self, y: int or float) -> tuple<float>  # tuple<float, float>
     def __float__(self) -> float
     def __floordiv__(self, y: int or float) -> float
     def __hex__(self) -> str
@@ -774,11 +777,11 @@ class float:
     def __lt__(self, y: int or float) -> bool
     def __ne__(self, y: int or float) -> bool
     def __rdiv__(self, y: int or float) -> float
-    def __rdivmod__(self, y: int or float) -> tuple<float, float>
+    def __rdivmod__(self, y: int or float) -> tuple<float>  # tuple<float, float>
     def __rfloordiv__(self, y: int or float) -> float
     def __rmod__(self, y: int or float) -> float
     def __rtruediv__(self, y: int or float) -> float
-    def as_integer_ratio(self) -> tuple<int, int>
+    def as_integer_ratio(self) -> tuple<int>  # tuple<int, int>
     def fromhex(self, string: str or unicode or bytearray) -> float
     def hex(self) -> str
     def is_integer(self, ...) -> bool
@@ -788,9 +791,9 @@ class complex:
     def __init__(self)
     def __abs__(self) -> float
     def __add__(self, y: int or float or complex) -> complex
-    def __coerce__(self, y: int or float or complex) -> tuple<complex, complex>
+    def __coerce__(self, y: int or float or complex) -> tuple<complex>  # tuple<complex, complex>
     def __div__(self, y: int or float or complex) -> complex
-    def __divmod__(self, y: int or float or complex) -> tuple<complex, complex>
+    def __divmod__(self, y: int or float or complex) -> tuple<complex>  # tuple<complex, complex>
     def __eq__(self, y: int or float or complex) -> bool
     def __floordiv__(self, y: int or float or complex) -> complex
     def __mod__(self, y: int or float or complex) -> complex
@@ -808,7 +811,7 @@ class complex:
     def __truediv__(self, y: int or float or complex) -> complex
     def conjugate(self) -> complex
     def __rdiv__(self, y: int or float or complex) -> complex
-    def __rdivmod__(self, y: int or float or complex) -> tuple<complex, complex>
+    def __rdivmod__(self, y: int or float or complex) -> tuple<complex>  # tuple<complex, complex>
     def __rfloordiv__(self, y: int or float or complex) -> complex
     def __rmod__(self, y: int or float or complex) -> complex
     def __rtruediv__(self, y: int or float or complex) -> complex
@@ -842,7 +845,7 @@ class file:
     def xreadlines(self) -> file
 
 class function:
-    def __call__(self, ...) -> NoneType  # TODO: -> ?  (refer to kramm@)
+    def __call__(self, ...) -> ?
     def __get__(self, obj, ...) -> instancemethod
 
 class generator<T>:
@@ -862,7 +865,7 @@ class module:
 class slice:
     def __init__(self, stop, ...)
     def __cmp__(self, y: slice) -> int
-    def indices(self, len: int) -> tuple<int, int, int>
+    def indices(self, len: int) -> tuple<int>  # tuple<int, int, int>
 
 class memoryview:
     def __init__(self, object: str or bytearray or memoryview)
