@@ -565,6 +565,49 @@ class ShortenParameterUnions(object):
     return param.Visit(ShortenUnions())
 
 
+class AddInheritedMethods(object):
+  """Copy methods and constants from base classes into their derived classes.
+
+  E.g. this changes
+      class Bar:
+        [methods and constants of Bar]
+      class Foo(Bar):
+        [methods and constants of Foo]
+  to
+      class Bar:
+        [methods and constants of Bar]
+      class Foo(Bar):
+        [methods and constants of Bar]
+        [methods and constants of Foo]
+  .
+  This is not an optimization by itself, but it can help with other
+  optimizations (like signature merging), and is also useful as preprocessor
+  for type matching.
+  """
+
+  def VisitClass(self, cls):
+    """Add superclass methods and constants to this Class."""
+    if any(base for base in cls.parents if isinstance(base, pytd.NamedType)):
+      raise AssertionError("AddInheritedMethods needs a resolved AST")
+    # It's not straightforward to do this for UnionTypes, GenericTypes etc.,
+    # so only use ClassType instances as base classes.
+    bases = [base.cls
+             for base in cls.parents
+             if isinstance(base, pytd.ClassType)]
+    # Don't pull in methods that are named the same as existing methods in
+    # this class, local methods override parent class methods.
+    names = {m.name for m in cls.methods} | {c.name for c in cls.constants}
+    # TODO: This should do full-blown MRO.
+    new_methods = cls.methods + tuple(
+        m for base in bases for m in base.methods
+        if m.name not in names)
+    new_constants = cls.constants + tuple(
+        c for base in bases for c in base.constants
+        if c.name not in names)
+    cls = cls.Replace(methods=new_methods, constants=new_constants)
+    return cls.Visit(visitors.AdjustSelf(force=True))
+
+
 class PullInMethodClasses(object):
   """Simplifies classes with only a __call__ function to just a method.
 

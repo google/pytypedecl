@@ -73,8 +73,10 @@ class PrintVisitor(object):
     """Visit a class, producing a multi-line, properly indented string."""
     if node.parents == ("object",):
       parents = ""  # object is the default superclass
-    else:
+    elif node.parents:
       parents = "(" + ", ".join(node.parents) + ")"
+    else:
+      parents = "(nothing)"
     template = "<" + ", ".join(node.template) + ">" if node.template else ""
     header = "class " + self.SafeName(node.name) + template + parents + ":"
     if node.methods or node.constants:
@@ -306,12 +308,13 @@ def FillInClasses(target, global_module=None):
     target.Visit(_FillInClasses(global_module, global_module))
 
 
-def LookupClasses(module, global_module=None):
+def LookupClasses(module, global_module=None, allow_unresolved=False):
   """Converts a module from one using NamedType to ClassType.
 
   Args:
     module: The module to process.
     global_module: The global (builtins) module for name lookup. Can be None.
+    allow_unresolved: If it's OK for some lookups to be unresolved.
 
   Returns:
     A new module that only uses ClassType. All ClassType instances will point
@@ -322,6 +325,8 @@ def LookupClasses(module, global_module=None):
   """
   module = module.Visit(NamedTypeToClassType())
   FillInClasses(module, global_module)
+  if not allow_unresolved:
+    module.Visit(VerifyLookup())
   return module
 
 

@@ -198,6 +198,9 @@ def _VisitNode(node, visitor, *args, **kwargs):
   Returns:
     The transformed Node (which *may* be the original node but could be a new
      node, even if the contents are the same).
+  Raises:
+    AssertionError: If the visitor specifies to support all node types
+      (implements_all_node_types), but we find a missing method.
   """
 
   node_class_name = node.__class__.__name__
