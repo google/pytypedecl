@@ -49,7 +49,8 @@ SLOTS = [
     Slot("__new__", "tp_new", "new"),
     Slot("__init__", "tp_init", "init"),
     Slot("__str__", "tp_print", "print"),
-    Slot("__repr__", "tp_repr", "repr"),
+    Slot("__repr__", "tp_repr", "repr",
+         opcode="UNARY_CONVERT"),
 
     Slot("__hash__", "tp_hash", "hash"),
     Slot("__call__", "tp_call", "call"),
@@ -132,7 +133,7 @@ SLOTS = [
     Slot("__pos__", "nb_positive", "unary",
          opcode="UNARY_POSITIVE"),
     Slot("__abs__", "nb_absolute", "unary"),
-    Slot("__nonzero__", "nb_nonzero", "inquiry"),
+    Slot("__nonzero__", "nb_nonzero", "inquiry"),  # inverse of UNARY_NOT opcode
     Slot("__invert__", "nb_invert", "unary",
          opcode="UNARY_INVERT"),
     Slot("__coerce__", "nb_coerce", "coercion"),  # not needed
@@ -249,7 +250,13 @@ COMPARE_OPS = [
 def GetBinaryOperatorMapping():
   return {slot.opcode[len("BINARY_"):]: slot.python_name
           for slot in SLOTS
-          if slot.opcode}
+          if slot.opcode and slot.opcode.startswith("BINARY_")}
+
+
+def GetUnaryOperatorMapping():
+  return {slot.opcode[len("UNARY_"):]: slot.python_name
+          for slot in SLOTS
+          if slot.opcode and slot.opcode.startswith("UNARY_")}
 
 
 def GetCompareFunctionMapping():
