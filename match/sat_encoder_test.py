@@ -1,76 +1,101 @@
 """Tests for pytypedecl.match.sat_encoder."""
 
 import logging
+import textwrap
 import unittest
-
-
-from pytypedecl import optimize
 from pytypedecl import pytd
-from pytypedecl.match import sat_encoder
-from pytypedecl.parse import utils
-from pytypedecl.parse import visitors
+from pytypedecl.match import sat_inferencer
 
 
-class SatEncoderTest(unittest.TestCase):
+FLAGS = flags.FLAGS  # TODO: move to google/
+
+
+class SATEncoderTest(unittest.TestCase):
 
   def setUp(self):
-    builtins = utils.GetBuiltins()
-    builtins = builtins.Visit(optimize.ExpandSignatures())
-    builtins = visitors.LookupClasses(builtins)
-    self.builtins = builtins
+    if FLAGS.verbosity:
+      logging.basicConfig(level=logging.INFO)
 
-    list_cls = builtins.Lookup("list")
+    # TODO: reduce the builtins, to allow shorter, more readable,
+    #                  tests (for now - in future, restore builtins)
+    self.inferencer = sat_inferencer.TypeInferencer()
+
+    list_cls = self.inferencer.builtins.Lookup("list")
     self.list_type = pytd.ClassType("list")
     self.list_type.cls = list_cls
 
-    bytearray_cls = builtins.Lookup("bytearray")
+    bytearray_cls = self.inferencer.builtins.Lookup("bytearray")
     self.bytearray_type = pytd.ClassType("bytearray")
     self.bytearray_type.cls = bytearray_cls
 
-    str_cls = builtins.Lookup("str")
+    str_cls = self.inferencer.builtins.Lookup("str")
     self.str_type = pytd.ClassType("str")
     self.str_type.cls = str_cls
 
-    int_cls = builtins.Lookup("int")
+    int_cls = self.inferencer.builtins.Lookup("int")
     self.int_type = pytd.ClassType("int")
     self.int_type.cls = int_cls
 
-    float_cls = builtins.Lookup("float")
+    float_cls = self.inferencer.builtins.Lookup("float")
     self.float_type = pytd.ClassType("float")
     self.float_type.cls = float_cls
 
-    object_cls = builtins.Lookup("object")
+    object_cls = self.inferencer.builtins.Lookup("object")
     self.object_type = pytd.ClassType("object")
     self.object_type.cls = object_cls
 
-    none_cls = builtins.Lookup("NoneType")
+    none_cls = self.inferencer.builtins.Lookup("NoneType")
     self.none_type = pytd.ClassType("NoneType")
     self.none_type.cls = none_cls
 
-  def _Solve(self, incomplete_classes):
-    sat = sat_encoder.SatEncoder()
-    sat.Generate(self.builtins.classes, incomplete_classes)
-    res = sat.Solve()
-    return res
+  def _SolveClasses(self, incomplete_classes):
+    parsed_incomplete = pytd.TypeDeclUnit(
+        constants=(),
+        classes=incomplete_classes,
+        functions=(),
+        modules={})
+    # The following 2 lines are the same as TypeInferencer.ParseAndSolve(),
+    # except the parsing has already been done to an AST (but no other
+    # processing has been done to the AST):
+    incomplete = self.inferencer.LookupParsed(parsed_incomplete)
+    return self.inferencer.SolveFromParsedLookedUpClasses(incomplete.classes)
 
   def testMembersDirectFromClass(self):
-    # in pytd:
-    #   class A:
-    #     def __add__(self, x:int or float) -> float
-    #   class B:
-    #     def __add__(self, x:bytearray) -> bytearray
-    # So the following is subtlely wrong because it has
-    #   def __add__(self:float, ...) ...
-    cls_a = pytd.Class("A", (),
-                       (self.builtins.Lookup("float").Lookup("__add__"),),
-                       (), ())
-    cls_b = pytd.Class("B", (),
-                       (self.builtins.Lookup("bytearray").Lookup("__add__"),),
-                       (), ())
-    res = self._Solve([cls_a, cls_b])
+    # Note that this test is a bit of a cheat: def _add__(self:float, ...)
+    cls_a = pytd.Class(
+        "A", (),
+        (self.inferencer.builtins.Lookup("float").Lookup("__add__"),),
+        (), ())
+    cls_b = pytd.Class(
+        "B", (),
+        (self.inferencer.builtins.Lookup("bytearray").Lookup("__add__"),),
+        (), ())
+    res = self._SolveClasses([cls_a, cls_b])
+    self.assertItemsEqual({cls_a: self.float_type,
+                           cls_b: self.bytearray_type},
+                          res)
 
-    self.assertEqual(res[cls_a], self.float_type)
-    self.assertEqual(res[cls_b], self.bytearray_type)
+  def testMembersDirectFromParsedClass(self):
+    # This is essentially the same as testMembersDirectFromClass with the cheat
+    # removed, and using the pytd parser.
+    src = """
+      class A:
+        def __add__(self: A, x:int or float) -> float
+      class B:
+        def __add__(self: B, x:bytearray) -> bytearray
+    """
+    src = textwrap.dedent(src)
+    # The following 2 lines are the same as TypeInferencer.ParseAndSolve()
+    # but keep the parsed result for validation
+    parsed_looked_up = self.inferencer.ParseAndLookup(src)
+    res = self.inferencer.SolveFromParsedLookedUpClasses(
+        parsed_looked_up.classes)
+    # Make sure that the classes that were given to the solver were as expected:
+    self.assertEqual([c.name for c in parsed_looked_up.classes], ["A", "B"])
+    self.assertItemsEqual(
+        {parsed_looked_up.classes[0]: self.float_type,
+         parsed_looked_up.classes[1]: self.bytearray_type},
+        res)
 
   @unittest.skip("Not yet implemented")
   def testUnion(self):
@@ -79,7 +104,7 @@ class SatEncoderTest(unittest.TestCase):
                         pytd.Parameter("v", self.int_type)),
                        self.none_type, (), (), False),)),),
                        (), ())
-    res = self._Solve([cls_d])
+    res = self._SolveClasses([cls_d])
 
     self.assertEqual(res[cls_d],
                      pytd.UnionType((self.list_type, self.bytearray_type)))
@@ -92,7 +117,7 @@ class SatEncoderTest(unittest.TestCase):
                         pytd.Parameter("v", self.float_type)),
                        self.none_type, (), (), False),)),),
                        (), ())
-    res = self._Solve([cls_d])
+    res = self._SolveClasses([cls_d])
 
     self.assertEqual(res[cls_d], self.list_type)
     # TODO: D#.A is actually wrong. It should be D#.T. However that
@@ -102,9 +127,10 @@ class SatEncoderTest(unittest.TestCase):
                      self.float_type)
 
   def testSingleListInOut(self):
-    cls_a = pytd.Class("A", (),
-                       (self.builtins.Lookup("float").Lookup("__add__"),),
-                       (), ())
+    cls_a = pytd.Class(
+        "A", (),
+        (self.inferencer.builtins.Lookup("float").Lookup("__add__"),),
+        (), ())
     type_a = pytd.ClassType("A")
     type_a.cls = cls_a
 
@@ -118,7 +144,7 @@ class SatEncoderTest(unittest.TestCase):
                             pytd.Parameter("i", self.object_type)),
                            type_a, (), (), False),))),
                        (), ())
-    res = self._Solve([cls_d, cls_a])
+    res = self._SolveClasses([cls_d, cls_a])
 
     self.assertEqual(res[cls_d], self.list_type)
     self.assertEqual(res[pytd.Class("D#.T", (), (), (), ())],
@@ -135,7 +161,7 @@ class SatEncoderTest(unittest.TestCase):
                         pytd.Parameter("v", self.float_type)),
                        self.none_type, (), (), False),)),),
                         (), ())
-    res = self._Solve([cls_d, cls_d2])
+    res = self._SolveClasses([cls_d, cls_d2])
 
     self.assertEqual(res[cls_d], self.list_type)
     # TODO: D#.A is actually wrong. It should be D#.T. See testSingleList
@@ -153,21 +179,24 @@ class SatEncoderTest(unittest.TestCase):
                        self.float_type, (), (), False),)),),
                        (), ())
     cls_a_type.cls = cls_a
-    res = self._Solve([cls_a])
+    res = self._SolveClasses([cls_a])
 
     self.assertEqual(res[cls_a],
                      self.float_type)
 
   @unittest.skip("TODO: Failing probably due to a set ordering issue.")
   def testAllAtOnce(self):
-    cls_a = pytd.Class("A", (),
-                       (self.builtins.Lookup("float").Lookup("__add__"),),
-                       (), ())
-    cls_b = pytd.Class("B", (),
-                       (self.builtins.Lookup("bytearray").Lookup("__add__"),),
-                       (), ())
-    cls_c = pytd.Class("C", (), (self.builtins.Lookup("str").Lookup("join"),),
-                       (), ())
+    cls_a = pytd.Class(
+        "A", (),
+        (self.inferencer.builtins.Lookup("float").Lookup("__add__"),),
+        (), ())
+    cls_b = pytd.Class(
+        "B", (),
+        (self.inferencer.builtins.Lookup("bytearray").Lookup("__add__"),),
+        (), ())
+    cls_c = pytd.Class(
+        "C", (),
+        (self.inferencer.builtins.Lookup("str").Lookup("join"),), (), ())
     cls_d = pytd.Class("D", (), (pytd.Function("append", (
         pytd.Signature((pytd.Parameter("self", self.list_type),
                         pytd.Parameter("v", self.none_type)),
@@ -179,7 +208,7 @@ class SatEncoderTest(unittest.TestCase):
                        self.none_type, (), (), False),)),),
                         (), ())
 
-    res = self._Solve([cls_a, cls_b, cls_c, cls_d, cls_d2])
+    res = self._SolveClasses([cls_a, cls_b, cls_c, cls_d, cls_d2])
 
     self.assertEqual(res[cls_a], self.float_type)
     self.assertEqual(res[cls_b], self.bytearray_type)
@@ -194,5 +223,4 @@ class SatEncoderTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-  # logging.basicConfig(level=logging.DEBUG)
   unittest.main()

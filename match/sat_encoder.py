@@ -5,8 +5,6 @@ import collections
 import functools
 import itertools
 import logging
-
-
 from pytypedecl import pytd
 from pytypedecl.match import sat_problem
 
@@ -19,9 +17,14 @@ class Type(object):
     structure: the structure of this type as a dict of names to pytd.Functions.
   """
 
+  def __new__(cls, *unused_args, **unused_kwds):
+    """Constructor that prevents Type from being instantiated."""
+    assert cls is not Type, "Cannot instantiate Type"
+    return object.__new__(cls)
+
   def IsNominallyCompatibleWith(self, other):
     """True if self and other are compatible nominally."""
-    raise NotImplementedError
+    raise NotImplementedError((self, other))
 
   @staticmethod
   def FromPyTD(td, complete=True, path=None):
@@ -30,22 +33,33 @@ class Type(object):
         return ClassType(td.cls, complete)
       else:
         name = str(path or "") + "." + td.name
-        return ClassType(pytd.Class(name, (), (), (), ()), False)
+        return ClassType(
+            pytd.Class(name, parents=(), methods=(), constants=(), template=()),
+            complete=False)
     elif isinstance(td, pytd.PARAMETRIC_TYPES):
       return Type.FromPyTD(td.base_type)
     elif isinstance(td, pytd.UnionType):
       return UnionType(Type.FromPyTD(t) for t in td.type_list)
     else:
-      raise TypeError("Cannot convert: {} ({})".format(td, td.__class__))
+      raise TypeError(
+          "Cannot convert: {} ({!s}) ({!r})".format(type(td), td, td))
 
   def ToPyTD(self):
-    raise NotImplementedError()
+    raise NotImplementedError(self)
 
   def __gt__(self, other):
     return str(self) < str(other)
 
   def __eq__(self, other):
+    # Must be implemented by subclass (for total ordering):
     raise NotImplementedError()
+
+  def __str__(self):
+    # Must be implemented by subclass (for total ordering - see __gt__):
+    raise NotImplementedError()
+
+  def __hash__(self):
+    raise NotImplementedError(self)
 
 
 class ClassType(Type):
@@ -53,12 +67,10 @@ class ClassType(Type):
 
   def __init__(self, cls, complete):
     super(ClassType, self).__init__()
-    assert isinstance(cls, pytd.Class)
-    self.structure = {}
+    assert isinstance(cls, pytd.Class), (type(cls), cls)
     self.cls = cls
     self.complete = complete
-    for func in cls.methods:
-      self.structure[func.name] = func
+    self.structure = {func.name: func for func in cls.methods}
 
   def IsNominallyCompatibleWith(self, other):
     if isinstance(other, ClassType):
@@ -79,15 +91,23 @@ class ClassType(Type):
     return hash(self.cls)
 
   def __eq__(self, other):
-    if isinstance(other, ClassType):
-      return self.cls == other.cls and self.complete == other.complete
+    eq = isinstance(other, ClassType) and (
+        self.cls == other.cls and self.complete == other.complete)
+    if eq:  # __gt__ is defined in base class
+      assert not self.__gt__(other) and not other.__gt__(self)
     else:
-      return False
+      assert self.__gt__(other) or other.__gt__(self)
+    return eq
 
   def __ne__(self, other):
     return not self == other
 
   def __repr__(self):
+    return "{type}(cls={self.cls}, complete={self.complete})".format(
+        type=type(self).__name__, self=self)
+
+  def __str__(self):
+    # Used by total ordering
     return "{}{}".format(self.cls.name,
                          "" if self.complete else "#")
 
@@ -129,7 +149,6 @@ class UnionType(Type):
     assert all(isinstance(ty, ClassType) for ty in subtypes)
     self.subtypes = subtypes
     self.complete = all(ty.complete for ty in subtypes)
-
     self.structure = _IntersectStructures(subtypes)
 
   def IsNominallyCompatibleWith(self, other):
@@ -143,15 +162,21 @@ class UnionType(Type):
     return hash(self.subtypes)
 
   def __eq__(self, other):
-    if isinstance(other, UnionType):
-      return self.subtypes == other.subtypes
+    eq = isinstance(other, UnionType) and self.subtypes == other.subtypes
+    if eq:  # __gt__ is defined in base class
+      assert not self.__gt__(other) and not other.__gt__(self)
     else:
-      return False
+      assert self.__gt__(other) or other.__gt__(self)
+    return eq
 
   def __ne__(self, other):
     return not self == other
 
   def __repr__(self):
+    return "{type}({self.subtypes})".format(type=type(self).__name__, self=self)
+
+  def __str__(self):
+    # Used by total ordering
     return "U{}".format(tuple(self.subtypes))
 
 
@@ -169,6 +194,11 @@ class Equality(collections.namedtuple("Equality", ["left", "right"])):
     return super(Equality, cls).__new__(cls, *sorted((left, right)))
 
   def __repr__(self):
+    return "{type}(left={self.left}, right={self.right})".format(
+        type=type(self).__name__, self=self)
+
+  def __str__(self):
+    # Used by total ordering
     return "[{}={}]".format(self.left, self.right)
 
   def Other(self, v):
@@ -183,7 +213,7 @@ def Powerset(iterable):
                                        for r in range(len(s) + 1))
 
 
-class SatEncoder(object):
+class SATEncoder(object):
   """Generate and solve a SAT problem from sets of classes."""
 
   def __init__(self):
@@ -202,10 +232,10 @@ class SatEncoder(object):
     self.sat.Hint(a, b)
 
   def _SATEquals(self, a, b):
-    self.sat.Equals("{} <==> {}".format(a, b), a, b)
+    self.sat.Equals(a, b)
 
-  def _SATImplies(self, a, b, nodup=False):
-    self.sat.Implies("{} ==> {}".format(a, b), a, b, nodup=nodup)
+  def _SATImplies(self, a, b):
+    self.sat.Implies(a, b)
 
   def _TypeFromPyTD(self, td, path):
     if isinstance(td, pytd.ClassType):
@@ -244,13 +274,24 @@ class SatEncoder(object):
         for left_sig in left_func.signatures)
 
   def _GenerateConstraints(self, class_variables):
-    for var in class_variables:
+    """Generate constraints for the SAT solver from a set of class_variables.
+
+    The constraints are created in a deterministic order (wherever there's
+    iteration over a set or dict, the iteration is done in sorted order).
+
+    Args:
+      class_variables: an iterator of classes. See
+        sat_inferencer.TypeInferencer.SolveFormParsedLookUpClasses for an example.
+    Returns:
+      None. The constraints are added to self
+    """
+    for var in sorted(class_variables):
       left, right = var
       if not left.IsNominallyCompatibleWith(right):
         self._SATEquals(var, False)
       else:
         conj = set()
-        for name in set(left.structure) | set(right.structure):
+        for name in sorted(set(left.structure) | set(right.structure)):
           if name in left.structure and name in right.structure:
             left_func = left.structure[name]
             right_func = right.structure[name]
@@ -276,6 +317,9 @@ class SatEncoder(object):
 
   def Generate(self, complete_classes, incomplete_classes):
     """Generate the constraints from the given classes.
+
+    The constraints are created in a deterministic order (wherever there's
+    iteration over a set or dict, the iteration is done in sorted order).
 
     Args:
       complete_classes: An iterable of classes that we assume we know everthing
@@ -306,16 +350,17 @@ class SatEncoder(object):
     logging.info("# Vars: %r", len(variables))
 
     logging.debug("Types: %r", self.types)
+    self_types_sorted = sorted(self.types)
 
     # TODO: do we need the the transitive constraints?
     use_transitivity_constraints = True
     if use_transitivity_constraints:
-      incomplete_types = [t for t in self.types if not t.complete]
-      for a in self.types:
-        for b in incomplete_types:
+      incomplete_types_sorted = sorted(t for t in self.types if not t.complete)
+      for a in self_types_sorted:
+        for b in incomplete_types_sorted:
           if a == b:
             continue
-          for c in self.types:
+          for c in self_types_sorted:
             if a == c or b == c:
               continue
             eq1 = Equality(a, b)
@@ -327,12 +372,11 @@ class SatEncoder(object):
             self._SATImplies(sat_problem.Conjunction((eq1, eq2)), eq3)
 
     logging.info("Writing SAT problem")
-    for ty in self.types:
+    for ty in self_types_sorted:
       if isinstance(ty, ClassType) and not ty.complete:
-        vs = [v for v in variables
-              if ty in v and v.Other(ty).complete]
+        vs = sorted(v for v in variables if ty in v and v.Other(ty).complete)
         # logging.info("%r", vs)
-        self.sat.BetweenNM("Force assign {}".format(ty), vs, 1, None)
+        self.sat.BetweenNM(vs, 1, None, ty)
 
   def Solve(self):
     """Solve the constraints generated by calls to generate.
@@ -343,9 +387,9 @@ class SatEncoder(object):
     """
     self.sat.Solve()
     results = {}
-    for var, value in self.sat:
+    for var, value in sorted(self.sat):
       if value is not False:
-        logging.info("%s = %r", var, value)
+        logging.info("SAT result: %s = %r", var, value)
       if value and isinstance(var, Equality):
         incomp = var.left if not var.left.complete else var.right
         if var.Other(incomp).complete:

@@ -1,10 +1,24 @@
 """Tests for match.sat_problem."""
 
+import logging
 import unittest
 from pytypedecl.match import sat_problem
 
 
-class SatProblemTest(unittest.TestCase):
+FLAGS = flags.FLAGS  # TODO: move to google/
+
+
+class SATProblemTest(unittest.TestCase):
+
+  def setUp(self):
+    if FLAGS.verbosity:
+      logging.basicConfig(level=logging.INFO)
+    self.problem = sat_problem.SATProblem(name="PROBLEM")
+
+  def _ProblemSolveAndCheck(self, **expected):
+    self.problem.Solve()
+    self.assertItemsEqual(dict(**expected), self.problem._results,
+                          "Wrong result: " + str(self.problem))
 
   def testConjunction(self):
     self.assertEqual(True,
@@ -48,53 +62,223 @@ class SatProblemTest(unittest.TestCase):
 
   # TODO: Add one test for each transformation in sat_problem.
 
-  def testEquals(self):
-    problem = sat_problem.SATProblem(name="PROBLEM")
-    problem.Equals("foo == bar", "foo", "bar")
-    self.assertItemsEqual(["foo", "bar"], problem._variables)
-    problem.Solve()
-    # TODO: Can we improve str(problem) for debugging and give that
-    #                  as the 3rd param to assertXXX? Right now, str(problem)
-    #                  is really ugly.
-    # TODO: Solver() has two possible results. We could add an
-    #                  additional constraint like foo=True to reduce to a single
-    #                  possibility, allowing us to use self.assertItemsEqual
-    self.assertTrue(dict(foo=True, bar=True) == problem._results or
-                    dict(foo=False, bar=False) == problem._results)
+  def testImplies1(self):
+    self.problem.Implies("p", "q")
+    self.problem.Equals("p", True)
+    self.problem.Equals("q", True)
+    self._ProblemSolveAndCheck(p=True, q=True)
 
-  # TODO: The following is somewhat like a "change detector"
-  #                  test. THIS TEST IS FRAGILE but not flaky and should be
+  def testImplies2(self):
+    self.problem.Implies("p", "q")
+    self.problem.Equals("p", True)
+    self.problem.Equals("q", False)
+    self._ProblemSolveAndCheck()
+
+  def testImplies3(self):
+    self.problem.Implies("p", "q")
+    self.problem.Equals("p", False)
+    self.problem.Equals("q", True)
+    self._ProblemSolveAndCheck(p=False, q=True)
+
+  def testImplies4(self):
+    self.problem.Implies("p", "q")
+    self.problem.Equals("p", False)
+    self.problem.Equals("q", False)
+    self._ProblemSolveAndCheck(p=False, q=False)
+
+  def testEquals1a(self):
+    self.problem.Equals("p", "q")
+    self.problem.Equals("p", True)
+    self.problem.Equals("q", True)
+    self._ProblemSolveAndCheck(p=True, q=True)
+
+  def testEquals1b(self):
+    self.problem.Equals("p", "q")
+    self.problem.Equals("p", True)
+    self.problem.Equals("q", False)
+    self._ProblemSolveAndCheck()
+
+  def testEquals1c(self):
+    self.problem.Equals("p", "q")
+    self.problem.Equals("p", False)
+    self.problem.Equals("q", True)
+    self._ProblemSolveAndCheck()
+
+  def testEquals1d(self):
+    self.problem.Equals("p", "q")
+    self.problem.Equals("p", False)
+    self.problem.Equals("q", False)
+    self._ProblemSolveAndCheck(p=False, q=False)
+
+
+class SATProblemPBTest(unittest.TestCase):
+
+  def setUp(self):
+    if FLAGS.verbosity:
+      logging.basicConfig(level=logging.INFO)
+    self.problem = sat_problem.SATProblem(name="PROBLEM")
+
+  def _CheckProblemPB(self, vars_expected, ascii_expected):
+    """Create LinearBooleanProblem protobuf from ascii representation."""
+    self.problem.End()
+    problem_expected = boolean_problem_pb2.LinearBooleanProblem()
+    text_format.Parse(ascii_expected, problem_expected)
+    self.assertItemsEqual(vars_expected, self.problem._variables)
+    self.assertEqual(str(problem_expected), str(self.problem.problem))
+
+  # TODO: The following tests are somewhat like a "change detector"
+  #                  test. THESE TESTS ARE FRAGILE but not flaky and should be
   #                  modified to be more robust.
   #                  However, it's also useful to check that the expected
   #                  constraints were generated from the original problem.
   #                  The main problem is that it's overly prescriptive, but
   #                  it's a fair bit of work to make a PB comparitor that's
   #                  more forgiving of small changes.
-  def testEqualsPB(self):
-    problem = sat_problem.SATProblem(name="PROBLEM")
-    problem.Equals("foo == bar", "foo", "bar")
-    problem_expected = _make_problem_pb("""
-      name: "PROBLEM"
-      constraints {
-        literals: -1        literals: 2
-        coefficients: 1     coefficients: 1
-        lower_bound: 1
-        name: "foo == bar"
-      }
-      constraints {
-        literals: -2        literals: 1
-        coefficients: 1     coefficients: 1
-        lower_bound: 1
-        name: "foo == bar"
-      }""")
-    self.assertEqual(str(problem_expected), str(problem.problem))
 
+  def testImpliesPB1(self):
+    self.problem.Implies("foo", True)
+    self._CheckProblemPB(
+        [],
+        """name: "PROBLEM"
+        num_variables: 0
+        """)
 
-def _make_problem_pb(ascii):
-  """Create LinearBooleanProblem protobuf from ascii representation."""
-  result = boolean_problem_pb2.LinearBooleanProblem()
-  text_format.Parse(ascii, result)
-  return result
+  def testImpliesPB2(self):
+    self.problem.Implies("foo", False)
+    self._CheckProblemPB(
+        ["foo"],
+        """name: "PROBLEM"
+        num_variables: 1  var_names: "foo"
+        constraints {
+          literals: 1
+          coefficients: 1
+          upper_bound: 0
+          name: "foo ==> False ... foo <==> False ... foo :=> False"
+        }""")
+
+  def testImpliesPB3(self):
+    self.problem.Implies("foo", "bar")
+    self._CheckProblemPB(
+        ["foo", "bar"],
+        """name: "PROBLEM"
+        num_variables: 2  var_names: "foo"  var_names: "bar"
+        constraints {
+          literals: -1      literals: 2
+          coefficients: 1   coefficients: 1
+          lower_bound: 1
+          name: "foo ==> bar"
+        }""")
+
+  def testEqualsPB1(self):
+    self.problem.Equals("foo", "bar")
+    self._CheckProblemPB(
+        ["foo", "bar"],
+        """name: "PROBLEM"
+        num_variables: 2  var_names: "foo" var_names: "bar"
+        constraints {
+          literals: -1        literals: 2
+          coefficients: 1     coefficients: 1
+          lower_bound: 1
+          name: "foo <==> bar ... foo ==> bar"
+        }
+        constraints {
+          literals: -2        literals: 1
+          coefficients: 1     coefficients: 1
+          lower_bound: 1
+          name: "foo <==> bar ... bar ==> foo"
+        }""")
+
+  def testEqualsPB2(self):
+    self.problem.Equals("foo", True)
+    self._CheckProblemPB(
+        ["foo"],
+        """name: "PROBLEM"
+        num_variables: 1  var_names: "foo"
+        constraints {
+          literals: 1
+          coefficients: 1
+          lower_bound: 1
+          name: "foo <==> True ... foo :=> True"
+        }""")
+
+  def testEqualsPB3(self):
+    self.problem.Equals(True, "foo")
+    self._CheckProblemPB(
+        ["foo"],
+        """name: "PROBLEM"
+        num_variables: 1  var_names: "foo"
+        constraints {
+          literals: 1
+          coefficients: 1
+          lower_bound: 1
+          name: "True <==> foo ... foo <==> True ... foo :=> True"
+        }""")
+
+  def testEqualsPB4(self):
+    self.problem.Equals("foo", False)
+    self._CheckProblemPB(
+        ["foo"],
+        """name: "PROBLEM"
+        num_variables: 1  var_names: "foo"
+        constraints {
+          literals: 1
+          coefficients: 1
+          upper_bound: 0
+          name: "foo <==> False ... foo :=> False"
+        }""")
+
+  def testEqualsPB5(self):
+    self.problem.Equals(False, "foo")
+    self._CheckProblemPB(
+        ["foo"],
+        """name: "PROBLEM"
+        num_variables: 1  var_names: "foo"
+        constraints {
+          literals: 1
+          coefficients: 1
+          upper_bound: 0
+          name: "False <==> foo ... foo <==> False ... foo :=> False"
+        }""")
+
+  def testAssignPB1(self):
+    self.problem.Assign("foo", "bar")
+    self._CheckProblemPB(
+        # TODO: why isn't this ["foo", "bar"] and below?
+        ["foo"],
+        """name: "PROBLEM"
+        num_variables: 1  var_names: "foo"
+        constraints {
+          literals: 1
+          coefficients: 1
+          lower_bound: 1
+          name: "foo :=> bar"
+        }""")
+
+  def testAssignPB2(self):
+    self.problem.Assign("foo", False)
+    self._CheckProblemPB(
+        ["foo"],
+        """name: "PROBLEM"
+        num_variables: 1  var_names: "foo"
+        constraints {
+          literals: 1
+          coefficients: 1
+          upper_bound: 0
+          name: "foo :=> False"
+        }""")
+
+  def testAssignPB3(self):
+    self.problem.Assign("foo", True)
+    self._CheckProblemPB(
+        ["foo"],
+        """name: "PROBLEM"
+        num_variables: 1  var_names: "foo"
+        constraints {
+          literals: 1
+          coefficients: 1
+          lower_bound: 1
+          name: "foo :=> True"
+        }""")
 
 
 if __name__ == "__main__":

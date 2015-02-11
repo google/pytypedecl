@@ -23,16 +23,15 @@ from pytypedecl.parse import node
 
 
 # TODO(ampere): Add __new__ to Type subclasses that contain sequences to
-#               convertion arguments to tuples?
+#               convert arguments to tuples?
 
 
-class Type(object):
-  """The superclass of all types.
+# Explanation of TYPE_MIXIN: It's only used by
+# pytype.typegraph.atomic_abstract_value.known_no_subtype ... if a.TYPE_MIXIN
+# then don't do a = a.to_type()
 
-  This is a marker superclass that is mixed into each class that represents a
-  pytd type.
-  """
-  pass
+# TODO: Need a better explanation
+# TODO: Need a better name
 
 
 class TypeDeclUnit(node.Node('constants', 'classes', 'functions', 'modules')):
@@ -44,6 +43,7 @@ class TypeDeclUnit(node.Node('constants', 'classes', 'functions', 'modules')):
     classes: List of classes defined in this type decl unit.
     modules: Map of submodules of the current module.
   """
+  __slots__ = ()
 
   def Lookup(self, name):
     """Convenience function: Look up a given name in the global namespace.
@@ -94,6 +94,7 @@ class Class(node.Node('name', 'parents', 'methods', 'constants', 'template')):
   """
   # TODO: Rename "parents" to "bases". "Parents" is confusing since we're
   #              in a tree.
+  __slots__ = ()
 
   def Lookup(self, name):
     """Convenience function: Look up a given name in the class namespace.
@@ -130,7 +131,7 @@ class Function(node.Node('name', 'signatures')):
 
 
 class Signature(node.Node('params', 'return_type', 'exceptions', 'template',
-                          'has_optional'), Type):
+                          'has_optional')):
   """Represents an individual signature of a function.
 
   For overloaded functions, this is one specific combination of parameters.
@@ -145,7 +146,7 @@ class Signature(node.Node('params', 'return_type', 'exceptions', 'template',
     template: names for bindings for bounded types in params/return_type
     has_optional: Do we have optional parameters ("...")?
   """
-
+  TYPE_MIXIN = True
   __slots__ = ()
 
 
@@ -201,20 +202,22 @@ class TemplateItem(node.Node('name', 'within_type')):
 # representations.
 
 
-class NamedType(node.Node('name'), Type):
+class NamedType(node.Node('name')):
   """A type specified by name."""
+  TYPE_MIXIN = True
   __slots__ = ()
 
   def __str__(self):
     return str(self.name)
 
 
-class NativeType(node.Node('python_type'), Type):
+class NativeType(node.Node('python_type')):
   """A type specified by a native Python type. Used during runtime checking."""
+  TYPE_MIXIN = True
   __slots__ = ()
 
 
-class ClassType(node.Node('name'), Type):
+class ClassType(node.Node('name')):
   """A type specified through an existing class node."""
 
   # This type is different from normal nodes:
@@ -226,6 +229,9 @@ class ClassType(node.Node('name'), Type):
   #     to classes that are back at the top of the tree, that would generate
   #     cycles.
 
+  TYPE_MIXIN = True
+  __slots__ = ()
+
   def __new__(cls, name):
     self = super(ClassType, cls).__new__(cls, name)
     self.cls = None  # later, name is looked up, and cls is filled in
@@ -235,33 +241,43 @@ class ClassType(node.Node('name'), Type):
     return str(self.cls.name) if self.cls else self.name
 
   def __repr__(self):
-    return '{%sClassType}(%s)' % (
-        'Unresolved' if self.cls is None else '',
-        self.name
-    )
+    # TODO: can name and cls.name ever differ?
+    #                  -- should remove this redundancy
+    assert self.name == self.cls.name, (self.name, self.cls.name, self)
+    return '{type}{cls}({name})'.format(
+        type=type(self).__name__,
+        name=self.name,
+        cls='<unresolved>' if self.cls is None else '')
+        # if self.cls.name == self.name
+        # else '[' + self.cls.name + ']')
 
 
-class UnknownType(node.Node(), Type):
+class UnknownType(node.Node()):
   """A type we know nothing about yet."""
+  TYPE_MIXIN = True
   __slots__ = ()
 
 
-class NothingType(node.Node(), Type):
+class NothingType(node.Node()):
   """An "impossible" type, with no instances.
 
   Also known as the "uninhabited" type. For representing empty lists, and
   functions that never return.
   """
+  TYPE_MIXIN = True
   __slots__ = ()
 
 
-class Scalar(node.Node('value'), Type):
+class Scalar(node.Node('value')):
+  TYPE_MIXIN = True
   __slots__ = ()
 
 
-class UnionType(node.Node('type_list'), Type):
+class UnionType(node.Node('type_list')):
   """A union type that contains all types in self.type_list."""
+  TYPE_MIXIN = True
   __slots__ = ()
+
   # TODO(ampere): Add __new__ that converts type_list to tuple?
 
   def __hash__(self):
@@ -276,17 +292,19 @@ class UnionType(node.Node('type_list'), Type):
     return not self == other
 
 
-class IntersectionType(node.Node('type_list'), Type):
+class IntersectionType(node.Node('type_list')):
+  TYPE_MIXIN = True
   __slots__ = ()
 
 
-class GenericType(node.Node('base_type', 'parameters'), Type):
+class GenericType(node.Node('base_type', 'parameters')):
   """Generic type. Takes a base type and type paramters.
 
   Attributes:
     base_type: The base type. Instance of Type.
     parameters: Type paramters. Tuple of instances of Type.
   """
+  TYPE_MIXIN = True
   __slots__ = ()
 
 

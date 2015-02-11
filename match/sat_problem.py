@@ -17,7 +17,7 @@ from pytypedecl import utils
 
 
 
-def GetSatRunnerBinary():
+def GetSATRunnerBinary():
   return "sat_runner"  # pylint: disable=unreachable
 
 
@@ -48,7 +48,7 @@ class Conjunction(collections.namedtuple("Conjunction", ["exprs"])):
     return type(self) == type(other) and self.exprs == other.exprs
 
   def __ne__(self, other):
-    return not (self == other)
+    return not self == other
 
   # __hash__(self) uses tuple.__hash__, which is "good enough"
 
@@ -83,7 +83,7 @@ class Disjunction(collections.namedtuple("Disjunction", ["exprs"])):
     return type(self) == type(other) and self.exprs == other.exprs
 
   def __ne__(self, other):
-    return not (self == other)
+    return not self == other
 
   # __hash__(self) uses tuple.__hash__, which is "good enough"
 
@@ -94,16 +94,14 @@ class Disjunction(collections.namedtuple("Disjunction", ["exprs"])):
 class SATProblem(object):
   """A simplified SAT solver interface.
 
-  This implements a dict-like interface, allowing iteration over the results, or
-  selecting an individual result by name.
+  Allows access to an individual result by variable name, or iteration over
+  (var, value) pairs.
   """
 
   def __init__(self, name="", initial_polarity=True):
-    pb = boolean_problem_pb2
-    problem = pb.LinearBooleanProblem()
-    problem.name = name
+    self.problem = boolean_problem_pb2.LinearBooleanProblem()
+    self.problem.name = name
     self.initial_polarity = initial_polarity
-    self.problem = problem
     self.constraints = set()
     self._next_id = 1
     self._id_table = {}
@@ -118,41 +116,91 @@ class SATProblem(object):
 
   def __repr__(self):
     return ("{type}("
-            "initial_polarity={s.initial_polarity}, "
-            "_next_id={s._next_id}, "
-            "_variables={s._variables}, "
-            "problem={s.problem!s}, "
-            "constraints={s.constraints!r}, "
-            "_results={s._results!r}"
+            "initial_polarity={self.initial_polarity}, "
+            "_next_id={self._next_id}, "
+            "_variables={self._variables}, "
+            "problem={self.problem!s}, "
+            "constraints={self.constraints!r}, "
+            "_results={self._results!r}"
             ")").format(type=type(self).__name__,
-                        s=self)
+                        self=self)
 
   def Solve(self):
     """Solve the SAT problem that has been created by calling methods on self.
+
     The result is available by self[var] or iterating over self
     """
+
+    self.End()
+    problemfile, solutionfile, commandline = self._BuildSolverCmd()
+    solution = None
+    try:
+      subprocess.check_call(commandline)
+      logging.info("Loading SAT problem buffer: %r", solutionfile)
+      solution = boolean_problem_pb2.LinearBooleanProblem()
+      with open(solutionfile, "rb") as fi:
+        solution.ParseFromString(fi.read())
+      self._results = {v: None for v in self._variables}
+      if logging.getLogger().isEnabledFor(logging.DEBUG):
+        # The following will contain the problem also:
+        logging.debug("SAT result")
+        logging.debug("%s", solution)
+        logging.debug("SAT result (end)")
+      if not solution.assignment.literals and self._variables:
+        logging.error("SAT solver failed.")
+        self._results = {}
+        return
+      for varid in solution.assignment.literals:
+        self._results[self._variables[abs(varid) - 1]] = varid > 0
+    except subprocess.CalledProcessError:
+      logging.error("SAT solver failed. Returning the empty result.",
+                    exc_info=True)
+      self._results = {}
+      return
+    finally:
+      os.unlink(problemfile)
+      os.unlink(solutionfile)
+      if logging.getLogger().isEnabledFor(logging.DEBUG):
+        if solution and solution.HasField("assignment"):
+          logging.debug(
+              "solution assignment: %s",
+              text_format.MessageToString(solution))
+          logging.debug("solution assignment (end)")
+        else:
+          logging.debug(
+              "solution problem: %s",
+              text_format.MessageToString(self.problem))
+          logging.debug("solution problem (end)")
+
+  def End(self):
+    """Fill in the final details of the protobuf."""
     logging.info("%d formulae, %d variables",
                  len(self.problem.constraints), len(self._variables))
     self.problem.num_variables = self._next_id - 1
-    # We don't actually need variable names in the buffer, so leave them out to
-    # save space.
-    # self.problem.var_names.extend(str(v) for v in self._variables)
+    # The var_names aren't needed but don't do any harm, except for taking up a
+    # bit of space:
+    self.problem.var_names.extend(str(v) for v in self._variables)
     if logging.getLogger().isEnabledFor(logging.DEBUG):
       for i, var in enumerate(self._variables):
         logging.debug("%d: %r", i + 1, var)
 
+  def _BuildSolverCmd(self):
+    """File names and commandline list for sat_runner."""
     logging.info("Storing SAT problem buffer")
-    with tempfile.NamedTemporaryFile(delete=False, mode="wb") as fi:
+    tmpdir = os.environ.get("TEST_TMPDIR", None) or (
+        os.environ.get("TMPDIR", None))
+    with tempfile.NamedTemporaryFile(
+        prefix="problem_", delete=False, dir=tmpdir, mode="wb") as fi:
       fi.write(self.problem.SerializeToString())
       problemfile = fi.name
 
     logging.info("Solving: %r", problemfile)
-    tmpdir = os.environ.get("TEST_TMPDIR", None) or (
-             os.environ.get("TMPDIR", None))
-    with tempfile.NamedTemporaryFile(delete=False, dir=tmpdir) as solutionfi:
+    # Ensure the solutionfile exists and is empty
+    with tempfile.NamedTemporaryFile(
+        prefix="solution_", delete=False, dir=tmpdir) as solutionfi:
       solutionfi.write("")
       solutionfile = solutionfi.name
-    commandline = [GetSatRunnerBinary()]
+    commandline = [GetSATRunnerBinary()]  # TODO: "-strict_validity"
     if logging.getLogger().isEnabledFor(logging.INFO):
       commandline.append("-logtostderr")
     if self.initial_polarity:
@@ -161,63 +209,40 @@ class SATProblem(object):
         "-input=" + problemfile,
         "-output=" + solutionfile,
         "-use_lp_proto=false"])
-    solution = None
+    logging.debug("solver cmd: %s", commandline)
+    return problemfile, solutionfile, commandline
 
-    try:
-      subprocess.check_call(commandline)
-      logging.info("Loading SAT problem buffer: %r", solutionfile)
-      solution = boolean_problem_pb2.LinearBooleanProblem()
-      with open(solutionfile, "rb") as fi:
-        solution.ParseFromString(fi.read())
-      self._results = {v: None for v in self._variables}
-      if not solution.assignment.literals and self._variables:
-        logging.error("SAT solver failed.")
-        self._results = {}
-        return
-      for varid in solution.assignment.literals:
-        self._results[self._variables[abs(varid) - 1]] = varid > 0
-    except subprocess.CalledProcessError:
-      logging.error("SAT solver failed. Probably UNSAT, returning the empty "
-                    "result.", exc_info=True)
-      self._results = {}
-      return
-    finally:
-      if logging.getLogger().isEnabledFor(logging.DEBUG):
-        if solution and solution.HasField("assignment"):
-          logging.debug(text_format.MessageToString(solution))
-        else:
-          logging.debug(text_format.MessageToString(self.problem))
-
-  def Implies(self, name, cond, implicand, nodup=False):
-    """Add the implication: cond ==> implicand."""
+  def Implies(self, cond, implicand, descr_so_far=None):
+    """Add implication: cond ==> implicand."""
+    descr = (descr_so_far or []) + ["{} ==> {}".format(cond, implicand)]
     if implicand is False:
-      self.Equals(name, cond, implicand)
+      self.Equals(cond, implicand, descr)
     elif implicand is True:
-      pass
+      return
     elif isinstance(cond, Disjunction):
       for expr in cond.exprs:
-        self.Implies(name, expr, implicand)
+        self.Implies(expr, implicand, descr)
+    # TODO: should we add the following simplification?
+    #                  it's probably not general enough; but it catches
+    #                  some cases of duplication
+    # elif isinstance(implicand, Conjunction) and cond in implicand.exprs:
+    #   new_implicand_exprs = [x for x in implicand.exprs if x != cond]
+    #   self.Implies(cond, Conjunction(new_implicand_exprs), descr)
+    #   return
     else:
       # Ignore duplicate constraints
-      if not nodup:
-        ident = (self.Implies, cond, implicand)
-        if ident in self.constraints:
-          return
-        self.constraints.add(ident)
+      ident = ("Implies", cond, implicand)
+      if ident in self.constraints:
+        return
+      self.constraints.add(ident)
 
-      constraint = self.problem.constraints.add()
-      constraint.name = name
+      constraint = self._AddProblemConstraint(descr)
       conds = cond.exprs if isinstance(cond, Conjunction) else [cond]
-
-      if isinstance(implicand, (Disjunction, Conjunction)):
-        implicands = implicand.exprs
-      else:
-        implicands = [implicand]
-
-      if isinstance(implicand, Disjunction):
-        n_implicands_required = 1
-      else:
-        n_implicands_required = len(implicands)
+      implicands = (
+          implicand.exprs if isinstance(implicand, (Disjunction, Conjunction))
+          else [implicand])
+      n_implicands_required = (
+          1 if isinstance(implicand, Disjunction) else len(implicands))
 
       for v in conds:
         constraint.literals.append(-self._GetVariableIDOrLift(v))
@@ -230,32 +255,34 @@ class SATProblem(object):
         constraint.coefficients.append(1)
       constraint.lower_bound = n_implicands_required
 
-  def Equals(self, name, left, right):
+  def Equals(self, left, right, descr_so_far=None):
+    """Add equality: left <==> right."""
+    descr = (descr_so_far or []) + ["{} <==> {}".format(left, right)]
     if isinstance(left, bool):
       if isinstance(right, bool):
         raise ValueError("Booleans cannot be constrained equal to each other")
-      self.Equals(name, right, left)
+      self.Equals(right, left, descr)
     elif isinstance(right, bool):
-      self.Assign(name, left, right)
+      self.Assign(left, right, descr)
     else:
-      self.Implies(name, left, right)
-      self.Implies(name, right, left)
+      self.Implies(left, right, descr)
+      self.Implies(right, left, descr)
 
-  def Assign(self, name, left, value):
-    """Assign left to the boolean value."""
+  def Assign(self, left, value, descr_so_far=None):
+    """Add assignment of left to the boolean value."""  # TODO(pludeman): assign left to right????
+    descr = (descr_so_far or []) + ["{} :=> {}".format(left, value)]
     if isinstance(left, (Conjunction, Disjunction)):
       lefts = left.exprs
     else:
       lefts = [left]
 
     # Ignore duplicate constraints
-    ident = (self.Assign, left, value)
+    ident = ("Assign", left, value)
     if ident in self.constraints:
       return
     self.constraints.add(ident)
 
-    constraint = self.problem.constraints.add()
-    constraint.name = name
+    constraint = self._AddProblemConstraint(descr)
     # The polarity is set to negated literals (-1) if left is a conjunction
     polarity = -1 if isinstance(left, Conjunction) else 1
     for v in lefts:
@@ -267,16 +294,16 @@ class SATProblem(object):
     else:
       constraint.upper_bound = 0
 
-  def BetweenNM(self, name, variables, n, m):
-    """Require that the number of true variables is between n and m."""
+  def BetweenNM(self, variables, n, m, ty, descr_so_far=None):
+    """Add requirement that the number of true variables is between n and m."""
+    descr = (descr_so_far or []) + ["Force assign {}".format(ty)]
     # Ignore duplicate constraints
-    ident = (self.BetweenNM, tuple(variables), n, m)
+    ident = ("BetweenNM", tuple(variables), n, m)
     if ident in self.constraints:
       return
     self.constraints.add(ident)
 
-    constraint = self.problem.constraints.add()
-    constraint.name = name
+    constraint = self._AddProblemConstraint(descr)
     for v in variables:
       constraint.literals.append(self._GetVariableID(v))
       constraint.coefficients.append(1)
@@ -294,12 +321,14 @@ class SATProblem(object):
     obj.coefficients.append(-1)
 
   def _GetVariableIDOrLift(self, expr):
-    if not isinstance(expr, (Disjunction, Conjunction, bool)):
-      return self._GetVariableID(expr)
-    else:
+    if isinstance(expr, (Disjunction, Conjunction, bool)):
       tmp = self._GetTmpVariableID()
-      self.Equals("Lift: {}".format(expr), tmp, expr)
+      self.Equals(tmp, expr, ["Lift: {}".format(expr)])
       return self._GetVariableID(tmp)
+    else:
+      # It's not necessarily a string ... e.g. sat_encoder.Equality
+      # TODO: document the possible expr types
+      return self._GetVariableID(expr)
 
   def _GetTmpVariableID(self):
     name = "tmp{}".format(self._next_id)
@@ -320,6 +349,12 @@ class SATProblem(object):
       self._variables.append(var)
       return i
 
+  def _AddProblemConstraint(self, descr):
+    constraint = self.problem.constraints.add()
+    constraint.name = " ... ".join(descr)
+    return constraint
+
   def Hint(self, var, value):
     """Hint the solver than var should have value."""
     # TODO(ampere): Add support for hinting the SAT solver with variable values.
+    pass
