@@ -20,7 +20,7 @@
 
 import collections
 import re
-from .. import pytd
+from pytypedecl import pytd
 
 
 class PrintVisitor(object):
@@ -28,10 +28,11 @@ class PrintVisitor(object):
   implements_all_node_types = True
 
   INDENT = " " * 4
-  VALID_NAME = re.compile(r"^[a-zA-Z_]\w*$")
+  # Don't use \w in following because it can change with LOCALE/UNICODE.
+  VALID_NAME = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
   def __init__(self):
-    self.class_name = None
+    self.class_names = []
 
   def SafeName(self, name):
     if not self.VALID_NAME.match(name):
@@ -50,6 +51,8 @@ class PrintVisitor(object):
 
   def VisitTypeDeclUnit(self, node):
     """Convert the AST for an entire module back to a string."""
+    # TODO: node.modules.values is from a dict, so
+    #                  not in a deterministic order.
     sections = [node.constants, node.functions,
                 node.classes, node.modules.values()]
     sections_as_string = ("\n".join(section_suite)
@@ -62,13 +65,16 @@ class PrintVisitor(object):
     return node.name + ": " + node.type
 
   def EnterClass(self, cls):
-    self.class_name = self.SafeName(cls.name + self.ClassTemplateString(cls))
+    self.class_names.append(
+        self.SafeName(cls.name) + self.ClassTemplateString(cls))
 
-  def LeaveClass(self, _):
-    self.class_name = None
+  def LeaveClass(self, cls):
+    self.class_names.pop()
 
   def ClassTemplateString(self, cls):
-    return "<" + ", ".join(cls.template) + ">" if cls.template else ""
+    return ("<" +
+            ", ".join(self.SafeName(t.name) for t in cls.template) +
+            ">" if cls.template else "")
 
   def VisitClass(self, node):
     """Visit a class, producing a string.
@@ -83,7 +89,6 @@ class PrintVisitor(object):
       string representation of this class
     """
     parents = "(" + ", ".join(node.parents) + ")" if node.parents else ""
-    template = self.ClassTemplateString(node)
     if node.methods or node.constants:
       # We have multiple methods, and every method has multiple signatures
       # (i.e., the method string will have multiple lines). Combine this into
@@ -94,7 +99,8 @@ class PrintVisitor(object):
     else:
       constants = []
       methods = [self.INDENT + "pass"]
-    header = "class " + self.SafeName(node.name) + template + parents + ":"
+    before = ("<" + ", ".join(node.template) + "> ") if node.template else ""
+    header = "class " + before + self.SafeName(node.name) + parents + ":"
     return "\n".join([header] + constants + methods) + "\n"
 
   def VisitFunction(self, node):
@@ -109,7 +115,9 @@ class PrintVisitor(object):
     Returns:
       string representation of the function.
     """
-    return "\n".join("def " + node.name + sig for sig in node.signatures)
+    # node.signatures has the function name incorporated with '%s'
+    function_name = self.SafeName(node.name)
+    return "\n".join(("def " + sig) % function_name for sig in node.signatures)
 
   def VisitSignature(self, node):
     """Visit a signature, producing a string.
@@ -120,12 +128,17 @@ class PrintVisitor(object):
     Args:
       node: signature node
     Returns:
-      string representation of the signature (no "def" and function name)
+      string representation of the signature with %s for the function name.
     """
-    # TODO: template
+    # The '%s' is for VisitFunction to fill in the function name
+    if node.template:
+      before = "<" + ", ".join(node.template) + "> %s"
+    else:
+      before = "%s"
 
     # Potentially abbreviate. "?" is the default.
-    ret = " -> " + node.return_type if node.return_type != "?" else ""
+    return_type = node.return_type
+    ret = " -> " + return_type if return_type != "?" else ""
 
     exc = " raises " + ", ".join(node.exceptions) if node.exceptions else ""
     optional = ("...",) if node.has_optional else ()
@@ -133,20 +146,21 @@ class PrintVisitor(object):
     mutable_params = [p for p in self.old_node.params  # pylint: disable=no-member (old_node is set in parse/node.py)
                       if isinstance(p, pytd.MutableParameter)]
     if mutable_params:
-      stmts = "\n".join(self.INDENT + name + " := " + new.Visit(PrintVisitor())
+      stmts = "\n".join(self.INDENT + name + " := " + pytd.Print(new)
                         for name, _, new in mutable_params)
       body = ":\n" + stmts
     else:
       body = ""
 
-    return "(" + ", ".join(node.params + optional) + ")" + ret + exc + body
+    return before + "(" + ", ".join(node.params + optional) + ")" + ret + exc + body
 
   def VisitParameter(self, node):
     """Convert a function parameter to a string."""
     if node.type == "object":
       # Abbreviated form. "object" is the default.
       return node.name
-    elif node.name == "self" and node.type == self.class_name:
+    elif node.name == "self" and self.class_names and (
+        node.type == self.class_names[-1]):
       return node.name
     else:
       return node.name + ": " + node.type
@@ -316,6 +330,7 @@ def LookupClasses(module, global_module=None):
 
   Args:
     module: The module to process.
+    global_module: The global (builtins) module for name lookup. Can be None.
 
   Returns:
     A new module that only uses ClassType. All ClassType instances will point
@@ -437,7 +452,7 @@ class InstantiateTemplatesVisitor(object):
     Returns:
       A new NamedType pointing to an instantiation of the class.
     """
-    name = node.Visit(PrintVisitor())
+    name = pytd.Print(node)
     if name not in self.classes_to_instantiate:
       self.classes_to_instantiate[name] = node
     return pytd.NamedType(name)
@@ -456,7 +471,7 @@ class InstantiateTemplatesVisitor(object):
     Returns:
       A new NamedType pointing to an instantiation of the class.
     """
-    name = node.Visit(PrintVisitor())
+    name = pytd.Print(node)
     if name not in self.classes_to_instantiate:
       self.classes_to_instantiate[name] = node
     return pytd.NamedType(name)
@@ -511,7 +526,7 @@ class AdjustSelf(object):
   """
 
   def __init__(self, replace_unknown=False, force=False):
-    self.class_type = None
+    self.class_types = []
     self.force = force
     self.replaced_self_types = (pytd.NamedType("object"),
                                 pytd.ClassType("object"))
@@ -519,10 +534,13 @@ class AdjustSelf(object):
       self.replaced_self_types += (pytd.UnknownType(),)
 
   def EnterClass(self, cls):
-    self.class_type = ClassAsType(cls)
+    self.class_types.append(ClassAsType(cls))
 
-  def LeaveClass(self, _):
-    self.class_type = None
+  def LeaveClass(self, unused_node):
+    self.class_types.pop()
+
+  def VisitClass(self, node):
+    return node
 
   def VisitMutableParameter(self, p):
     p2 = self.VisitParameter(p)
@@ -540,11 +558,11 @@ class AdjustSelf(object):
     Returns:
       Adjusted pytd.Parameter instance.
     """
-    if not self.class_type:
+    if not self.class_types:
       # We're not within a class, so this is not a parameter of a method.
       return p
     if p.name == "self" and (self.force or p.type in self.replaced_self_types):
-      return pytd.Parameter("self", self.class_type)
+      return pytd.Parameter("self", self.class_types[-1])
     else:
       return p
 

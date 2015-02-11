@@ -14,12 +14,17 @@
 # limitations under the License.
 
 
+import re
 import textwrap
 import unittest
 
 from pytypedecl import pytd
 from pytypedecl.parse import parser_test
 from pytypedecl.parse import visitors
+
+
+# All of these tests implicitly test pytd.Print because
+# parser_test.AssertSourceEquals() uses pytd.Print.
 
 
 class TestVisitors(parser_test.ParserTest):
@@ -146,6 +151,95 @@ class TestVisitors(parser_test.ParserTest):
     tree = self.Parse(src)
     new_tree = tree.Visit(visitors.StripSelf())
     self.AssertSourceEquals(new_tree, expected)
+
+  @unittest.skip("TODO: Invalid tree: Signature not inside Function")
+  def testPrintInvalidTree(self):
+    """An actual example that Print to fail."""
+    # The problem is Signature inside HomogeneousContainerType, but
+    # Print only works if Signature is directly inside Function
+    tree = pytd.TypeDeclUnit(
+        constants=(), functions=(), modules={},
+        classes=(
+            pytd.Class(
+                name="list", parents=(), constants=(), template=(),
+                methods=(
+                    pytd.Function(
+                        name="__getitem__",
+                        signatures=(
+                            pytd.Signature(
+                                params=(
+                                    pytd.Parameter(
+                                        name="self",
+                                        type=pytd.HomogeneousContainerType(
+                                            base_type=pytd.ClassType("list"),
+                                            parameters=(
+                                                pytd.Signature(
+                                                    params=(),
+                                                    return_type=pytd.UnknownType(),
+                                                    exceptions=(),
+                                                    template=(),
+                                                    has_optional=True), ))
+                                        ),
+                                    pytd.Parameter(
+                                        name="y",
+                                        type=pytd.ClassType("~unknown3"))),
+                                return_type=pytd.Signature(
+                                    (), pytd.UnknownType(), (), (), True),
+                                exceptions=(),
+                                template=(),
+                                has_optional=False), )
+                        ), # end Function(__getitem__)
+                    ),
+                ), ))
+    expect = textwrap.dedent("""\
+        class list:
+            def __getitem__(self: list<(...)>, y: `~unknown3`) -> (...)
+    """)
+    # remove trailing blanks on lines (dedent doesn't do it):
+    expect = re.sub(r" +\n", "\n", expect).lstrip()
+    printed = pytd.Print(tree)
+    self.AssertSourceEquals(printed, expect)
+
+  def testPrint(self):
+    """Try every pytd class that can be generated from parser."""
+    # TODO: node.modules
+    # TODO: 'and' in type?
+    # TODO: is 'def F() -> ?' is same as 'def F()'
+    src = textwrap.dedent("""
+      CONST1: int
+      CONST2: int or float or Foo
+
+      def Func()
+      def FuncX() -> ?
+      def Func2(a: int, b) raises AnException
+      def Func3(a: str or float) -> ? raises Except1 or Except2
+      def <T> Func3(a: int, b: T, c: list<T>) -> float or T or int
+      def <K extends int, V> Func4(a: dict<K, V>) -> NoneType
+
+      class <V, K extends str> C1(C2, C3, C4):
+          def __init__(self: C1<V, K>) -> NoneType
+          def Func4(k: K, v: V) -> K or V
+    """)
+    expect = textwrap.dedent("""
+      CONST1: int
+      CONST2: int or float or Foo
+
+      def Func()
+      def FuncX()
+      def Func2(a: int, b) raises AnException
+      def Func3(a: str or float) raises Except1 or Except2
+      def <T> Func3(a: int, b: T, c: list<T>) -> float or T or int
+      def <K extends int, V> Func4(a: dict<K, V>) -> NoneType
+
+      class <V, K extends str> C1(C2, C3, C4):
+          def __init__(self) -> NoneType
+          def Func4(k: K, v: V) -> K or V
+    """)
+    # remove trailing blanks on lines (dedent doesn't do it):
+    expect = re.sub(r" +\n", "\n", expect).lstrip()
+    tree = self.Parse(src)
+    printed = pytd.Print(tree)
+    self.AssertSourceEquals(printed, expect)
 
 
 if __name__ == "__main__":

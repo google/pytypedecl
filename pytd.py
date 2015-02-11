@@ -19,6 +19,8 @@
 
 """AST representation of a pytd file."""
 
+
+import re
 from pytypedecl.parse import node
 
 
@@ -348,4 +350,7 @@ def Print(n):
   """Convert a PYTD node to a string."""
   # TODO: fix circular import
   from pytypedecl.parse import visitors
-  return n.Visit(visitors.PrintVisitor())
+  res = n.Visit(visitors.PrintVisitor())
+  # Remove trailing blanks on lines (*not* \s which includes \n) -- these come
+  # from indents that have no other code on them.
+  return re.sub(r" +\n", "\n", res)

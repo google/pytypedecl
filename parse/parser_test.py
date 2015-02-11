@@ -49,8 +49,8 @@ class ParserTest(unittest.TestCase):
 
   def AssertSourceEquals(self, src_or_tree_1, src_or_tree_2):
     # Strip leading "\n"s for convenience
-    src1 = self.ToSource(src_or_tree_1).strip()
-    src2 = self.ToSource(src_or_tree_2).strip()
+    src1 = self.ToSource(src_or_tree_1).strip() + "\n"
+    src2 = self.ToSource(src_or_tree_2).strip() + "\n"
     # Due to differing opinions on the form of debug output, do
     # two checks:
     if src1 != src2:

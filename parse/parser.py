@@ -530,7 +530,7 @@ class TypeDeclParser(object):
     p[0] = [p[1]]
 
   def p_template(self, p):
-    """template : LBRACKET templates RBRACKET"""
+    """template : LBRACKET template_items RBRACKET"""
     p[0] = p[2]
     # Verify we don't have duplicate identifiers.
     names = [template.name for template in p[2]]
@@ -543,12 +543,12 @@ class TypeDeclParser(object):
     # TODO: test cases
     p[0] = []
 
-  def p_templates_multi(self, p):
-    """templates : templates COMMA template_item"""
+  def p_template_items_multi(self, p):
+    """template_items : template_items COMMA template_item"""
     p[0] = p[1] + [p[3]]
 
-  def p_templates_1(self, p):
-    """templates : template_item"""
+  def p_template_items_1(self, p):
+    """template_items : template_item"""
     p[0] = [p[1]]
 
   def p_template_item(self, p):

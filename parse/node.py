@@ -58,6 +58,7 @@ functionalities to be made part of collections.namedtuple.
 """
 
 import collections
+import itertools
 
 
 def Node(*child_names):
@@ -164,7 +165,7 @@ def Node(*child_names):
 
 
 def _VisitNode(node, visitor, *args, **kwargs):
-  """Transform a node an all its children using a visitor.
+  """Transform a node and all its children using a visitor.
 
   This will iterate over all children of this node, and also process certain
   things that are not nodes. The latter are either other supported types of
@@ -177,38 +178,48 @@ def _VisitNode(node, visitor, *args, **kwargs):
           tree, or any other type (which will be returned unmodified).
     visitor: The visitor to apply. If this visitor has a "Visit<Name>" method,
           with <Name> the name of the Node class, a callback will be triggered,
-          and the transformed version of this node will be whatever the
-          callback returned, or the original node if the callback returned None.
-          Before calling the Visit callback, the following attribute(s) on the
-          Visitor class will be populated:
-          vistor.old_node: The node before the child nodes were visited.
+          and the transformed version of this node will be whatever the callback
+          returned, or the original node if the callback returned None.  Before
+          calling the Visit callback, the following attribute(s) on the Visitor
+          class will be populated:
+            vistor.old_node: The node before the child nodes were visited.
+
           Additionally, if the visitor has a "Enter<Name>" method, that method
           will be called on the original node before descending into it. If
           "Enter<Name>" returns False, the visitor will not visit children of
-          this node.
+          this node (the result of "Enter<Name>" is otherwise unused; in
+          particular it's OK to return None, which will be ignored).
+          ["Enter<Name>" is called pre-order; "Visit<Name> and "Leave<Name>" are
+          called post-order.]  A counterpart to "Enter<Name>" is "Leave<Name>",
+          which is intended for any clean-up that "Enter<Name>" needs (other
+          than that, it's redunddant, and could be combined with "Visit<Name>").
     *args: Passed to visitor callbacks.
     **kwargs: Passed to visitor callbacks.
   Returns:
-    The transformed Node.
+    The transformed Node (which *may* be the original node but could be a new
+     node, even if the contents are the same).
   """
 
+  node_class_name = node.__class__.__name__
   if hasattr(node, "Visit") and node.Visit.im_func != _VisitNode:
     # Node with an overloaded Visit() function. It'll do its own processing.
     return node.Visit(visitor, *args, **kwargs)
   elif isinstance(node, tuple):
-    enter_function = "Enter" + node.__class__.__name__
-    if hasattr(visitor, enter_function):
+    enter_function = getattr(visitor, "Enter" + node_class_name, None)
+    if enter_function:
       # The visitor wants to be informed that we're descending into this part
       # of the tree.
-      status = getattr(visitor, enter_function)(node, *args, **kwargs)
+      status = enter_function(node, *args, **kwargs)
       # Don't descend if Enter<Node> explicitly returns False, but not None,
       # since None is the default return of Python functions.
       if status is False:
         return node
+      # Any other value returned from Enter is ignored, so check:
+      assert status is None, repr(node_class_name, status)
 
     new_children = [_VisitNode(child, visitor, *args, **kwargs)
                     for child in node]
-    if any(c1 is not c2 for c1, c2 in zip(new_children, node)):
+    if any(c1 is not c2 for c1, c2 in itertools.izip(new_children, node)):
       # Exact comparison, because classes deriving from tuple (like namedtuple)
       # have different constructor arguments.
       if node.__class__ is tuple:
@@ -222,24 +233,28 @@ def _VisitNode(node, visitor, *args, **kwargs):
     else:
       # Optimization: if we didn't change any of the children, keep the entire
       # object the same.
+      # TODO: Does this actually have any benefit? The test is
+      #                  moderately expensive and a new node just copies a few
+      #                  pointers (and turns over a bit of memory). Nobody
+      #                  should depend on the tree remaining identical (object
+      #                  identity) if the visitor makes no changes to any node.
       new_node = node
 
     visitor.old_node = node
     # Now call the user supplied callback(s), if they exists. Notice we only do
     # this for tuples.
-    name = node.__class__.__name__
-    visit_function = "Visit" + name
-    if getattr(visitor, "implements_all_node_types", False) and name != "tuple":
-      assert hasattr(visitor, visit_function), (
-          "Missing implementation of %s" % name)
-    if hasattr(visitor, visit_function):
-      new_node = getattr(visitor, visit_function)(new_node, *args, **kwargs)
-    leave_function = "Leave" + name
-    if hasattr(visitor, leave_function):
-      # Let the visitor know we're done with this node.
-      getattr(visitor, leave_function)(node, *args, **kwargs)
-    del visitor.old_node
+    visit_function = getattr(visitor, "Visit" + node_class_name, False)
+    if (getattr(visitor, "implements_all_node_types", False)
+        and node_class_name != "tuple"):
+      assert visit_function, "Unimplemented visitor: " + node_class_name
+    if visit_function:
+      new_node = visit_function(new_node, *args, **kwargs)
+    leave_function = getattr(visitor, "Leave" + node_class_name, False)
+    if leave_function:
+      # Clean-up from Enter/Visit
+      leave_function(node, *args, **kwargs)
 
+    del visitor.old_node
     return new_node
   elif isinstance(node, list):
     new_list_entries = [_VisitNode(child, visitor, *args, **kwargs)
