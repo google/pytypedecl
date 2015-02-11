@@ -197,6 +197,8 @@ class CombineContainers(object):
       # Optimization: If we're not going to change anything, return original.
       return union
     union = JoinTypes(union.type_list)  # flatten
+    if not isinstance(union, pytd.UnionType):
+      union = pytd.UnionType((union,))
     collect = {}
     for t in union.type_list:
       if isinstance(t, pytd.HomogeneousContainerType):

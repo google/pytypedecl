@@ -260,11 +260,13 @@ class TestOptimize(parser_test.ParserTest):
         def f(x: list<int> or list<float>)
         def g(x: list<int> or str or list<float> or set<int> or long)
         def h(x: list<int> or list<str> or set<int> or set<float>)
+        def i(x: list<int> or list<int>)
     """
     expected = """
         def f(x: list<int or float>)
         def g(x: list<int or float> or str or set<int> or long)
         def h(x: list<int or str> or set<int or float>)
+        def i(x: list<int>)
     """
     new_src = self.ApplyVisitorToString(src,
                                         optimize.CombineContainers())
