@@ -13,6 +13,7 @@
 # limitations under the License.
 
 
+import itertools
 import unittest
 from pytypedecl.parse import node
 
@@ -227,6 +228,18 @@ class TestNode(unittest.TestCase):
     new_n_expected = "X(NodeWithVisit(X(1, 2), Y(1, 2)), None)"
     self.assertEquals(repr(new_n), new_n_expected)
 
+  def testOrdering(self):
+    nodes = [Node1(1, 1), Node1(1, 2),
+             Node2(1, 1), Node2(2, 1),
+             Node3(1, 1), Node3(2, 2),
+             V(2)]
+    for n1, n2 in zip(nodes[:-1], nodes[1:]):
+      self.assertLess(n1, n2)
+      self.assertLessEqual(n1, n2)
+      self.assertGreater(n2, n1)
+      self.assertGreaterEqual(n2, n1)
+    for p in itertools.permutations(nodes):
+      self.assertEquals(list(sorted(p)), nodes)
 
 if __name__ == "__main__":
   unittest.main()

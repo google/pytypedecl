@@ -101,16 +101,35 @@ def Node(*child_names):
       elif self.__class__ is other.__class__:
         return tuple.__eq__(self, other)
       else:
-        return NotImplemented
+        return False
 
     def __ne__(self, other):
       """Compare two nodes for inequality. See __eq__."""
+      return not self == other
+
+    def __lt__(self, other):
+      """Smaller than other node? Define so we can to deterministic ordering."""
       if self is other:
         return False
       elif self.__class__ is other.__class__:
-        return tuple.__ne__(self, other)
+        return tuple.__lt__(self, other)
       else:
-        return NotImplemented
+        return self.__class__.__name__ < other.__class__.__name__
+
+    def __gt__(self, other):
+      """Larger than other node? Define so we can to deterministic ordering."""
+      if self is other:
+        return False
+      elif self.__class__ is other.__class__:
+        return tuple.__gt__(self, other)
+      else:
+        return self.__class__.__name__ > other.__class__.__name__
+
+    def __le__(self, other):
+      return self == other or self < other
+
+    def __ge__(self, other):
+      return self == other or self > other
 
     def __repr__(self):
       """Returns this tuple converted to a string.
