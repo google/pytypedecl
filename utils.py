@@ -91,3 +91,31 @@ def JoinTypes(types):
   else:
     return pytd.NothingType()
 
+
+# pylint: disable=invalid-name
+def prevent_direct_instantiation(cls, *args, **kwargs):
+  """Mix-in method for creating abstract (base) classes.
+
+  Use it like this to prevent instantiation of classes:
+
+    class Foo(object):
+      __new__ = prevent_direct_instantiation
+
+  This will apply to the class itself, not its subclasses, so it can be used to
+  create base classes that are abstract, but will become concrete once inherited
+  from.
+
+  Arguments:
+    cls: The class to instantiate, passed to __new__.
+    *args: Additional arguments, passed to __new__.
+    **kwargs: Additional keyword arguments, passed to __new__.
+  Returns:
+    A new instance.
+  Raises:
+    AssertionError: If something tried to instantiate the base class.
+  """
+  new = cls.__dict__.get("__new__")
+  if getattr(new, "__func__", None) == prevent_direct_instantiation:
+    raise AssertionError("Can't instantiate %s directly" % cls.__name__)
+  return object.__new__(cls, *args, **kwargs)
+
