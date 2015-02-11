@@ -533,3 +533,35 @@ class AdjustSelf(object):
       return pytd.Parameter("self", self.class_type)
     else:
       return p
+
+
+class RemoveUnknownClasses(object):
+  """Visitor for converting ClassTypes called ~unknown* to just UnknownType.
+
+  For example, this will change
+    def f() -> ~unknown1
+    class ~unknown1:
+      ...
+  to
+    def f() -> ?
+  """
+
+  def VisitClassType(self, t):
+    if t.name.startswith("~unknown"):
+      return pytd.UnknownType()
+    else:
+      return t
+
+  def VisitNamedType(self, t):
+    if t.name.startswith("~unknown"):
+      return pytd.UnknownType()
+    else:
+      return t
+
+  def VisitClass(self, cls):
+    if cls.name.startswith("~unknown"):
+      return None
+    return cls
+
+  def VisitTypeDeclUnit(self, u):
+    return u.Replace(classes=tuple(cls for cls in u.classes if cls is not None))
