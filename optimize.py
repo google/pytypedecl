@@ -514,6 +514,7 @@ class ShortenUnions(object):
   """
 
   def __init__(self, max_length=4):
+    assert isinstance(max_length, (int, long))
     self.max_length = max_length
 
   def VisitUnionType(self, union):
@@ -548,7 +549,7 @@ class ShortenParameterUnions(object):
     self.max_length = max_length
 
   def VisitParameter(self, param):
-    return param.Visit(ShortenUnions())
+    return param.Visit(ShortenUnions(self.max_length))
 
 
 class AddInheritedMethods(object):
@@ -960,7 +961,8 @@ def Optimize(node, flags=None):
     node = node.Visit(
         FindCommonSuperClasses(hierarchy, flags and flags.use_abcs)
     )
-    node = node.Visit(ShortenParameterUnions(flags and flags.max_union))
+  if flags and flags.max_union:
+    node = node.Visit(ShortenParameterUnions(flags.max_union))
   if flags and flags.remove_mutable:
     node = node.Visit(AbsorbMutableParameters())
     node = node.Visit(CombineContainers())
