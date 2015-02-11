@@ -7,7 +7,7 @@ from pytypedecl import optimize
 from pytypedecl import pytd
 from pytypedecl.match import sat_encoder
 from pytypedecl.parse import parser
-from pytypedecl.parse import utils as parse_utils
+from pytypedecl.parse import builtins as parse_utils
 from pytypedecl.parse import visitors
 
 

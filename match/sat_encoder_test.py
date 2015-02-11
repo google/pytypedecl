@@ -7,7 +7,7 @@ import unittest
 from pytypedecl import pytd
 from pytypedecl import utils
 from pytypedecl.match import sat_inferencer
-from pytypedecl.parse import utils as parse_utils
+from pytypedecl.parse import builtins as parse_utils
 
 
 FLAGS = flags.FLAGS  # TODO: move to google/

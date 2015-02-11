@@ -19,7 +19,7 @@ import unittest
 from pytypedecl import optimize
 from pytypedecl import pytd
 from pytypedecl.parse import parser_test
-from pytypedecl.parse import utils
+from pytypedecl.parse import builtins
 from pytypedecl.parse import visitors
 
 
@@ -375,7 +375,7 @@ class TestOptimize(parser_test.ParserTest):
             def f(self, x: int) -> float
     """)
     ast = self.Parse(src)
-    ast = visitors.LookupClasses(ast, utils.GetBuiltins())
+    ast = visitors.LookupClasses(ast, builtins.GetBuiltins())
     ast = ast.Visit(optimize.AddInheritedMethods())
     self.AssertSourceEquals(ast, expected)
 
@@ -412,7 +412,7 @@ class TestOptimize(parser_test.ParserTest):
             def d(self) -> D
     """)
     ast = self.Parse(src)
-    ast = visitors.LookupClasses(ast, utils.GetBuiltins())
+    ast = visitors.LookupClasses(ast, builtins.GetBuiltins())
     ast = ast.Visit(optimize.RemoveInheritedMethods())
     self.AssertSourceEquals(ast, expected)
 

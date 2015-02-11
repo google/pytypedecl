@@ -30,7 +30,7 @@ import logging
 from pytypedecl import abc_hierarchy
 from pytypedecl import pytd
 from pytypedecl import utils
-from pytypedecl.parse import utils as parse_utils  # a.k.a. "builtins"
+from pytypedecl.parse import builtins
 from pytypedecl.parse import visitors
 
 
@@ -428,11 +428,8 @@ class FindCommonSuperClasses(object):
     def f(x: Sequence, y: Set) -> Real
   """
 
-  def __init__(self, superclasses=None, use_abcs=True, builtins=None):
-    if builtins:  # Some tests use their own builtins.
-      self._superclasses = builtins.Visit(visitors.ExtractSuperClassesByName())
-    else:
-      self._superclasses = parse_utils.GetBuiltinsHierarchy()
+  def __init__(self, superclasses=None, use_abcs=True):
+    self._superclasses = builtins.GetBuiltinsHierarchy()
     self._superclasses.update(superclasses or {})
     if use_abcs:
       self._superclasses.update(abc_hierarchy.GetSuperClasses())
@@ -969,6 +966,6 @@ def Optimize(node, flags=None):
     node = node.Visit(CombineContainers())
     node = node.Visit(MergeTypeParameters())
     node = node.Visit(visitors.AdjustSelf(force=True))
-  node = visitors.LookupClasses(node, parse_utils.GetBuiltins())
+  node = visitors.LookupClasses(node, builtins.GetBuiltins())
   node = node.Visit(RemoveInheritedMethods())
   return node
