@@ -17,7 +17,6 @@
 
 import unittest
 from pytypedecl import checker
-from pytypedecl import pytd
 from tests import generics
 
 

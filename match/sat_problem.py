@@ -228,17 +228,9 @@ class SATProblem(object):
     elif isinstance(cond, Disjunction):
       for expr in cond.exprs:
         self.Implies(expr, implicand, descr)
-    # TODO: should we add the following simplification?
-    #                  it's probably not general enough; but it catches
-    #                  some cases of duplication
-    # elif isinstance(implicand, Conjunction) and cond in implicand.exprs:
-    #   new_implicand_exprs = [x for x in implicand.exprs if x != cond]
-    #   self.Implies(cond, Conjunction(new_implicand_exprs), descr)
-    #   return
     else:
-      # Ignore duplicate constraints
       ident = ("Implies", cond, implicand)
-      if ident in self.constraints:
+      if ident in self.constraints:  # Ignore duplicate constraints
         return
       self.constraints.add(ident)
 
@@ -282,9 +274,8 @@ class SATProblem(object):
     else:
       lefts = [left]
 
-    # Ignore duplicate constraints
     ident = ("Assign", left, value)
-    if ident in self.constraints:
+    if ident in self.constraints:  # Ignore duplicate constraints
       return
     self.constraints.add(ident)
 
@@ -303,9 +294,8 @@ class SATProblem(object):
   def BetweenNM(self, variables, n, m, ty, descr_so_far=None):
     """Add requirement that the number of true variables is between n and m."""
     descr = (descr_so_far or []) + ["Force assign {}".format(ty)]
-    # Ignore duplicate constraints
     ident = ("BetweenNM", tuple(variables), n, m)
-    if ident in self.constraints:
+    if ident in self.constraints:  # Ignore duplicate constraints
       return
     self.constraints.add(ident)
 
@@ -374,39 +364,49 @@ class SATProblem(object):
           lit for lit, count in collections.Counter(
               abs(lit) for lit in constraint.literals).items()
           if count > 1]
-      # assert not duplicates, ([(self.problem.var_names[abs(lit)-1], lit) for lit in duplicates], str(constraint))  # TODO: fix
+      if duplicates:
+        logging.error("duplicates: %s ...\nconstraint: %s",
+                      [(str(self.problem.var_names[abs(lit)-1]), lit)
+                       for lit in duplicates],
+                      _PrettyConstraint(self.problem, constraint))
 
   def PrettyPB(self):
     """Pretty version of the protobuff."""
-    return "".join(self._PrettyPBYield())
+    return "".join(_PrettyPBYield(self.problem))
 
-  def _PrettyPBYield(self):
-    p = self.problem
-    yield "name: '{}'\n".format(p.name)
-    yield "num_variables: {:d}\n".format(p.num_variables)
-    yield "var_names: {}\n".format(
-        [(i, str(n)) for i, n in enumerate(p.var_names)])
-    for constraint in p.constraints:
-      # TODO: this is a duplicate of ValidatePB
-      duplicates = [p.var_names[abs(lit)-1]
-                    for lit, count in collections.Counter(
-                        abs(lit) for lit in constraint.literals).items()
-                    if count > 1]
-      if duplicates:
-        yield "***duplicates: {} ".format(duplicates)
-      if constraint.HasField("lower_bound"):
-        yield "{:d} <= ".format(constraint.lower_bound)
-      for coef, lit in zip(constraint.coefficients, constraint.literals):
-        if lit < 0:
-          lit_sign = "-"
-          lit = -lit
-        else:
-          lit_sign = ""
-        try:
-          lit_name = p.var_names[lit-1]  # The protobuf uses 1-origin indexing
-        except IndexError:
-          lit_name = "(!!{:d}!!)".format(lit)
-        yield "{:d}*{}{} ".format(coef, lit_sign, lit_name)
-      if constraint.HasField("upper_bound"):
-        yield "<= {:d} ".format(constraint.upper_bound)
-      yield " # {}\n".format(constraint.name)
+def _PrettyPBYield(problem):
+  yield "name: '{}'\n".format(problem.name)
+  yield "num_variables: {:d}\n".format(problem.num_variables)
+  yield "var_names: {}\n".format(
+      [(i, str(n)) for i, n in enumerate(problem.var_names)])
+  for constraint in problem.constraints:
+    for y in _PrettyConstraintYield(problem, constraint):
+      yield y
+
+def _PrettyConstraint(problem, constraint):
+  return "".join(_PrettyConstraintYield(problem, constraint))
+
+def _PrettyConstraintYield(problem, constraint):
+  # TODO: this is a duplicate of ValidatePB
+  duplicates = [str(problem.var_names[abs(lit)-1])
+                for lit, count in collections.Counter(
+                    abs(lit) for lit in constraint.literals).items()
+                if count > 1]
+  if duplicates:
+    yield "***duplicates:{}*** ".format(duplicates)
+  if constraint.HasField("lower_bound"):
+    yield "{:d} <= ".format(constraint.lower_bound)
+  for coef, lit in zip(constraint.coefficients, constraint.literals):
+    if lit < 0:
+      lit_sign = "-"
+      lit = -lit
+    else:
+      lit_sign = ""
+    try:
+      lit_name = problem.var_names[lit-1]  # 1-origin indexing
+    except IndexError:
+      lit_name = "(!!{:d}!!)".format(lit)
+    yield "{:d}*{}{} ".format(coef, lit_sign, lit_name)
+  if constraint.HasField("upper_bound"):
+    yield "<= {:d} ".format(constraint.upper_bound)
+  yield " # {}\n".format(constraint.name)

@@ -1,7 +1,6 @@
 """Tests for pytypedecl.match.sat_encoder."""
 
 import logging
-import os
 import sys
 import textwrap
 import unittest
@@ -64,15 +63,15 @@ class SATEncoderTest(unittest.TestCase):
     # The same as testMembersDirectFromClass1 with the cheat removed.
     src = """
       class A:
-        def __add__(self: A, x:int or float) -> float
+        def __add__(self, x:int or float) -> float
       class B:
-        def __add__(self: B, x:bytearray) -> bytearray
+        def __add__(self, x:bytearray) -> bytearray
       """
     self._ParseSolveCheck(src,
                           {"A": "float",
                            "B": "bytearray"})
 
-  @unittest.skip("Not yet implemented")
+  @unittest.skip("Union type 'list or bytearray' not yet implemented")
   def testUnion(self):
     src = """
       class D:
@@ -80,6 +79,7 @@ class SATEncoderTest(unittest.TestCase):
       """
     # TODO: The '#' in the class names is from
     #                  sat_encode.ClassType.__str__ and possibly can be removed
+    # TODO: why the xrange?
     self._ParseSolveCheck(src,
                           {"D": "list or bytearray",
                            "D#.A": "xrange",
@@ -90,7 +90,7 @@ class SATEncoderTest(unittest.TestCase):
       class D:
         def append(self: list, v: float) -> NoneType
       """
-    # would require propogating information through mutable parameters which is
+    # would require propagating information through mutable parameters which is
     # not yet supported in this system.
     self._ParseSolveCheck(src,
                           {"D": "list",
@@ -143,20 +143,32 @@ class SATEncoderTest(unittest.TestCase):
                           {"A": "float"})
 
   @unittest.skip("TODO: failing due to FromPyTD: ClassType<unresolved>(str)")
+  # 'UnionType' object has no attribute 'cls'
+  def testOr(self):
+    src = """
+      class C:
+        # def join(self, iterable) -> str  # TODO: restore this?
+        def join(self, iterable: unicode) -> str or unicode
+        def join(self, iterable: iterator) -> str or unicode
+      """
+    self._ParseSolveCheck(src, {})
+
+  @unittest.skip("TODO: failing due to FromPyTD: ClassType<unresolved>(str)")
+  # The problem seems to be because a ClassType.cls doesn't get filled in
   def testAllAtOnce(self):
     src = """
       class A:
-        def __add__(self: float, y: int) -> float
-        def __add__(self: float, y: float) -> float
+        def __add__(self, y: int) -> float
+        def __add__(self, y: float) -> float
       class B:
-        def __add__(self: bytearray, y: str) -> bytearray
-        def __add__(self: bytearray, y: bytearray) -> bytearray
+        def __add__(self, y: str) -> bytearray
+        def __add__(self, y: bytearray) -> bytearray
       class C:
-        def join(self: str, iterable) -> str
-        def join(self: str, iterable: unicode) -> str or unicode
-        def join(self: str, iterable: iterator) -> str or unicode
+        def join(self, iterable) -> str
+        def join(self, iterable: unicode) -> str or unicode
+        def join(self, iterable: iterator) -> str or unicode
       class D:
-        def append(self: list, v: NoneType) -> NoneType
+        def append(self, v: NoneType) -> NoneType
       """
     # TODO: D#.A is actually wrong - should be D#.T.
     #              See testSingleList
@@ -181,9 +193,9 @@ class Pytype_SATTest(unittest.TestCase):
     _CommonSetup(self)
 
   def testEndToEnd(self):
-    # TODO: Maybe set up separate tests in ../examples, accessing them via
-    #                  utils.GetDataFile and extracting "expect" comments for
-    #                  expected results.
+    # TODO: Maybe set up separate tests in ../examples, accessing
+    #                  them via utils.GetDataFile and extracting "expect"
+    #                  comments for expected results.
     #                  OR: wrap in a simple infrastructure that minimizes
     #                      the amount of pooilerplate
 

@@ -103,7 +103,7 @@ class Class(node.Node('name', 'parents', 'methods', 'constants', 'template')):
   # Override _replace so that we can catch un-hashable components.
   # TODO: Remove this, once we're sure all callers behave properly
   def _replace(self, **kwargs):
-    result = super(Class, self)._replace(**kwargs)
+    result = super(Class, self)._replace(**kwargs)  # pylint: disable=invalid-name
     hash(result)  # Make sure that the args are of sufficiently correct types
     return result
 

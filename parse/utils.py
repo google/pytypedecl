@@ -47,6 +47,7 @@ def GetBuiltins():
   return builtins
 
 
-def ParseBuiltinsFile(file):
+def ParseBuiltinsFile(filename):
   """GetBuiltins(), but for a single files, not adding to builtins.modules."""
-  return parser.parse_string(utils.GetDataFile(os.path.join("builtins", file)))
+  return parser.parse_string(utils.GetDataFile(
+      os.path.join("builtins", filename)))

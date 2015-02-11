@@ -130,7 +130,7 @@ class PrintVisitor(object):
     exc = " raises " + ", ".join(node.exceptions) if node.exceptions else ""
     optional = ("...",) if node.has_optional else ()
 
-    mutable_params = [p for p in self.old_node.params
+    mutable_params = [p for p in self.old_node.params  # pylint: disable=no-member (old_node is set in parse/node.py)
                       if isinstance(p, pytd.MutableParameter)]
     if mutable_params:
       stmts = "\n".join(self.INDENT + name + " := " + new.Visit(PrintVisitor())
@@ -261,10 +261,13 @@ class _FillInClasses(object):
       try:
         node.cls = self._local_lookup.Lookup(node.name)
       except KeyError:
-        try:
-          node.cls = self._global_lookup.Lookup(node.name)
-        except KeyError:
-          pass
+        if self._global_lookup:
+          try:
+            node.cls = self._global_lookup.Lookup and self._global_lookup.Lookup(node.name)
+          except KeyError:
+            pass  # TODO: This shouldn't be needed
+        else:
+          raise
     return node
 
 
@@ -308,7 +311,7 @@ def FillInClasses(target, global_module=None):
     target.Visit(_FillInClasses(global_module, global_module))
 
 
-def LookupClasses(module):
+def LookupClasses(module, global_module=None):
   """Converts a module from one using NamedType to ClassType.
 
   Args:
@@ -322,8 +325,19 @@ def LookupClasses(module):
     KeyError: If we can't find a class.
   """
   module = module.Visit(NamedTypeToClassType())
-  FillInClasses(module, module)
+  FillInClasses(module, global_module)
   return module
+
+
+class VerifyLookup(object):
+  """Utility class for testing visitors.LookupClasses."""
+
+  def VisitNamedType(self, node):
+    raise ValueError("Unreplaced NamedType node: %s %r." % (node, node))
+
+  def VisitClassType(self, node):
+    if node.cls is None:
+      raise ValueError("Unresolved ClassType node: %s %r." % (node, node))
 
 
 class ReplaceTypes(object):

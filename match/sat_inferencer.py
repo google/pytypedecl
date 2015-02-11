@@ -26,6 +26,7 @@ class TypeInferencer(object):
     builtins = builtins or parse_utils.GetBuiltins()
     builtins = builtins.Visit(optimize.ExpandSignatures())
     self.builtins = visitors.LookupClasses(builtins)
+    self.builtins.Visit(visitors.VerifyLookup())  # TODO: remove
 
   def ParseAndSolve(self, src):
     parsed = self.parser.Parse(src)
@@ -36,7 +37,9 @@ class TypeInferencer(object):
     # This method is split out for unit testing.
     parsed = parsed.Visit(optimize.ExpandSignatures())
     # Change pytd.NamedType to pytd.ClassType(cls=None):
-    return visitors.LookupClasses(parsed)
+    res = visitors.LookupClasses(parsed, global_module=self.builtins)
+    res.Visit(visitors.VerifyLookup())  # TODO: remove
+    return res
 
   def Solve(self, parsed):
     class_names = [c.name for c in parsed.classes]
@@ -84,10 +87,11 @@ class TypeInferencer(object):
     # TODO: add constants, modules
     # TODO: need to distinguish between `unknown` and user-defined
     #                  and only remove `unknown`
+    # TODO: in following: is this better: ?
+    #                       ty.Lookup(name) for name in solve_result
     ty = ty.Replace(
         classes=tuple(sorted(
             c for c in ty.classes if c.name not in solve_result)),
-            # TODO: ? ty.Lookup(name) for name in solve_result
         functions=tuple(sorted(ty.functions)))
     # remove duplicates, etc.:
     ty = optimize.Optimize(ty)

@@ -1,6 +1,7 @@
 """Tests for match.sat_problem."""
 
 import logging
+import unittest
 from pytypedecl.match import sat_problem
 
 
@@ -13,6 +14,11 @@ class SATProblemTest(unittest.TestCase):
     if FLAGS.verbosity:
       logging.basicConfig(level=logging.INFO)
     self.problem = sat_problem.SATProblem(name="PROBLEM")
+    self._save_maxDiff = self.maxDiff
+    self.maxDiff = None  # for better diff output (assertMultiLineEqual)
+
+  def teatDown(self):
+    self.maxDiff = self._save_maxDiff
 
   def _ProblemSolveAndCheck(self, **expected):
     self.problem.Solve()
@@ -84,6 +90,16 @@ class SATProblemTest(unittest.TestCase):
     self.problem.Equals("p", False)
     self.problem.Equals("q", False)
     self._ProblemSolveAndCheck(p=False, q=False)
+
+  @unittest.skip("TODO: generates duplicate constraint variables")
+  def testImplies5(self):
+    self.problem.Implies(
+        "[A#=float]",
+        sat_problem.Disjunction(["[A#=float]",
+                                 sat_problem.Conjunction(["float=int]",
+                                                          "[A#=float]"])]))
+    self.problem.Finalize()  # TODO: replace w/ ProblemSolveAndCheck
+    self.assertMultiLineEqual("", self.problem.PrettyPB())
 
   def testEquals1a(self):
     self.problem.Equals("p", "q")

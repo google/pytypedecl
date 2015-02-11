@@ -16,12 +16,12 @@
 
 
 import unittest
-from parse import ast_test
 import checker_classes_test
 import checker_generics_test
 import checker_overloading_test
 import checker_test
 import checker_union_test
+from parse import ast_test
 
 
 def suite():

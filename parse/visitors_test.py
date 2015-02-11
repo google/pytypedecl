@@ -22,17 +22,6 @@ from pytypedecl.parse import parser_test
 from pytypedecl.parse import visitors
 
 
-class VerifyLookup(object):
-  """Utility class for testing visitors.LookupClasses."""
-
-  def VisitNamedType(self, _):
-    raise ValueError("All NamedType nodes should have been replaced.")
-
-  def VisitClassType(self, node):
-    if node.cls is None:
-      raise ValueError("All ClassType nodes should have been resolved.")
-
-
 class TestVisitors(parser_test.ParserTest):
   """Tests the classes in parse/visitors."""
 
@@ -50,7 +39,7 @@ class TestVisitors(parser_test.ParserTest):
     tree = self.Parse(src)
     new_tree = visitors.LookupClasses(tree)
     self.AssertSourceEquals(new_tree, src)
-    new_tree.Visit(VerifyLookup())
+    new_tree.Visit(visitors.VerifyLookup())
 
   def testMaybeFillInClasses(self):
     src = textwrap.dedent("""

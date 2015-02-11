@@ -27,20 +27,40 @@ class Type(object):
     raise NotImplementedError((self, other))
 
   @staticmethod
-  def FromPyTD(td, complete=True, path=None):
+  def FromPyTD(td, complete, context):
+    """Factory: create subclass of Type from pytd.{ClassType,...}.
+
+    Args:
+      td: A pytd instance (ClassType, TypeParameter, etc.)
+      complete: bool of whether the type is complete (i.e., a builtin) or
+                not (i.e. the result of pytype's type inferencer)
+      context: The "context" for creating a fully-qualified name.
+               (This is coerced to string if necessary, and None is treated
+               the same as '')
+               TODO: kramm@ will make a visitor to generate
+                                fully-qualified names in pytd types, at which
+                                point this arg can be removed.
+
+    Returns:
+      A instance that is a subclass of Type.
+
+    Raises:
+      TypeError: td is of a class that isn't handled
+    """
     if isinstance(td, pytd.ClassType):
-      assert td.cls, repr(td)
+      assert td.cls, (td, repr(td), complete, str(context), context)
       return ClassType(td.cls, complete)
     elif isinstance(td, pytd.TypeParameter):
-      name = str(path or "") + "." + td.name
+      name = str(context or "") + "." + td.name
       return ClassType(
           pytd.Class(name,
                      parents=(), methods=(), constants=(), template=()),
           complete=False)
     elif isinstance(td, pytd.GenericType):
-      return Type.FromPyTD(td.base_type)
+      return Type.FromPyTD(td.base_type, complete=complete, context=context)
     elif isinstance(td, pytd.UnionType):
-      return UnionType(Type.FromPyTD(t) for t in td.type_list)
+      return UnionType(Type.FromPyTD(t, complete=complete, context=context)
+                       for t in td.type_list)
     elif isinstance(td, pytd.UnknownType):
       # TODO: also for NothingType, etc.?
       return ClassType(
@@ -52,6 +72,7 @@ class Type(object):
           "Cannot convert: {} ({!s}) ({!r})".format(type(td), td, td))
 
   def ToPyTD(self):
+    # Must be implemented by subclass
     raise NotImplementedError(self)
 
   def __gt__(self, other):
@@ -239,7 +260,7 @@ class SATEncoder(object):
   def _SATImplies(self, a, b):
     self.sat.Implies(a, b)
 
-  def _TypeFromPyTD(self, td, path):
+  def _TypeFromPyTD(self, td, complete, context):
     if isinstance(td, pytd.ClassType):
       matches = [ty for ty in self.types
                  if isinstance(ty, ClassType) and td.name == ty.cls.name]
@@ -255,20 +276,20 @@ class SATEncoder(object):
         else:
           ty, = matches  # Fails if there is more than one class with name
         return ty
-    return Type.FromPyTD(td, path=path)
+    return Type.FromPyTD(td, complete, context)
 
-  def _SignaturesEqual(self, a, b, a_path=None, b_path=None):
+  def _SignaturesEqual(self, a, b, complete, a_context, b_context):
     if len(a.params) == len(b.params):
       param_equalities = []
       for aparam, bparam in zip(a.params, b.params):
         if aparam.type != bparam.type:
           param_equalities.append(self._NewEquality(
-              self._TypeFromPyTD(aparam.type, path=a_path),
-              self._TypeFromPyTD(bparam.type, path=b_path)))
+              self._TypeFromPyTD(aparam.type, complete, a_context),
+              self._TypeFromPyTD(bparam.type, complete, b_context)))
       if a.return_type != b.return_type:
         return_equalities = [self._NewEquality(
-            self._TypeFromPyTD(a.return_type, path=a_path),
-            self._TypeFromPyTD(b.return_type, path=b_path))]
+            self._TypeFromPyTD(a.return_type, complete, a_context),
+            self._TypeFromPyTD(b.return_type, complete, b_context))]
       else:
         return_equalities = []
       return sat_problem.Conjunction(itertools.chain(param_equalities,
@@ -277,14 +298,16 @@ class SATEncoder(object):
       return False
 
   def _FunctionsEqualOneWay(self, left_func, right_func,
-                            a_path=None, b_path=None):
+                            complete,
+                            a_context, b_context):
     return sat_problem.Conjunction(
         sat_problem.Disjunction(self._SignaturesEqual(left_sig, right_sig,
-                                                      a_path, b_path)
+                                                      complete,
+                                                      a_context, b_context)
                                 for right_sig in right_func.signatures)
         for left_sig in left_func.signatures)
 
-  def _GenerateConstraints(self, class_variables):
+  def _GenerateConstraints(self, class_variables, complete):
     """Generate constraints for the SAT solver from a set of class_variables.
 
     The constraints are created in a deterministic order (wherever there's
@@ -294,6 +317,7 @@ class SATEncoder(object):
       class_variables: an iterator of classes. See
         sat_inferencer.TypeInferencer.SolveFormParsedLookUpClasses
         for an example.
+      complete: see Type.FromPYTD 'complete' arg
     Returns:
       None. The constraints are added to self
     """
@@ -306,14 +330,16 @@ class SATEncoder(object):
           if name in left.structure and name in right.structure:
             left_func = left.structure[name]
             right_func = right.structure[name]
-            # The path for left is right and the path for right is left. This is
-            # because we want to know where a type variables was bound TO not
-            # where it was bound FROM.
+            # The context for left is right and the context for right is
+            # left. This is because we want to know where a type variables was
+            # bound TO not where it was bound FROM.
             if right.complete:
               conj.add(self._FunctionsEqualOneWay(left_func, right_func,
+                                                  complete,
                                                   right, left))
             if left.complete:
               conj.add(self._FunctionsEqualOneWay(right_func, left_func,
+                                                  complete,
                                                   left, right))
           elif (name not in left.structure and left.complete or
                 name not in right.structure and right.complete):
@@ -341,17 +367,20 @@ class SATEncoder(object):
         complete classes.
     """
     class_types = set()
-    class_types.update(ClassType(cls, True) for cls in complete_classes)
-    class_types.update(ClassType(cls, False) for cls in incomplete_classes)
+    class_types.update(ClassType(cls, complete=True)
+                       for cls in complete_classes)
+    class_types.update(ClassType(cls, complete=False)
+                       for cls in incomplete_classes)
     class_variables = set(self._NewEquality(*p)
                           for p in itertools.combinations(class_types, 2))
     self.types.update(class_types)
-    # self.types.update(UnionType(tys)
-    #                   for tys in itertools.combinations(class_types, 2))
     variables = class_variables
     added_variables = variables
     while added_variables:
-      self._GenerateConstraints(added_variables)
+      # TODO: Is the complete=True correct?
+      #                  If set to False, we get things like
+      #                  'list' showing up in the result
+      self._GenerateConstraints(added_variables, complete=True)
       new_variables = set(Equality(*p)
                           for p in itertools.combinations(self.types, 2))
       added_variables = new_variables - variables
