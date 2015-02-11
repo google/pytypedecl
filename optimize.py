@@ -28,6 +28,7 @@ import itertools
 
 from pytypedecl import abc_hierarchy
 from pytypedecl import pytd
+from pytypedecl.parse import utils
 from pytypedecl.parse import visitors
 
 
@@ -442,12 +443,15 @@ class FindCommonSuperClasses(object):
     def f(x: Sequence, y: Set) -> Real
   """
 
-  def __init__(self, superclasses=None, use_abcs=True):
-    self._superclasses = superclasses or {}
-    self._subclasses = abc_hierarchy.Invert(self._superclasses)
+  def __init__(self, superclasses=None, use_abcs=True, builtins=None):
+    if builtins:  # Some tests use their own builtins.
+      self._superclasses = builtins.Visit(visitors.ExtractSuperClasses())
+    else:
+      self._superclasses = utils.GetBuiltinsHierarchy()
+    self._superclasses.update(superclasses or {})
     if use_abcs:
       self._superclasses.update(abc_hierarchy.GetSuperClasses())
-      self._subclasses.update(abc_hierarchy.GetSubClasses())
+    self._subclasses = abc_hierarchy.Invert(self._superclasses)
 
   def _CollectSuperclasses(self, node, collect):
     """Recursively collect super classes for a type.

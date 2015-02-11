@@ -237,9 +237,7 @@ class TestOptimize(parser_test.ParserTest):
     expected = textwrap.dedent("""
         def f(x, y) -> int
     """)
-    visitor = optimize.FindCommonSuperClasses(
-        superclasses=utils.GetBuiltinsHierarchy(),
-        use_abcs=False)
+    visitor = optimize.FindCommonSuperClasses(use_abcs=False)
     new_src = self.ApplyVisitorToString(src, visitor)
     self.AssertSourceEquals(new_src, expected)
 
