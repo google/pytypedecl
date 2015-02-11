@@ -68,6 +68,15 @@ class TypeDeclUnit(node.Node('constants', 'classes', 'functions', 'modules')):
         self._name2item[x.name] = x
       return self._name2item[name]
 
+  def __hash__(self):
+    return id(self)
+
+  def __eq__(self, other):
+    return id(self) == id(other)
+
+  def __ne__(self, other):
+    return id(self) != id(other)
+
 
 class Constant(node.Node('name', 'type')):
   __slots__ = ()

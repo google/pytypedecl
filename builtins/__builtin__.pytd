@@ -105,6 +105,9 @@ def input()
 def raw_input()
 def print(value, ...)
 
+False: bool
+True: bool
+
 class object:
     def __init__(self, ...)
 
