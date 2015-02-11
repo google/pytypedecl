@@ -252,7 +252,12 @@ class TypeMatch(utils.TypeMatcher):
       return booleq.Eq(t1.name, t2.name)
     elif (isinstance(t1, (pytd.NamedType, StrictType)) and
           isinstance(t2, (pytd.NamedType, StrictType))):
-      return booleq.Eq(t1.name, t2.name)
+      if is_complete(t1) and is_complete(t2) and t1.name != t2.name:
+        # Optimization: If we know these two can never be equal, just return
+        # false right away.
+        return booleq.FALSE
+      else:
+        return booleq.Eq(t1.name, t2.name)
     else:
       raise AssertionError("Don't know how to match %s against %s" % (
           type(t1), type(t2)))
@@ -293,6 +298,8 @@ class TypeMatch(utils.TypeMatcher):
       return booleq.FALSE
 
   def match_signature_against_function(self, sig, f, subst, skip_self=False):
+    # TODO: We should abort after the first matching signature, to get
+    # more precise types in the presence of overloading.
     return booleq.And(
         booleq.Or(self.match_signature_again_signature(sig, s, subst, skip_self)
                   for s in f.signatures)

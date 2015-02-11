@@ -69,7 +69,7 @@ class TestTypeMatch(unittest.TestCase):
     """))
     m = type_match.TypeMatch()
     self.assertNotEquals(m.match(ast.Lookup("left"), ast.Lookup("right"), {}),
-                         booleq.FALSE)
+                         booleq.TRUE)
 
   def testOptional(self):
     ast = parser.parse_string(textwrap.dedent("""
