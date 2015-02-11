@@ -58,7 +58,7 @@ def isinstance(object, class_or_type_or_tuple: tuple or type) -> bool
 def issubclass(C, B: tuple) -> bool
 def issubclass(C: type, B: type) -> bool
 def iter(collection: str or unicode or bytearray or iterator) -> iterator
-def iter(collection: list) -> listiterator
+def<T> iter(collection: list<T>) -> listiterator<T>
 def iter(collection: tuple) -> tupleiterator
 def iter(collection: set) -> setiterator
 def len(object) -> int
@@ -402,9 +402,9 @@ class <K, V> dict:
     def viewkeys(self) -> dict_keys
     def viewvalues(self) -> dict_values
 
-class listiterator:
-    def __iter__(self) -> listiterator
-    def next(self)
+class<T> listiterator:
+    def __iter__(self: listiterator<T>) -> listiterator<T>
+    def next(self: listiterator<T>) -> T
 
 class enumerate:
     def __init__(self, iterable, ...)
@@ -434,7 +434,7 @@ class <T> list:
     def __gt__(self, y: list) -> bool
     def __iadd__(self, y) -> list
     def __imul__(self, y: int) -> list
-    def __iter__(self) -> listiterator<T>
+    def __iter__(self: list<T>) -> listiterator<T>
     def __le__(self, y: list) -> bool
     def __len__(self) -> int
     def __lt__(self, y: list) -> bool
