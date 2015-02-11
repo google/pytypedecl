@@ -442,10 +442,10 @@ class <T> list:
     def __le__(self, y: list) -> bool
     def __len__(self) -> int
     def __lt__(self, y: list) -> bool
-    def __mul__(self, n: int) -> list<object> or list
+    def __mul__(self, n: int) -> list<T>
     def __ne__(self, y: list) -> bool
     def __reversed__(self) -> listreverseiterator
-    def __rmul__(self, n: int) -> list<object> or list
+    def __rmul__(self, n: int) -> list<T>
     def __setitem__(self, i: int, y) -> NoneType
     def __setslice__(self, i: int, j: int, y) -> NoneType
     def <A> append(self, object: A) -> NoneType:
