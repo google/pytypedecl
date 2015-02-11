@@ -15,13 +15,11 @@
 
 """Utility classes for testing the PYTD parser."""
 
-import re
 import sys
 import textwrap
 import unittest
 from pytypedecl import pytd
 from pytypedecl.parse import parser
-from pytypedecl.parse import visitors
 
 
 class ParserTest(unittest.TestCase):
@@ -29,11 +27,6 @@ class ParserTest(unittest.TestCase):
 
   def setUp(self):
     self.parser = parser.TypeDeclParser(parser.DEFAULT_VERSION)
-    self.save_maxDiff = self.maxDiff
-    self.maxDiff = None  # for better diff output (assertMultiLineEqual)
-
-  def tearDown(self):
-    self.maxDiff = self.save_maxDiff
 
   def Parse(self, src, version=None):
     if version:
@@ -67,6 +60,7 @@ class ParserTest(unittest.TestCase):
       print >>sys.stderr, "-" * 36, "Expected", "-" * 36
       print >>sys.stderr, textwrap.dedent(src2).strip()
       print >>sys.stderr, "-" * 80
+      self.maxDiff = None  # for better diff output (assertMultiLineEqual)
       self.assertMultiLineEqual(src1, src2)
       self.fail("source files differ")  # Should never reach here
 

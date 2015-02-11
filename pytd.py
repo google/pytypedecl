@@ -94,14 +94,16 @@ class Class(node.Node('name', 'parents', 'methods', 'constants', 'template')):
   def __new__(cls, name, parents, methods, constants, template):
     self = super(Class, cls).__new__(cls, name, parents, methods,
                                      constants, template)
+    # TODO: remove the following once we're sure that
+    #                  caller never passes in None:
     assert isinstance(template, tuple), (type(template), template)
     hash(self)  # Make sure that the args are of sufficiently correct types
     return self
 
   # Override _replace so that we can catch un-hashable components.
   # TODO: Remove this, once we're sure all callers behave properly
-  def _replace(_self, **kwds):
-    result = super(self, Class)._replace(**kwargs)
+  def _replace(self, **kwargs):
+    result = super(Class, self)._replace(**kwargs)
     hash(result)  # Make sure that the args are of sufficiently correct types
     return result
 
@@ -345,6 +347,5 @@ class HomogeneousContainerType(GenericType):
 def Print(n):
   """Convert a PYTD node to a string."""
   # TODO: fix circular import
-  from pytypedecl.parse import visitors  # pylint: disable=g-import-not-at-top
-  v = visitors.PrintVisitor()
-  return n.Visit(v)
+  from pytypedecl.parse import visitors
+  return n.Visit(visitors.PrintVisitor())

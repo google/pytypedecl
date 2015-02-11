@@ -1,7 +1,10 @@
 """Input a file and output inferred types.
 """
 
+import logging
+from pytype import typegraphvm
 from pytypedecl import optimize
+from pytypedecl import pytd
 from pytypedecl.match import sat_encoder
 from pytypedecl.parse import parser
 from pytypedecl.parse import utils as parse_utils
@@ -25,8 +28,15 @@ class TypeInferencer(object):
     self.builtins = visitors.LookupClasses(builtins)
 
   def ParseAndSolve(self, src):
-    parsed = self.ParseAndLookup(src)
+    parsed = self.parser.Parse(src)
+    parsed = self.LookupParsed(parsed)
     return self.Solve(parsed)
+
+  def LookupParsed(self, parsed):
+    # This method is split out for unit testing.
+    parsed = parsed.Visit(optimize.ExpandSignatures())
+    # Change pytd.NamedType to pytd.ClassType(cls=None):
+    return visitors.LookupClasses(parsed)
 
   def Solve(self, parsed):
     class_names = [c.name for c in parsed.classes]
@@ -34,7 +44,8 @@ class TypeInferencer(object):
     # missing a result
     assert len(set(class_names)) == len(class_names), class_names
 
-    res = self.SolveFromParsedLookedUpClasses(parsed.classes)
+    self.encoder.Generate(self.builtins.classes, parsed.classes)
+    res = self.encoder.Solve()
     res_by_name = {k.name: v for k, v in res.items()}
     assert len(res) == len(res_by_name)
     if res_by_name:  # Solver() can return empty dict if unsatisfiable
@@ -42,20 +53,48 @@ class TypeInferencer(object):
           class_names, res_by_name.keys())
     return res_by_name
 
-  def SolveFromParsedLookedUpClasses(self, parsed_classes):
-    """Input from LookupParsed(...), output is a solution."""
-    self.encoder.Generate(self.builtins.classes, parsed_classes)
-    return self.encoder.Solve()
+  def InferTypesAndSolve(self, program, debug=True, svg_output=None,
+                         deep=False, expensive=True, pseudocode_output=False):
+    """Run CFG type inferencer and then solver."""
+    ty = typegraphvm.infer_types(program,
+                                 debug=debug,
+                                 deep=deep,
+                                 expensive=expensive,
+                                 svg_output=svg_output,
+                                 pseudocode_output=pseudocode_output)
 
-  def ParseAndLookup(self, src):
-    parsed = self.parser.Parse(src)
-    return self.LookupParsed(parsed)
+    logging.info("===Incomplete classes and functions===\n%s\n"
+                 "===Incomplete classes and functions=== (end)",
+                 pytd.Print(ty))
 
-  def LookupParsed(self, parsed):
-    # This method is split out for unit testing.
-    parsed = parsed.Visit(optimize.ExpandSignatures())
-    # Change pytd.NamedType to pytd.ClassType(cls=None):
-    return visitors.LookupClasses(parsed)
+    ty = self.LookupParsed(ty)
+    solve_result = self.Solve(ty)
+    logging.info("===Incomplete classes and functions (2)===\n%s\n"
+                 "===Incomplete classes and functions (2)=== (end)",
+                 pytd.Print(ty))
+    logging.info("===solve_result===\n%s\n", solve_result)
+
+    ty = ty.Visit(visitors.ReplaceTypes(solve_result))
+    logging.info("===Substituted classes and functions===\n%s\n"
+                 "===Substituted classes and functions=== (end)",
+                 pytd.Print(ty))
+
+    # Delete all classes that we've resolved to another class
+    # and put into a canonical order.
+    # TODO: add constants, modules
+    # TODO: need to distinguish between `unknown` and user-defined
+    #                  and only remove `unknown`
+    ty = ty.Replace(
+        classes=tuple(sorted(
+            c for c in ty.classes if c.name not in solve_result)),
+            # TODO: ? ty.Lookup(name) for name in solve_result
+        functions=tuple(sorted(ty.functions)))
+    # remove duplicates, etc.:
+    ty = optimize.Optimize(ty)
+    # TODO: RemoveDuplicates ought to have been done by Optimize:
+    ty = ty.Visit(optimize.RemoveDuplicates())
+
+    return ty
 
 
 def main(unused_argv):

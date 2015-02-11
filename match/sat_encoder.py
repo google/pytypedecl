@@ -34,7 +34,8 @@ class Type(object):
     elif isinstance(td, pytd.TypeParameter):
       name = str(path or "") + "." + td.name
       return ClassType(
-          pytd.Class(name, parents=(), methods=(), constants=(), template=()),
+          pytd.Class(name,
+                     parents=(), methods=(), constants=(), template=()),
           complete=False)
     elif isinstance(td, pytd.GenericType):
       return Type.FromPyTD(td.base_type)
@@ -43,7 +44,8 @@ class Type(object):
     elif isinstance(td, pytd.UnknownType):
       # TODO: also for NothingType, etc.?
       return ClassType(
-          pytd.Class("<unknown>", parents=(), methods=(), constants=(), template=()),
+          pytd.Class("<unknown>",
+                     parents=(), methods=(), constants=(), template=()),
           complete=False)
     else:
       raise TypeError(
@@ -242,8 +244,16 @@ class SATEncoder(object):
       matches = [ty for ty in self.types
                  if isinstance(ty, ClassType) and td.name == ty.cls.name]
       if matches:
-        assert len(matches) == 1, [match.cls.name for match in matches]
-        ty, = matches  # Fails if there is more than one class with name
+        if len(matches) > 1:
+          # TODO: Remove the "not complete" types that match complete
+          #                  types at an earlier stage
+          assert len(matches) == 2, [match.cls.name for match in matches]
+          ty1, ty2 = matches
+          assert ty1.cls.name == ty2.cls.name
+          assert ty1.complete != ty2.complete, (repr(ty1), repr(ty2))
+          ty = ty1 if ty1.complete else ty2
+        else:
+          ty, = matches  # Fails if there is more than one class with name
         return ty
     return Type.FromPyTD(td, path=path)
 
@@ -288,10 +298,9 @@ class SATEncoder(object):
       None. The constraints are added to self
     """
     for var in sorted(class_variables):
+      logging.debug("GenerateConstraints: %r", var)
       left, right = var
-      if not left.IsNominallyCompatibleWith(right):
-        self._SATEquals(var, False)
-      else:
+      if left.IsNominallyCompatibleWith(right):
         conj = set()
         for name in sorted(set(left.structure) | set(right.structure)):
           if name in left.structure and name in right.structure:
@@ -316,6 +325,8 @@ class SATEncoder(object):
         else:
           self._SATImplies(var, requirement)
           self._SATHint(var, True)
+      else:
+        self._SATEquals(var, False)
 
   def Generate(self, complete_classes, incomplete_classes):
     """Generate the constraints from the given classes.
@@ -368,9 +379,9 @@ class SATEncoder(object):
             eq1 = Equality(a, b)
             eq2 = Equality(b, c)
             eq3 = Equality(a, c)
-            assert eq1 in variables
-            assert eq2 in variables
-            assert eq3 in variables
+            assert eq1 in variables, (eq1, variables)
+            assert eq2 in variables, (eq2, variables)
+            assert eq3 in variables, (eq3, variables)
             self._SATImplies(sat_problem.Conjunction((eq1, eq2)), eq3)
 
     logging.info("Writing SAT problem")

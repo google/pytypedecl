@@ -330,12 +330,12 @@ class InsertTypeParameters(object):
   """Visitor for inserting TypeParameter instances."""
 
   def VisitClass(self, node):
-    return node.Visit(visitors.ReplaceType({p.name: p.type_param
-                                            for p in node.template}))
+    return node.Visit(visitors.ReplaceTypes({p.name: p.type_param
+                                             for p in node.template}))
 
   def VisitSignature(self, node):
-    return node.Visit(visitors.ReplaceType({p.name: p.type_param
-                                            for p in node.template}))
+    return node.Visit(visitors.ReplaceTypes({p.name: p.type_param
+                                             for p in node.template}))
 
 
 def CheckStringIsPython(parser, string, p):

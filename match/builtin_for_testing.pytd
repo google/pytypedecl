@@ -25,18 +25,28 @@ class str(basestring):
     def __add__(self, y: str or bytearray) -> str
     def __add__(self, y: unicode) -> unicode
     def __eq__(self, y: str or bytearray) -> bool
+    def __mul__(self, n: int) -> str
+    def __rmul__(self, n: int) -> str
+    def join(self, iterable) -> str
+    def join(self, iterable: unicode or iterator) -> str or unicode
 
 class unicode(basestring):
     def __init__(self, string, ...)
     def __init__(self)
     def __add__(self, y: str or unicode or bytearray) -> unicode
     def __eq__(self, y: str or unicode or bytearray) -> bool
+    def __mul__(self, n: int) -> unicode
+    def __rmul__(self, n: int) -> unicode
+    def join(self, iterable) -> unicode
+    def ljust(self, width: int, ...) -> unicode
 
 class bytearray:
     def __init__(self, iterable_of_ints)
     def __init__(self)
     def __add__(self, y: str or bytearray) -> bytearray
     def __eq__(self, y: str or bytearray) -> bool
+    def __mul__(self, n: int) -> bytearray
+    def __rmul__(self, n: int) -> bytearray
     def append(self, int: str or int) -> NoneType
 
 class <T> list:
@@ -44,6 +54,8 @@ class <T> list:
       self := list<nothing>  # TODO: restore?
     def <A> __add__(self, y: list<A>) -> list<T or A>
     def __getitem__(self, y) -> T
+    def __mul__(self, n: int) -> list<T>
+    def __rmul__(self, n: int) -> list<T>
     def __setitem__(self, i: int, y) -> NoneType
     # TODO: restore the original version of append (and __init__
     #                  above) when := is handled. See testTwoLists
@@ -63,20 +75,44 @@ class <K, V> dict:
 class bool:
     def __init__(self, x)
     def __init__(self)
+    def __add__(self, y: int or bool) -> int
+    def __mul__(self, y: int or bool) -> int
+    def __radd__(self, y: int or bool) -> int
+    def __rmul__(self, y: int or bool) -> int
+    def __sub__(self, y: int or bool) -> int
 
 class int:
     def __init__(self, x: int or float, ...)
     def __init__(self)
     def __add__(self, y: int) -> int
+    def __eq__(self, y: int) -> bool  # TODO: revert to original
+    def __mul__(self, y: int) -> int
     def __radd__(self, y: int) -> int
-    def __eq__(self, y) -> bool
+    def __rmul__(self, y: int) -> int
+    def __rsub__(self, y: int) -> int
+    def __sub__(self, y: int) -> int
+
+class long:
+    def __init__(self, x: int or float or long, ...)
+    def __init__(self)
+    def __add__(self, y: int or long) -> long
+    def __eq__(self, y: long) -> bool  # TODO: revert to original
+    def __mul__(self, y: int or long) -> long
+    def __radd__(self, y: int or long) -> long
+    def __rmul__(self, y: int or long) -> long
+    def __rsub__(self, y: int or long) -> long
+    def __sub__(self, y: int or long) -> long
 
 class float:
     def __init__(self, x: int or float)
     def __init__(self)
     def __add__(self, y: int or float) -> float
-    def __radd__(self, y: int or float) -> float
     def __eq__(self, y: int or float) -> bool
+    def __mul__(self, y: int or float) -> float
+    def __radd__(self, y: int or float) -> float
+    def __rmul__(self, y: int or float) -> float
+    def __rsub__(self, y: int or long) -> long
+    def __sub__(self, y: int or long) -> long
 
 class xrange:
     def __init__(self, stop: int, ...)
@@ -85,3 +121,16 @@ class xrange:
 class rangeiterator:
     def __iter__(self) -> rangeiterator
     def next(self) -> int
+
+class function:
+    def __call__(self, ...) -> NoneType  # TODO(pludeman): -> ?
+    def __get__(self, obj, ...) -> instancemethod
+
+class instancemethod:
+    def __init__(self, function: function or type or instancemethod, instance, cls)
+    def __cmp__(self, y: instancemethod) -> int
+    def __get__(self, obj, ...) -> instancemethod
+
+class iterator:
+    def __iter__(self) -> iterator
+    def next(self)

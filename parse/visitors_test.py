@@ -65,7 +65,7 @@ class TestVisitors(parser_test.ParserTest):
     visitors.FillInClasses(ty_b, tree)
     self.assertIsNone(ty_b.cls)
 
-  def testReplaceType(self):
+  def testReplaceTypes(self):
     src = textwrap.dedent("""
         class A:
             def a(self, a: A or B) -> A or B raises A, B
@@ -75,7 +75,7 @@ class TestVisitors(parser_test.ParserTest):
             def a(self: A2, a: A2 or B) -> A2 or B raises A2, B
     """)
     tree = self.Parse(src)
-    new_tree = tree.Visit(visitors.ReplaceType({"A": pytd.NamedType("A2")}))
+    new_tree = tree.Visit(visitors.ReplaceTypes({"A": pytd.NamedType("A2")}))
     self.AssertSourceEquals(new_tree, expected)
 
   def testSuperClasses(self):

@@ -326,7 +326,7 @@ def LookupClasses(module):
   return module
 
 
-class ReplaceType(object):
+class ReplaceTypes(object):
   """Visitor for replacing types in a tree.
 
   This replaces both NamedType and ClassType nodes that have a name in the
@@ -341,6 +341,11 @@ class ReplaceType(object):
 
   def VisitClassType(self, node):
     return self.mapping.get(node.name, node)
+
+  # We do *not* want to have 'def VisitClass' because that will replace a class
+  # definition with itself, which is almost certainly not what is wanted,
+  # because runing pytd.Print on it will result in output that's just a list of
+  # class names with no contents.
 
 
 class RemoveTemplates(object):
@@ -371,7 +376,7 @@ class ExtractSuperClasses(object):
     return (cls.name, [parent.name for parent in cls.parents])
 
 
-class ReplaceTypeParameter(object):
+class ReplaceTypeParameters(object):
   """Visitor for replacing type parameters with actual types."""
 
   def __init__(self, mapping):
@@ -398,7 +403,7 @@ class InstantiateTemplatesVisitor(object):
     cls = symbol_table.Lookup(node.base_type.name)
     mapping = {t.type_param: e for t, e in zip(cls.template, node.parameters)}
     return cls.Replace(name=name, template=()).Visit(
-        ReplaceTypeParameter(mapping))
+        ReplaceTypeParameters(mapping))
 
   def InstantiatedClasses(self, symbol_table):
     return [self._InstantiatedClass(name, node, symbol_table)

@@ -842,7 +842,7 @@ class file:
     def xreadlines(self) -> file
 
 class function:
-    def __call__(self, ...) -> NoneType
+    def __call__(self, ...) -> NoneType  # TODO: -> ?  (refer to kramm@)
     def __get__(self, obj, ...) -> instancemethod
 
 class<T> generator:

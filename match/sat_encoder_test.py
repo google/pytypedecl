@@ -1,9 +1,12 @@
 """Tests for pytypedecl.match.sat_encoder."""
 
 import logging
+import os
+import sys
 import textwrap
 import unittest
 from pytypedecl import pytd
+from pytypedecl import utils
 from pytypedecl.match import sat_inferencer
 from pytypedecl.parse import utils as parse_utils
 
@@ -11,20 +14,29 @@ from pytypedecl.parse import utils as parse_utils
 FLAGS = flags.FLAGS  # TODO: move to google/
 
 
+def _CommonSetup(cls):
+  if FLAGS.verbosity:
+    logging.basicConfig(level=logging.INFO)
+
+  # TODO: Use full set of builtins. Currently, a limited set is
+  #                  used to make it easier to debug the constraints.
+  # TODO: sat_inferencer.TypeInferencer()
+  cls.inferencer = sat_inferencer.TypeInferencer(
+      builtins=parse_utils.ParseBuiltinsFile(
+          # The original builtins, but without all the other modules:
+          #    "../builtins/__builtin__.pytd"))
+          # The stripped-down builtins:
+          "../match/builtin_for_testing.pytd"))
+
+
 class SATEncoderTest(unittest.TestCase):
 
-  @classmethod
-  def setUpClass(cls):
-    if FLAGS.verbosity:
-      logging.basicConfig(level=logging.INFO)
+  # TODO: use setUpClass to call _CommonSetup and
+  #                  create a tearDown to clear the stuff that
+  #                  TypeInferencer.Solve() modifies
 
-    # TODO: sat_inferencer.TypeInferencer()
-    cls.inferencer = sat_inferencer.TypeInferencer(
-        builtins=parse_utils.ParseBuiltinsFile(
-            # The original builtins, but without all the other modules:
-            #    "builtins/__builtin__.pytd"))
-            # The stripped-down builtins:
-            "../match/builtin_for_testing.pytd"))
+  def setUp(self):
+    _CommonSetup(self)
 
   def _ParseSolveCheck(self, src, expected):
     res = self.inferencer.ParseAndSolve(textwrap.dedent(src))
@@ -130,7 +142,7 @@ class SATEncoderTest(unittest.TestCase):
     self._ParseSolveCheck(src,
                           {"A": "float"})
 
-  @unittest.skip("TODO: Failing probably due to a set ordering issue.")
+  @unittest.skip("TODO: failing due to FromPyTD: ClassType<unresolved>(str)")
   def testAllAtOnce(self):
     src = """
       class A:
@@ -155,6 +167,72 @@ class SATEncoderTest(unittest.TestCase):
                            "D#.A": "NoneType",
                            "D2": "list",
                            "D2#.T": "float"})
+
+
+# TODO: move to separate test file and create test setup
+#                  that includes _CommonSetup()
+# TODO: move to pytype/ (see comment in BUILD file)
+
+
+class Pytype_SATTest(unittest.TestCase):
+
+  # TODO: See comment with SATEncoderTest.setUp
+  def setUp(self):
+    _CommonSetup(self)
+
+  def testEndToEnd(self):
+    # TODO: Maybe set up separate tests in ../examples, accessing them via
+    #                  utils.GetDataFile and extracting "expect" comments for
+    #                  expected results.
+    #                  OR: wrap in a simple infrastructure that minimizes
+    #                      the amount of pooilerplate
+
+    end_to_end_test_src = textwrap.dedent("""
+      # Trivial example for testing end-to-end
+
+      def foo(x):
+        return x + 1
+
+      def fib(n):
+        if n == 0:
+          return 1
+        else:
+          return n * fib(n-1)
+
+      # TODO: uncomment the following
+      # class Bar(object):
+      #   def __init__(self, an_attr):
+      #     self.an_attr = an_attr
+      #   def some_method(self, x):
+      #     return self.an_attr + x
+      # # b = Bar(1.0).some_method(1)
+      # # foo(b)
+      """)
+
+    end_to_end_test_expect = textwrap.dedent("""
+      def fib(n: int) -> int
+      def foo(x: int) -> int
+      """).strip()
+
+    # TODO: remove the push/pop of logging levels
+    save_logging_level = logging.getLogger().getEffectiveLevel()
+    logging.getLogger().setLevel(logging.INFO)
+    ty = self.inferencer.InferTypesAndSolve(
+        end_to_end_test_src,
+        debug=True, deep=True, expensive=True)
+    logging.getLogger().setLevel(save_logging_level)
+
+    substituted_result = pytd.Print(ty)
+
+    if substituted_result != end_to_end_test_expect:
+      print >>sys.stderr, "SAT solver result not expected:"
+      print >>sys.stderr, "-" * 36, " Actual ", "-" * 36
+      print >>sys.stderr, substituted_result
+      print >>sys.stderr, "-" * 36, "Expected", "-" * 36
+      print >>sys.stderr, end_to_end_test_expect
+      print >>sys.stderr, "-" * 80
+      self.maxDiff = None  # for better diff output (assertMultiLineEqual)
+      self.assertMultiLineEqual(end_to_end_test_expect, substituted_result)
 
 
 if __name__ == "__main__":

@@ -136,6 +136,10 @@ class SATProblem(object):
       subprocess.check_call(commandline)
       logging.info("Loading SAT problem buffer: %r", solutionfile)
       solution = boolean_problem_pb2.LinearBooleanProblem()
+      if logging.getLogger().isEnabledFor(logging.DEBUG):
+        logging.debug("SAT pretty/solution:\n%s\nSAT pretty (end)",
+                      self.PrettyPB())
+        # logging.debug("SAT pb/solution:\n%s\nSAT pb (end)", self.problem)
       with open(solutionfile, "rb") as fi:
         solution.ParseFromString(fi.read())
       self._results = {v: None for v in self._variables}
@@ -179,9 +183,12 @@ class SATProblem(object):
     # The var_names aren't needed but don't do any harm, except for taking up a
     # bit of space:
     self.problem.var_names.extend(str(v) for v in self._variables)
+    self.ValidatePB()
     if logging.getLogger().isEnabledFor(logging.DEBUG):
       for i, var in enumerate(self._variables):
         logging.debug("%d: %r", i + 1, var)
+      logging.debug("SAT pretty/problem:\n%s\nSAT pretty (end)",
+                    self.PrettyPB())
 
   def _BuildSolverCmd(self):
     """File names and commandline list for sat_runner."""
@@ -198,15 +205,16 @@ class SATProblem(object):
         prefix="solution_", delete=False, dir=tmpdir) as solutionfi:
       solutionfi.write("")
       solutionfile = solutionfi.name
-    commandline = [GetSATRunnerBinary()]  # TODO: "-strict_validity"
+    commandline = [GetSATRunnerBinary()]
+    # commandline += ["-strict_validity"]  # TODO: restore
     if logging.getLogger().isEnabledFor(logging.INFO):
-      commandline.append("-logtostderr")
+      commandline += ["-logtostderr"]
     if self.initial_polarity:
-      commandline.extend(["-params", "initial_polarity:0"])
-    commandline.extend([
+      commandline += ["-params", "initial_polarity:0"]
+    commandline += [
         "-input=" + problemfile,
         "-output=" + solutionfile,
-        "-use_lp_proto=false"])
+        "-use_lp_proto=false"]
     logging.debug("solver cmd: %s", commandline)
     return problemfile, solutionfile, commandline
 
@@ -357,23 +365,30 @@ class SATProblem(object):
     # TODO(ampere): Add support for hinting the SAT solver with variable values.
     pass
 
+  def ValidatePB(self):
+    for constraint in self.problem.constraints:
+      assert len(constraint.literals) == len(constraint.coefficients)
+      assert all(lit != 0 for lit in constraint.literals)
+      assert all(coef != 0 for coef in constraint.coefficients)
+      duplicates = [
+          lit for lit, count in collections.Counter(
+              abs(lit) for lit in constraint.literals).items()
+          if count > 1]
+      # assert not duplicates, ([(self.problem.var_names[abs(lit)-1], lit) for lit in duplicates], str(constraint))  # TODO: fix
+
   def PrettyPB(self):
     """Pretty version of the protobuff."""
-    return "".join(self._PrettyPB_yield())
+    return "".join(self._PrettyPBYield())
 
-  def _PrettyPB_yield(self):
+  def _PrettyPBYield(self):
     p = self.problem
     yield "name: '{}'\n".format(p.name)
     yield "num_variables: {:d}\n".format(p.num_variables)
     yield "var_names: {}\n".format(
         [(i, str(n)) for i, n in enumerate(p.var_names)])
     for constraint in p.constraints:
-      assert len(constraint.literals) == len(constraint.coefficients)
-      coef_lit = zip(constraint.coefficients, constraint.literals)
-      zero_coef = [p.var_names[lit-1] for coef, lit in coef_lit if coef == 0]
-      if zero_coef:
-        yield "***zero-coefficients: {} ".format(zero_coef)
-      duplicates = [p.var_names[lit-1]
+      # TODO: this is a duplicate of ValidatePB
+      duplicates = [p.var_names[abs(lit)-1]
                     for lit, count in collections.Counter(
                         abs(lit) for lit in constraint.literals).items()
                     if count > 1]
@@ -381,7 +396,7 @@ class SATProblem(object):
         yield "***duplicates: {} ".format(duplicates)
       if constraint.HasField("lower_bound"):
         yield "{:d} <= ".format(constraint.lower_bound)
-      for coef, lit in coef_lit:
+      for coef, lit in zip(constraint.coefficients, constraint.literals):
         if lit < 0:
           lit_sign = "-"
           lit = -lit

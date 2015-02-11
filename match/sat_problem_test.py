@@ -110,7 +110,7 @@ class SATProblemTest(unittest.TestCase):
     self._ProblemSolveAndCheck(p=False, q=False)
 
 
-class SATProblemPBTest(unittest.TestCase):
+class SATProblemPB_Test(unittest.TestCase):
 
   def setUp(self):
     if FLAGS.verbosity:
