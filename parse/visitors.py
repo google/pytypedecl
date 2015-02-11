@@ -71,14 +71,15 @@ class PrintVisitor(object):
     """
     parents = "(" + ", ".join(node.parents) + ")" if node.parents else ""
     template = "<" + ", ".join(node.template) + ">" if node.template else ""
-    constants = [self.INDENT + m for m in node.constants]
-    if node.methods:
+    if node.methods or node.constants:
       # We have multiple methods, and every method has multiple signatures
       # (i.e., the method string will have multiple lines). Combine this into
       # an array that contains all the lines, then indent the result.
       all_lines = sum((m.splitlines() for m in node.methods), [])
+      constants = [self.INDENT + m for m in node.constants]
       methods = [self.INDENT + m for m in all_lines]
     else:
+      constants = []
       methods = [self.INDENT + "pass"]
     header = "class " + self.SafeName(node.name) + template + parents + ":"
     return "\n".join([header] + constants + methods) + "\n"
