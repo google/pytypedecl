@@ -30,8 +30,8 @@ from pytypedecl import pytd
 from pytypedecl.parse import parser
 
 ClassesFuncsByName = collections.namedtuple(
-    'ClassesFuncsByName',
-    ['classes', 'funcs'])
+    "ClassesFuncsByName",
+    ["classes", "funcs"])
 
 
 # TODO: Remove this class, and use PyParser directly in CheckFromData()
@@ -48,7 +48,7 @@ class ParserUtils(object):
     # we're actually running.
     self._parser = parser.TypeDeclParser(tuple(sys.version_info))
 
-  def LoadTypeDeclaration(self, content, filename=''):
+  def LoadTypeDeclaration(self, content, filename=""):
     """Parse a type declaration from a str.
 
     Args:
@@ -367,7 +367,7 @@ def TypeCheck(module, func_name, func, func_sigs):
             # get generator from cache
             mod_args.append(cache_of_generators[actual])
           else:
-          # here we have an untyped generator
+            # here we have an untyped generator
             mod_args.append(actual)
         else:
           mod_args.append(actual)

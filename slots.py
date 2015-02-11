@@ -262,5 +262,4 @@ def GetUnaryOperatorMapping():
 def GetCompareFunctionMapping():
   return {index: magic
           for op, index, magic in COMPARE_OPS
-          if magic
-         }
+          if magic}

@@ -8,6 +8,7 @@ variable name.
 
 import collections
 import logging
+import os
 import subprocess
 import tempfile
 
@@ -27,24 +28,29 @@ class Conjunction(collections.namedtuple("Conjunction", ["exprs"])):
   """
 
   def __new__(cls, exprs):
-    expr_set = set()
-    for expr in exprs:
-      if isinstance(expr, Conjunction):
-        expr_set.update(expr.exprs)
-      elif expr is False:
-        return False
-      elif expr is True:
-        pass
-      else:
-        expr_set.add(expr)
+    expr_set = frozenset(
+        sum((list(expr.exprs) if isinstance(expr, Conjunction)
+             else [expr]
+             for expr in exprs), [])) - frozenset([True])
+    if False in expr_set:
+      return False
     if len(expr_set) > 1:
-      return super(Conjunction, cls).__new__(cls, frozenset(expr_set))
+      return super(Conjunction, cls).__new__(cls, expr_set)
     elif expr_set:
       expr, = expr_set
       return expr
     else:
-      # The empty conjunction is equivalent to True
-      return True
+      return True  # Empty conjunction is equivalent to True
+
+  __slots__ = ()
+
+  def __eq__(self, other):  # for unit tests
+    return type(self) == type(other) and self.exprs == other.exprs
+
+  def __ne__(self, other):
+    return not (self == other)
+
+  # __hash__(self) uses tuple.__hash__, which is "good enough"
 
   def __str__(self):
     return "(" + " & ".join(str(t) for t in self.exprs) + ")"
@@ -57,57 +63,83 @@ class Disjunction(collections.namedtuple("Disjunction", ["exprs"])):
   """
 
   def __new__(cls, exprs):
-    expr_set = set()
-    for expr in exprs:
-      if isinstance(expr, Disjunction):
-        expr_set.update(expr.exprs)
-      elif expr is True:
-        return True
-      elif expr is False:
-        pass
-      else:
-        expr_set.add(expr)
+    expr_set = frozenset(
+        sum((list(expr.exprs) if isinstance(expr, Disjunction)
+             else [expr]
+             for expr in exprs), [])) - frozenset([False])
+    if True in expr_set:
+      return True
     if len(expr_set) > 1:
       return super(Disjunction, cls).__new__(cls, frozenset(expr_set))
     elif expr_set:
       expr, = expr_set
       return expr
     else:
-      # The empty disjunction is equivalent to False
-      return False
+      return False  # Empty disjunction is equivalent to False
+
+  __slots__ = ()
+
+  def __eq__(self, other):  # for unit tests
+    return type(self) == type(other) and self.exprs == other.exprs
+
+  def __ne__(self, other):
+    return not (self == other)
+
+  # __hash__(self) uses tuple.__hash__, which is "good enough"
 
   def __str__(self):
     return "(" + " | ".join(str(t) for t in self.exprs) + ")"
 
 
 class SATProblem(object):
-  """A simplified SAT solver interface."""
+  """A simplified SAT solver interface.
+
+  This implements a dict-like interface, allowing iteration over the results, or
+  selecting an individual result by name.
+  """
 
   def __init__(self, name="", initial_polarity=True):
     pb = boolean_problem_pb2
     problem = pb.LinearBooleanProblem()
     problem.name = name
+    self.initial_polarity = initial_polarity
     self.problem = problem
     self.constraints = set()
-
     self._next_id = 1
     self._id_table = {}
+    self._results = {}
     self._variables = []
 
-    self.initial_polarity = initial_polarity
+  def __getitem__(self, var):
+    return self._results[var]
+
+  def __iter__(self):
+    return self._results.iteritems()
+
+  def __repr__(self):
+    return ("{type}("
+            "initial_polarity={s.initial_polarity}, "
+            "_next_id={s._next_id}, "
+            "_variables={s._variables}, "
+            "problem={s.problem!s}, "
+            "constraints={s.constraints!r}, "
+            "_results={s._results!r}"
+            ")").format(type=type(self).__name__,
+                        s=self)
 
   def Solve(self):
     """Solve the SAT problem that has been created by calling methods on self.
+    The result is available by self[var] or iterating over self
     """
     logging.info("%d formulae, %d variables",
-             len(self.problem.constraints), len(self._variables))
+                 len(self.problem.constraints), len(self._variables))
     self.problem.num_variables = self._next_id - 1
     # We don't actually need variable names in the buffer, so leave them out to
     # save space.
     # self.problem.var_names.extend(str(v) for v in self._variables)
     if logging.getLogger().isEnabledFor(logging.DEBUG):
       for i, var in enumerate(self._variables):
-        logging.debug("%d: %r", i+1, var)
+        logging.debug("%d: %r", i + 1, var)
 
     logging.info("Storing SAT problem buffer")
     with tempfile.NamedTemporaryFile(delete=False, mode="wb") as fi:
@@ -115,10 +147,11 @@ class SATProblem(object):
       problemfile = fi.name
 
     logging.info("Solving: %r", problemfile)
-    solutionfi = tempfile.NamedTemporaryFile(delete=False)
-    solutionfi.write("")
-    solutionfile = solutionfi.name
-    solutionfi.close()
+    tmpdir = os.environ.get("TEST_TMPDIR", None) or (
+             os.environ.get("TMPDIR", None))
+    with tempfile.NamedTemporaryFile(delete=False, dir=tmpdir) as solutionfi:
+      solutionfi.write("")
+      solutionfile = solutionfi.name
     commandline = [GetSatRunnerBinary()]
     if logging.getLogger().isEnabledFor(logging.INFO):
       commandline.append("-logtostderr")
@@ -129,25 +162,20 @@ class SATProblem(object):
         "-output=" + solutionfile,
         "-use_lp_proto=false"])
     solution = None
+
     try:
       subprocess.check_call(commandline)
-
       logging.info("Loading SAT problem buffer: %r", solutionfile)
       solution = boolean_problem_pb2.LinearBooleanProblem()
-
       with open(solutionfile, "rb") as fi:
         solution.ParseFromString(fi.read())
-
       self._results = {v: None for v in self._variables}
-
       if not solution.assignment.literals and self._variables:
         logging.error("SAT solver failed.")
         self._results = {}
         return
-
       for varid in solution.assignment.literals:
-        self._results[self._variables[abs(varid)-1]] = varid > 0
-
+        self._results[self._variables[abs(varid) - 1]] = varid > 0
     except subprocess.CalledProcessError:
       logging.error("SAT solver failed. Probably UNSAT, returning the empty "
                     "result.", exc_info=True)
@@ -159,12 +187,6 @@ class SATProblem(object):
           logging.debug(text_format.MessageToString(solution))
         else:
           logging.debug(text_format.MessageToString(self.problem))
-
-  def __getitem__(self, var):
-    return self._results[var]
-
-  def __iter__(self):
-    return self._results.iteritems()
 
   def Implies(self, name, cond, implicand, nodup=False):
     """Add the implication: cond ==> implicand."""
@@ -291,7 +313,7 @@ class SATProblem(object):
       return i
     else:
       i = self._next_id
-      assert i == len(self._variables)+1
+      assert i == len(self._variables) + 1
       assert len(self._id_table) == len(self._variables)
       self._next_id += 1
       self._id_table[var] = i

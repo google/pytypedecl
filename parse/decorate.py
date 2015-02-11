@@ -76,6 +76,5 @@ class Decorator(object):
           # use the clunky way of retrieving the replacement class.
           cls = self.name_to_class[node.__class__.__name__]
           return cls(*node)
-        locals()["Visit"+name] = Visit
+        locals()["Visit" + name] = Visit
     return node.Visit(Visitor())
-

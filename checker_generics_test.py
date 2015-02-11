@@ -35,7 +35,6 @@ class TestCheckerGenerics(unittest.TestCase):
     with self.assertRaises(checker.CheckTypeAnnotationError) as context:
       generics.Length(["abc", 1, 3])
 
-
   def testUserContainerClass(self):
     """Type checking of a container class."""
 
@@ -43,7 +42,6 @@ class TestCheckerGenerics(unittest.TestCase):
 
     with self.assertRaises(checker.CheckTypeAnnotationError) as context:
       generics.UnwrapBox(generics.Box("hello"))
-
 
   def testDict(self):
     """Type checking of built-in dict."""
@@ -54,7 +52,6 @@ class TestCheckerGenerics(unittest.TestCase):
     with self.assertRaises(checker.CheckTypeAnnotationError) as context:
       generics.FindInCache(cache, 9999)
 
-
   def testGenSimple(self):
     """Type checking of typed generator."""
 
@@ -64,7 +61,6 @@ class TestCheckerGenerics(unittest.TestCase):
     gen = generics._BadGen()
     with self.assertRaises(checker.CheckTypeAnnotationError) as context:
       generics.ConvertGenToList(gen)
-
 
   def testSameGenAsTwoArgs(self):
     """Passing same generator twice."""

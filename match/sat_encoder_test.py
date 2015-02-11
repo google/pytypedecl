@@ -54,6 +54,13 @@ class SatEncoderTest(unittest.TestCase):
     return res
 
   def testMembersDirectFromClass(self):
+    # in pytd:
+    #   class A:
+    #     def __add__(self, x:int or float) -> float
+    #   class B:
+    #     def __add__(self, x:bytearray) -> bytearray
+    # So the following is subtlely wrong because it has
+    #   def __add__(self:float, ...) ...
     cls_a = pytd.Class("A", (),
                        (self.builtins.Lookup("float").Lookup("__add__"),),
                        (), ())

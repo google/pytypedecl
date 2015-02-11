@@ -33,4 +33,3 @@ setup(name='pytypedecl',
       package_dir={'pytypedecl': ''},
       packages=['pytypedecl', 'pytypedecl.parse'],
      )
-

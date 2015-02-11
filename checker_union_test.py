@@ -92,12 +92,12 @@ class TestCheckerUnion(unittest.TestCase):
                                                "a",
                                                str,
                                                pytd.UnionType([int,
-                                                                 type(None)]))
+                                                               type(None)]))
 
     expected_ret = checker.ReturnTypeErrorMsg("IntOrNone",
                                               str,
                                               pytd.UnionType([int,
-                                                                type(None)]))
+                                                              type(None)]))
 
     [actual_param, actual_ret] = context.exception.args[0]
     self.assertEquals(expected_param, actual_param)
@@ -118,8 +118,8 @@ class TestCheckerUnion(unittest.TestCase):
                                          "f",
                                          int,
                                          pytd.UnionType([simple.Apple,
-                                                           simple.Banana,
-                                                           simple.Orange]))
+                                                         simple.Banana,
+                                                         simple.Orange]))
 
     [actual] = context.exception.args[0]
     self.assertEquals(expected, actual)

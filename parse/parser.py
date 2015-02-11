@@ -204,7 +204,8 @@ class PyLexer(object):
     (r"""'([^']|\\')*'|"""
      r'"([^"]|\\")*"')
     # TODO: full Python string syntax (e.g., """...""", r"...")
-    # TODO: use something like devtools/python/library_types/ast.py _ParseLiteral
+    # TODO: use something like devtools/python/library_types/ast.py
+    #                  _ParseLiteral
     t.value = eval(t.value)
     return t
 
@@ -241,7 +242,7 @@ class Number(collections.namedtuple('Number', ['string'])):
       raise make_syntax_error(parser,
                               'Illegal version \"%s\"' % self.string, p)
     prefix = tuple(int(digit) for digit in components)
-    return (prefix + (0,0,0))[0:3]
+    return (prefix + (0, 0, 0))[0:3]
 
 
 def MergeSignatures(signatures):

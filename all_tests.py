@@ -23,27 +23,32 @@ import checker_overloading_test
 import checker_test
 import checker_union_test
 
+
 def suite():
 
-    # ast tests
-    # TODO: can this be simplified using test discovery?
+  # ast tests
+  # TODO: can this be simplified using test discovery?
 
-    ast_generation = unittest.TestLoader().loadTestsFromTestCase(ast_test.TestASTGeneration)
-    tuple_eq = unittest.TestLoader().loadTestsFromTestCase(ast_test.TestTupleEq)
+  ast_generation = unittest.TestLoader().loadTestsFromTestCase(
+      ast_test.TestASTGeneration)
+  tuple_eq = unittest.TestLoader().loadTestsFromTestCase(ast_test.TestTupleEq)
 
-    # checker tests
-    classes = unittest.TestLoader().loadTestsFromTestCase(checker_classes_test.TestCheckerClasses)
-    generics = unittest.TestLoader().loadTestsFromTestCase(checker_generics_test.TestCheckerGenerics)
-    overloading = unittest.TestLoader().loadTestsFromTestCase(checker_overloading_test.TestCheckerOverloading)
-    simple = unittest.TestLoader().loadTestsFromTestCase(checker_test.TestChecker)
-    union = unittest.TestLoader().loadTestsFromTestCase(checker_union_test.TestCheckerUnion)
+  # checker tests
+  classes = unittest.TestLoader().loadTestsFromTestCase(
+      checker_classes_test.TestCheckerClasses)
+  generics = unittest.TestLoader().loadTestsFromTestCase(
+      checker_generics_test.TestCheckerGenerics)
+  overloading = unittest.TestLoader().loadTestsFromTestCase(
+      checker_overloading_test.TestCheckerOverloading)
+  simple = unittest.TestLoader().loadTestsFromTestCase(checker_test.TestChecker)
+  union = unittest.TestLoader().loadTestsFromTestCase(
+      checker_union_test.TestCheckerUnion)
 
+  all_tests = [ast_generation, tuple_eq, classes, generics, overloading,
+               simple, union]
 
-    all_tests = [ast_generation, tuple_eq, classes, generics, overloading,
-                 simple, union]
-
-    return unittest.TestSuite(all_tests)
+  return unittest.TestSuite(all_tests)
 
 
 if __name__ == "__main__":
-    unittest.TextTestRunner().run(suite())
+  unittest.TextTestRunner().run(suite())

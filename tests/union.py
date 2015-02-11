@@ -52,7 +52,8 @@ def IntOrNone(a):
   return a
 
 
-# def AppleOrBananaOrOrange(f : simple.Apple | simple.Banana | simple.Orange) -> None
+# def AppleOrBananaOrOrange(
+#       f : simple.Apple | simple.Banana | simple.Orange) -> None
 def AppleOrBananaOrOrange(f):
   return None
 

@@ -180,7 +180,7 @@ def Powerset(iterable):
   """powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)."""
   s = list(iterable)
   return itertools.chain.from_iterable(itertools.combinations(s, r)
-                                       for r in range(len(s)+1))
+                                       for r in range(len(s) + 1))
 
 
 class SatEncoder(object):
@@ -201,7 +201,7 @@ class SatEncoder(object):
     assert isinstance(b, bool)
     self.sat.Hint(a, b)
 
-  def _SATEqual(self, a, b):
+  def _SATEquals(self, a, b):
     self.sat.Equals("{} <==> {}".format(a, b), a, b)
 
   def _SATImplies(self, a, b, nodup=False):
@@ -247,7 +247,7 @@ class SatEncoder(object):
     for var in class_variables:
       left, right = var
       if not left.IsNominallyCompatibleWith(right):
-        self._SATEqual(var, False)
+        self._SATEquals(var, False)
       else:
         conj = set()
         for name in set(left.structure) | set(right.structure):
@@ -269,7 +269,7 @@ class SatEncoder(object):
             break
         requirement = sat_problem.Conjunction(conj)
         if left.complete and right.complete:
-          self._SATEqual(var, requirement)
+          self._SATEquals(var, requirement)
         else:
           self._SATImplies(var, requirement)
           self._SATHint(var, True)
@@ -307,10 +307,10 @@ class SatEncoder(object):
 
     logging.debug("Types: %r", self.types)
 
+    # TODO: do we need the the transitive constraints?
     use_transitivity_constraints = True
     if use_transitivity_constraints:
-      incomplete_types = [t for t in self.types
-                          if not t.complete]
+      incomplete_types = [t for t in self.types if not t.complete]
       for a in self.types:
         for b in incomplete_types:
           if a == b:
@@ -351,7 +351,7 @@ class SatEncoder(object):
         if var.Other(incomp).complete:
           if incomp.cls in results:
             logging.warning("%r is assigned more than once to a complete type: "
-                        "%r, %r", incomp, results[incomp.cls],
-                        var.Other(incomp))
+                            "%r, %r", incomp, results[incomp.cls],
+                            var.Other(incomp))
           results[incomp.cls] = var.Other(incomp).ToPyTD()
     return results

@@ -247,4 +247,3 @@ def _VisitNode(node, visitor, *args, **kwargs):
       # subclasses dict.
       return node.__class__(new_dict)
   return node
-

@@ -26,7 +26,7 @@ from .. import pytd
 class PrintVisitor(object):
   """Visitor for converting ASTs back to pytd source code."""
 
-  INDENT = " "*4
+  INDENT = " " * 4
   VALID_NAME = re.compile(r"^[a-zA-Z_]\w*$")
 
   def __init__(self):
@@ -525,4 +525,3 @@ class AdjustSelf(object):
       return pytd.Parameter("self", self.class_type)
     else:
       return p
-
