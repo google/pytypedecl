@@ -118,7 +118,7 @@ class TestUtils(parser_test.ParserTest):
         assert mykeyword == "foobar"
         return t1 == t2
 
-      def match_function_function(self, f1, f2, mykeyword):
+      def match_function_against_function(self, f1, f2, mykeyword):
         assert mykeyword == "foobar"
         return all(self.match(sig1, sig2, mykeyword)
                    for sig1, sig2 in zip(f1.signatures, f2.signatures))

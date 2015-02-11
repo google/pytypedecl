@@ -136,7 +136,8 @@ class TypeMatcher(object):
   def match(self, t1, t2, *args, **kwargs):
     name1 = t1.__class__.__name__
     name2 = t2.__class__.__name__
-    f = getattr(self, "match_" + name1.lower() + "_" + name2.lower(), None)
+    f = getattr(self, "match_" + name1.lower() + "_against_" + name2.lower(),
+                None)
     if f:
       return f(t1, t2, *args, **kwargs)
     else:
