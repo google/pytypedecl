@@ -421,6 +421,9 @@ class <T> list:
         self := list<nothing>
     def <N> __init__(self: list<T>, iterable: list<N>):
         self := list<N>
+    def <N> __init__(self: list<T>, generator: generator<N>):
+        # TODO: We should be able to just write "T := N"
+        self := list<N>
     def __init__(self: list<T>, x):
         self := list<?>
     def <A> __add__(self: list<T>, y: list<A>) -> list<T or A>
@@ -836,11 +839,11 @@ class function:
     def __call__(self, ...) -> NoneType
     def __get__(self, obj, ...) -> instancemethod
 
-class generator:
-    def __iter__(self) -> generator
+class<T> generator:
+    def __iter__(self: generator<T>) -> generator<T>
+    def send(self: generator<T>, arg)
     def close(self) -> NoneType
-    def next(self)
-    def send(self, arg)
+    def next(self) -> T
 
 class instancemethod:
     def __init__(self, function: function or type or instancemethod, instance, cls)
