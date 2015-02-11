@@ -174,9 +174,13 @@ class MutableParameter(node.Node('name', 'type', 'new_type')):
 class TemplateItem(node.Node('name', 'within_type')):
   """Represents "template name extends bounded_type".
 
-  This can be either the result of the 'template' in the parser (e.g.,
-    funcdef : DEF template NAME LPAREN params RPAREN ...)
-  or the result of a lookup using the ExpandTemplates visitor.
+  This is used for classes and signatures. The 'template' field of both is
+  a list of TemplateItems. Note that *using* the template happens through
+  NamedType.  E.g. in:
+    class<T> A:
+      def f(T x) -> T
+  both the "T"s in the definition of f() are using pytd.NamedType to refer to
+  the TemplateItem in class A's template.
 
   Attributes:
     name: the name that's used in a generic type
