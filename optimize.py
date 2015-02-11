@@ -46,7 +46,7 @@ class RemoveDuplicates(object):
   def VisitFunction(self, node):
     # We remove duplicates, but keep existing entries in the same order.
     ordered_set = collections.OrderedDict(zip(node.signatures, node.signatures))
-    return node.Replace(signatures=list(ordered_set))
+    return node.Replace(signatures=tuple(ordered_set))
 
 
 class _ReturnsAndExceptions(object):
@@ -685,8 +685,8 @@ class PullInMethodClasses(object):
             pytd.Function(const.name, signatures))
       else:
         new_constants.append(const)  # keep
-    cls = cls.Replace(constants=new_constants,
-                      methods=new_methods)
+    cls = cls.Replace(constants=tuple(new_constants),
+                      methods=tuple(new_methods))
     return cls.Visit(visitors.AdjustSelf(force=True))
 
 
