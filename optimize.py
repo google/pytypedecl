@@ -167,7 +167,7 @@ class CombineReturnsAndExceptions(object):
       new_signatures.append(
           stripped_signature.Replace(return_type=ret, exceptions=exc)
       )
-    return f.Replace(signatures=new_signatures)
+    return f.Replace(signatures=tuple(new_signatures))
 
 
 class CombineContainers(object):
