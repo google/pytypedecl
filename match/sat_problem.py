@@ -86,7 +86,6 @@ class SATProblem(object):
   def __init__(self, name="", initial_polarity=True):
     pb = boolean_problem_pb2
     problem = pb.LinearBooleanProblem()
-    problem.type = pb.LinearBooleanProblem.MAXIMIZATION
     problem.name = name
     self.problem = problem
     self.constraints = set()
@@ -261,9 +260,9 @@ class SATProblem(object):
     assert isinstance(value, bool)
     obj = self.problem.objective
     # negate the ID to get a negated literal if we prefer the variable to be
-    # false.
+    # false. Note the coefficient -1 because the objective will be minimized.
     obj.literals.append((1 if value else -1) * self._GetVariableID(var))
-    obj.coefficients.append(1)
+    obj.coefficients.append(-1)
 
   def _GetVariableIDOrLift(self, expr):
     if not isinstance(expr, (Disjunction, Conjunction, bool)):
