@@ -464,11 +464,6 @@ class FindCommonSuperClasses(object):
     for superclass in superclasses:
       self._CollectSuperclasses(superclass, collect)
 
-    if node != pytd.NamedType("object"):
-      # Everything but object itself subclasses object. This is not explicitly
-      # specified in _superclasses, so we add object manually.
-      collect.add(pytd.NamedType("object"))
-
   def _Expand(self, t):
     """Generate a list of all (known) superclasses for a type.
 
@@ -485,14 +480,6 @@ class FindCommonSuperClasses(object):
 
   def _HasSubClassInSet(self, cls, known):
     """Queries whether a subclass of a type is present in a given set."""
-
-    # object is an implicit superclass of all types. So if we're being asked
-    # whether object has a subclass in the set, we just need to find any
-    # class that's not object itself.
-    if (cls == pytd.NamedType("object")
-        and known
-        and any(k != pytd.NamedType("object") for k in known)):
-      return True
 
     return any(pytd.NamedType(sub) in known
                for sub in self._subclasses[str(cls)])

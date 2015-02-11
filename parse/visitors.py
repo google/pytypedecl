@@ -71,7 +71,10 @@ class PrintVisitor(object):
 
   def VisitClass(self, node):
     """Visit a class, producing a multi-line, properly indented string."""
-    parents = "(" + ", ".join(node.parents) + ")" if node.parents else ""
+    if node.parents == ("object",):
+      parents = ""  # object is the default superclass
+    else:
+      parents = "(" + ", ".join(node.parents) + ")"
     template = "<" + ", ".join(node.template) + ">" if node.template else ""
     header = "class " + self.SafeName(node.name) + template + parents + ":"
     if node.methods or node.constants:

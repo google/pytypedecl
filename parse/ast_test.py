@@ -17,9 +17,7 @@ import textwrap
 import unittest
 from pytypedecl import pytd
 from pytypedecl.parse import decorate
-from pytypedecl.parse import parser
 from pytypedecl.parse import parser_test
-from pytypedecl.parse import visitors
 
 
 class TestASTGeneration(parser_test.ParserTest):

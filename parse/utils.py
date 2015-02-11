@@ -15,6 +15,9 @@
 # limitations under the License.
 
 
+# TODO: Rename this file to builtins.py.
+
+
 """Utilities for parsing type declaration files.
 """
 
@@ -22,6 +25,7 @@ import os.path
 
 from pytypedecl import utils
 from pytypedecl.parse import parser
+from pytypedecl.parse import visitors
 
 
 def GetBuiltins():
@@ -45,6 +49,11 @@ def GetBuiltins():
   for mod in modules:
     builtins.modules[mod] = ParseBuiltinsFile(mod + ".pytd")
   return builtins
+
+
+def GetBuiltinsHierarchy():
+  builtins = ParseBuiltinsFile("__builtin__.pytd")
+  return builtins.Visit(visitors.ExtractSuperClasses())
 
 
 def ParseBuiltinsFile(filename):

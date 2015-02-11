@@ -482,11 +482,9 @@ class TypeDeclParser(object):
     p[0] = self.python_version != p[3].AsVersion(self, p)
 
   # TODO(raoulDoc): doesn't support nested classes
-  # TODO: parents is redundant -- should match what's in .py file
   def p_classdef(self, p):
     """classdef : CLASS NAME template parents COLON INDENT class_funcs DEDENT"""
     #             1     2    3        4       5     6
-    # TODO: do name lookups for template within class_funcs
     funcdefs = [x for x in p[7] if isinstance(x, NameAndSig)]
     constants = [x for x in p[7] if isinstance(x, pytd.Constant)]
     if (set(f.name for f in funcdefs) | set(c.name for c in constants) !=
@@ -500,7 +498,13 @@ class TypeDeclParser(object):
         if t.name in template_names:
           raise make_syntax_error(self, 'Duplicate template parameter %s' %
                                   t.name, p)
-    cls = pytd.Class(name=p[2], parents=tuple(p[4]),
+
+    if p[4] == [pytd.NothingType()]:
+      bases = ()
+    else:
+      # Everything implicitly subclasses "object"
+      bases = tuple(p[4]) or (pytd.NamedType('object'),)
+    cls = pytd.Class(name=p[2], parents=bases,
                      methods=tuple(MergeSignatures(funcdefs)),
                      constants=tuple(constants), template=tuple(p[3]))
     p[0] = cls.Visit(visitors.AdjustSelf())

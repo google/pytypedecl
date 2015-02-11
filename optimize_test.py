@@ -19,6 +19,7 @@ import unittest
 from pytypedecl import optimize
 from pytypedecl import pytd
 from pytypedecl.parse import parser_test
+from pytypedecl.parse import utils
 from pytypedecl.parse import visitors
 
 
@@ -214,7 +215,7 @@ class TestOptimize(parser_test.ParserTest):
     new_src = self.ApplyVisitorToString(src, optimize.ApplyOptionalArguments())
     self.AssertSourceEquals(new_src, expected)
 
-  def testSuperClasses(self):
+  def testABCSuperClasses(self):
     src = textwrap.dedent("""
         def f(x: list or tuple, y: frozenset or set) -> int or float
         def g(x: dict or Mapping, y: complex or int) -> set or dict or tuple or Container
@@ -226,6 +227,19 @@ class TestOptimize(parser_test.ParserTest):
         def h(x)
     """)
     visitor = optimize.FindCommonSuperClasses(use_abcs=True)
+    new_src = self.ApplyVisitorToString(src, visitor)
+    self.AssertSourceEquals(new_src, expected)
+
+  def testBuiltinSuperClasses(self):
+    src = textwrap.dedent("""
+        def f(x: list or object, y: int or float) -> int or bool
+    """)
+    expected = textwrap.dedent("""
+        def f(x, y) -> int
+    """)
+    visitor = optimize.FindCommonSuperClasses(
+        superclasses=utils.GetBuiltinsHierarchy(),
+        use_abcs=False)
     new_src = self.ApplyVisitorToString(src, visitor)
     self.AssertSourceEquals(new_src, expected)
 

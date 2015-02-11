@@ -30,10 +30,9 @@ class ParserTest(unittest.TestCase):
     self.parser = parser.TypeDeclParser(parser.DEFAULT_VERSION)
 
   def Parse(self, src, version=None):
-    if version:
-      tree = parser.TypeDeclParser(version).Parse(textwrap.dedent(src))
-    else:
-      tree = self.parser.Parse(textwrap.dedent(src))
+    # TODO: Using self.parser here breaks tests. Why?
+    tree = parser.TypeDeclParser(version or parser.DEFAULT_VERSION).Parse(
+        textwrap.dedent(src))
     tree.Visit(visitors.VerifyVisitor())
     return tree
 
