@@ -104,6 +104,8 @@ def JoinTypes(types):
 
   if len(new_types) == 1:
     return new_types.pop()
+  elif any(isinstance(t, pytd.UnknownType) for t in new_types):
+    return pytd.UnknownType()
   elif new_types:
     return pytd.UnionType(tuple(new_types))  # tuple() to make unions hashable
   else:
