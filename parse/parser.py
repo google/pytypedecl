@@ -524,9 +524,9 @@ class TypeDeclParser(object):
     # TODO: do name lookups for template within params, return, raises
     # TODO: Output a warning if we already encountered a signature
     #              with these types (but potentially different argument names)
-    if p[3] == "__init__" and isinstance(p[7], pytd.UnknownType):
+    if p[3] == '__init__' and isinstance(p[7], pytd.UnknownType):
       # for __init__, the default return value is None
-      ret = pytd.NamedType("NoneType")
+      ret = pytd.NamedType('NoneType')
     else:
       ret = p[7]
     signature = pytd.Signature(params=tuple(p[5].required), return_type=ret,
