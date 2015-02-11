@@ -11,6 +11,7 @@ from pytypedecl.parse import utils
 from pytypedecl.parse import visitors
 
 
+@unittest.skip("Too slow.")
 class SatEncoderTest(unittest.TestCase):
 
   def setUp(self):

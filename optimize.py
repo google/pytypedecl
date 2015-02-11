@@ -170,6 +170,54 @@ class CombineReturnsAndExceptions(object):
     return f.Replace(signatures=new_signatures)
 
 
+class CombineContainers(object):
+  """Change unions of containers to containers of unions.
+
+  For example, this transforms
+    list<int> or list<float>
+  to
+    list<int or float>
+  .
+  """
+
+  def VisitUnionType(self, union):
+    """Push unions down into containers.
+
+    This collects similar container types in unions and merges them into
+    single instances with the union type pushed down to the element_type level.
+
+    Arguments:
+      union: A pytd.Union instance
+
+    Returns:
+      A simplified pytd.Union.
+    """
+    if not any(isinstance(t, pytd.HomogeneousContainerType)
+               for t in union.type_list):
+      # Optimization: If we're not going to change anything, return original.
+      return union
+    union = JoinTypes(union.type_list)  # flatten
+    collect = {}
+    for t in union.type_list:
+      if isinstance(t, pytd.HomogeneousContainerType):
+        if t.base_type in collect:
+          collect[t.base_type] = JoinTypes(
+              [collect[t.base_type], t.element_type])
+        else:
+          collect[t.base_type] = t.element_type
+    result = pytd.NothingType()
+    for t in union.type_list:
+      if isinstance(t, pytd.HomogeneousContainerType):
+        if t.base_type not in collect:
+          continue  # already added
+        add = t.Replace(element_type=collect[t.base_type])
+        del collect[t.base_type]
+      else:
+        add = t
+      result = JoinTypes([result, add])
+    return result
+
+
 class ExpandSignatures(object):
   """Expand to Cartesian product of parameter types.
 
@@ -546,6 +594,7 @@ def Optimize(node, flags=None):
   node = node.Visit(CombineReturnsAndExceptions())
   node = node.Visit(Factorize())
   node = node.Visit(ApplyOptionalArguments())
+  node = node.Visit(CombineContainers())
   if flags and flags.lossy:
     hierarchy = node.Visit(visitors.ExtractSuperClasses())
     node = node.Visit(

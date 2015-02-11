@@ -255,5 +255,20 @@ class TestOptimize(parser_test.ParserTest):
                                         optimize.ShortenUnions(max_length=4))
     self.AssertSourceEquals(new_src, expected)
 
+  def testCombineContainers(self):
+    src = """
+        def f(x: list<int> or list<float>)
+        def g(x: list<int> or str or list<float> or set<int> or long)
+        def h(x: list<int> or list<str> or set<int> or set<float>)
+    """
+    expected = """
+        def f(x: list<int or float>)
+        def g(x: list<int or float> or str or set<int> or long)
+        def h(x: list<int or str> or set<int or float>)
+    """
+    new_src = self.ApplyVisitorToString(src,
+                                        optimize.CombineContainers())
+    self.AssertSourceEquals(new_src, expected)
+
 if __name__ == "__main__":
   unittest.main()
