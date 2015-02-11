@@ -285,6 +285,8 @@ class ClassType(node.Node('name')):
         cls='<unresolved>' if self.cls is None else '')
 
 
+# TODO: Rename this to "AnythingType". "Unknown" is too confusing since
+# we also have `~unknown`.
 class UnknownType(node.Node()):
   """A type we know nothing about yet."""
   __slots__ = ()

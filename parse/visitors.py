@@ -634,6 +634,33 @@ class RemoveUnknownClasses(object):
     return u.Replace(classes=tuple(cls for cls in u.classes if cls is not None))
 
 
+# TODO: The `~unknown` functionality is becoming more important. Should
+# we have support for this on the pytd level? (That would mean changing
+# Class.name to a TYPE). Also, should we just use ~X instead of ~unknownX?
+class RaiseIfContainsUnknown(object):
+  """Find any 'unknown' Class or ClassType (not: pytd.UnknownType!) in a class.
+
+  It throws HasUnknown on the first occurence.
+  """
+
+  class HasUnknown(Exception):
+    """Used for aborting the RaiseIfContainsUnknown visitor early."""
+    pass
+
+  # COV_NF_START
+  def EnterNamedType(self, _):
+    raise AssertionError("This visitor needs the AST to be resolved.")
+  # COV_NF_END
+
+  def EnterClassType(self, t):
+    if t.name.startswith("~unknown"):
+      raise RaiseIfContainsUnknown.HasUnknown()
+
+  def EnterClass(self, cls):
+    if cls.name.startswith("~unknown"):
+      raise RaiseIfContainsUnknown.HasUnknown()
+
+
 class VerifyVisitor(object):
   """Visitor for verifying pytd ASTs. For tests."""
 

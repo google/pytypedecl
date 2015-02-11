@@ -178,6 +178,47 @@ class TestVisitors(parser_test.ParserTest):
     new_tree = tree.Visit(visitors.StripSelf())
     self.AssertSourceEquals(new_tree, expected)
 
+  def testRemoveUnknownClasses(self):
+    src = textwrap.dedent("""
+        class `~unknown1`(nothing):
+            pass
+        class `~unknown2`(nothing):
+            pass
+        class A:
+            def foobar(x: `~unknown1`, y: `~unknown2`) -> `~unknown1` or int
+    """)
+    expected = textwrap.dedent("""
+        class A:
+            def foobar(x: ?, y: ?) -> ? or int
+    """)
+    tree = self.Parse(src)
+    tree = tree.Visit(visitors.RemoveUnknownClasses())
+    self.AssertSourceEquals(tree, expected)
+
+  def testFindUnknownVisitor(self):
+    src = textwrap.dedent("""
+        class `~unknown1`(nothing):
+          pass
+        class `~unknown_foobar`(nothing):
+          pass
+        class `~int`(nothing):
+          pass
+        class A(nothing):
+          def foobar(self, x: `~unknown1`)
+        class B(nothing):
+          def foobar(self, x: `~int`)
+        class C(nothing):
+          x: `~unknown_foobar`
+        class D(`~unknown1`):
+          pass
+    """)
+    tree = self.Parse(src)
+    tree = visitors.LookupClasses(tree)
+    find_on = lambda x: tree.Lookup(x).Visit(visitors.RaiseIfContainsUnknown())
+    self.assertRaises(visitors.RaiseIfContainsUnknown.HasUnknown, find_on, "A")
+    find_on("B")  # shouldn't raise
+    self.assertRaises(visitors.RaiseIfContainsUnknown.HasUnknown, find_on, "C")
+    self.assertRaises(visitors.RaiseIfContainsUnknown.HasUnknown, find_on, "D")
 
 if __name__ == "__main__":
   unittest.main()
