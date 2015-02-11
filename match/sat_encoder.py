@@ -299,7 +299,7 @@ class SatEncoder(object):
                           for p in itertools.combinations(self.types, 2))
       added_variables = new_variables - variables
       for added_var in added_variables:
-        logging.warning("New variable: %r", added_var)
+        logging.info("New variable: %r", added_var)
       variables = new_variables
 
     logging.info("# Types: %r", len(self.types))
