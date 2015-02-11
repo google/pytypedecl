@@ -220,16 +220,25 @@ class TemplateItem(node.Node('type_param', 'within_type')):
     return self.type_param.name
 
 
-# There are multiple representations of a "type" (used for return types,
-# arguments, exceptions etc.):
+# Types can be:
 # 1.) NamedType:
 #     Specifies a type by name (i.e., a string)
 # 2.) NativeType
 #     Points to a Python type. (int, float etc.)
 # 3.) ClassType
 #     Points back to a Class in the AST. (This makes the AST circular)
-# visitors.py contains tools for converting between the corresponding AST
-# representations.
+# 4.) GenericType
+#     Contains a base type and parameters.
+# 5.) UnionType / IntersectionType
+#     Can be multiple types at once.
+# 6.) NothingType / UnknownType
+#     Special purpose types that represent nothing or everything.
+# 7.) TypeParameter
+#     A placeholder for a type.
+# 8.) Scalar
+#     A singleton type. Not currently used, but supported by the parser.
+# For 1-3, the file visitors.py contains tools for converting between the
+# corresponding AST representations.
 
 
 class NamedType(node.Node('name')):
@@ -317,6 +326,7 @@ class UnionType(node.Node('type_list')):
     return not self == other
 
 
+# TODO: Do we still need this?
 class IntersectionType(node.Node('type_list')):
   __slots__ = ()
 
@@ -344,6 +354,12 @@ class HomogeneousContainerType(GenericType):
   @property
   def element_type(self):
     return self.parameters[0]
+
+
+# So we can do "isinstance(node, pytd.TYPE)":
+TYPE = (NamedType, NativeType, ClassType, UnknownType, UnionType,
+        NothingType, GenericType, TypeParameter, Scalar,
+        IntersectionType, Scalar)
 
 
 def Print(n):

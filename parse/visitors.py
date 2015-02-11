@@ -600,3 +600,101 @@ class RemoveUnknownClasses(object):
 
   def VisitTypeDeclUnit(self, u):
     return u.Replace(classes=tuple(cls for cls in u.classes if cls is not None))
+
+
+class VerifyVisitor(object):
+  """Visitor for verifying pytd ASTs. For tests."""
+
+  # TODO: implements_all_node_types should also work if we only define
+  # Enter* methods.
+
+  def EnterTypeDeclUnit(self, node):
+    assert isinstance(node.constants, (list, tuple)), node
+    assert all(isinstance(c, pytd.Constant) for c in node.constants)
+    assert isinstance(node.functions, (list, tuple)), node
+    assert all(isinstance(f, pytd.Function) for f in node.functions)
+    assert isinstance(node.classes, (list, tuple)), node
+    assert all(isinstance(cls, pytd.Class) for cls in node.classes)
+    assert isinstance(node.modules, (dict, type(None))), node
+    assert all(isinstance(m, pytd.TypeDeclUnit) for m in node.modules.values())
+
+  def EnterConstant(self, node):
+    assert isinstance(node.name, str), node
+    assert isinstance(node.type, pytd.TYPE), node
+
+  def EnterClass(self, node):
+    assert isinstance(node.parents, tuple), node
+    assert all(isinstance(p, pytd.TYPE) for p in node.parents)
+    assert isinstance(node.methods, tuple), node
+    assert all(isinstance(f, pytd.Function) for f in node.methods)
+    assert isinstance(node.constants, tuple), node
+    assert all(isinstance(c, pytd.Constant) for c in node.constants)
+    assert isinstance(node.template, tuple), node
+    assert all(isinstance(t, pytd.TemplateItem) for t in node.template)
+
+  def EnterFunction(self, node):
+    assert isinstance(node.name, str), node
+    assert isinstance(node.signatures, tuple), node
+    assert all(isinstance(sig, pytd.Signature) for sig in node.signatures)
+
+  def EnterSignature(self, node):
+    assert isinstance(node.params, tuple), node
+    assert all(isinstance(p, (pytd.Parameter, pytd.MutableParameter))
+               for p in node.params)
+    assert isinstance(node.return_type, pytd.TYPE), node
+    assert isinstance(node.exceptions, tuple), node
+    assert all(isinstance(e, pytd.TYPE) for e in node.exceptions)
+    assert isinstance(node.template, tuple), node
+    assert all(isinstance(t, pytd.TemplateItem) for t in node.template)
+    assert isinstance(node.has_optional, bool), node
+
+  def EnterParameter(self, node):
+    assert isinstance(node.name, str), node
+    assert isinstance(node.type, pytd.TYPE), node
+
+  def EnterMutableParameter(self, node):
+    assert isinstance(node.name, str), node
+    assert isinstance(node.type, pytd.TYPE), node
+    assert isinstance(node.new_type, pytd.TYPE), node
+
+  def EnterTemplateItem(self, node):
+    assert isinstance(node.type_param, pytd.TypeParameter), node
+    assert isinstance(node.within_type, pytd.TYPE), node
+
+  def EnterNamedType(self, node):
+    assert isinstance(node.name, str), node
+
+  def EnterNativeType(self, node):
+    assert isinstance(node.python_type, type), node
+
+  def EnterUnknownType(self, unused_node):
+    pass
+
+  def EnterNothingType(self, unused_node):
+    pass
+
+  def EnterClassType(self, node):
+    assert isinstance(node.name, str), node
+
+  def EnterTypeParameter(self, node):
+    assert isinstance(node.name, str), node
+
+  def EnterHomogeneousContainerType(self, node):
+    assert isinstance(node.base_type, pytd.TYPE), node
+    assert isinstance(node.parameters, tuple), node
+    assert len(node.parameters) == 1, node
+    assert all(isinstance(p, pytd.TYPE) for p in node.parameters), node
+
+  def EnterGenericType(self, node):
+    assert isinstance(node.base_type, pytd.TYPE), node
+    assert isinstance(node.parameters, tuple), node
+    assert all(isinstance(p, pytd.TYPE) for p in node.parameters), node
+
+  def EnterUnionType(self, node):
+    assert isinstance(node.type_list, tuple), node
+    assert all(isinstance(t, pytd.TYPE) for t in node.type_list), node
+
+  def EnterIntersectionType(self, node):
+    assert isinstance(node.type_list, tuple), node
+    assert all(isinstance(t, pytd.TYPE) for t in node.type_list), node
+

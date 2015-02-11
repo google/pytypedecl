@@ -19,19 +19,27 @@ from pytypedecl import pytd
 from pytypedecl.parse import decorate
 from pytypedecl.parse import parser
 from pytypedecl.parse import parser_test
+from pytypedecl.parse import visitors
 
 
 class TestASTGeneration(parser_test.ParserTest):
 
   def ParseWithVersion(self, src, version):
-    return parser.TypeDeclParser(version).Parse(src)
+    tree = parser.TypeDeclParser(version).Parse(src)
+    tree.Visit(visitors.VerifyVisitor())
+    return tree
+
+  def Parse(self, src):
+    tree = self.parser.Parse(src)
+    tree.Visit(visitors.VerifyVisitor())
+    return tree
 
   def TestThrowsSyntaxError(self, src):
     self.assertRaises((SyntaxError, SystemError), self.parser.Parse, src)
 
   def TestRoundTrip(self, src, canonical_src=None):
     """Compile a string, and convert the result back to a string. Compare."""
-    tree = self.parser.Parse(src)
+    tree = self.Parse(src)
     new_src = pytd.Print(tree)
     self.AssertSourceEquals(new_src, (canonical_src or src))
 
@@ -90,7 +98,7 @@ class TestASTGeneration(parser_test.ParserTest):
         def h() -> a<x,y>
         def i() -> nothing  # never returns
     """)
-    result = self.parser.Parse(src)
+    result = self.Parse(src)
     ret = {f.name: f.signatures[0].return_type for f in result.functions}
     self.assertIsInstance(ret["a"], pytd.UnknownType)
     self.assertIsInstance(ret["b"], pytd.UnknownType)
@@ -114,7 +122,7 @@ class TestASTGeneration(parser_test.ParserTest):
           def bar()
         def baz(i: int)
     """)
-    result = self.parser.Parse(src)
+    result = self.Parse(src)
     foo = result.Lookup("Foo")
     self.assertEquals(["bar"], [f.name for f in foo.methods])
     self.assertEquals(["baz"], [f.name for f in result.functions])
@@ -253,7 +261,7 @@ class TestASTGeneration(parser_test.ParserTest):
         def append_float(l: list):
           l := list<float>
     """)
-    module = self.parser.Parse(src)
+    module = self.Parse(src)
     foo = module.Lookup("Foo")
     self.assertEquals(["append_int"], [f.name for f in foo.methods])
     self.assertEquals(["append_float"], [f.name for f in module.functions])
@@ -283,7 +291,7 @@ class TestASTGeneration(parser_test.ParserTest):
         def add(x : int, y : int) -> int
         """)
 
-    result = self.parser.Parse(data)
+    result = self.Parse(data)
 
     f = result.Lookup("add")
     self.assertEquals(len(f.signatures), 1)
@@ -330,8 +338,8 @@ class TestASTGeneration(parser_test.ParserTest):
 
     data1 = r"def foo(a: Foo or Bar and Zot) -> object"
     data2 = r"def foo(a: Foo or (Bar and Zot)) -> object"
-    result1 = self.parser.Parse(data1)
-    result2 = self.parser.Parse(data2)
+    result1 = self.Parse(data1)
+    result2 = self.Parse(data2)
     f = pytd.Function(
         name="foo",
         signatures=(pytd.Signature(
@@ -360,7 +368,7 @@ class TestASTGeneration(parser_test.ParserTest):
         def `interface`(abcde: "xyz", foo: 'a"b', b: -1.0, c: 666) -> int
         """)
 
-    result = self.parser.Parse(data)
+    result = self.Parse(data)
     f1 = result.Lookup("interface")
     f2 = pytd.Function(
         name="interface",
@@ -495,7 +503,7 @@ class TestASTGeneration(parser_test.ParserTest):
           def f2<T,U>(p1: C, p2: T, p3: dict<C, C or T or int>) -> T raises Error<T>
         """)
 
-    result = self.parser.Parse(data)
+    result = self.Parse(data)
     myclass = result.Lookup("MyClass")
     self.assertEquals({t.name for t in myclass.template}, {"C"})
 
@@ -526,7 +534,7 @@ class TestASTGeneration(parser_test.ParserTest):
           def f1(self)
         """)
 
-    result = self.parser.Parse(data)
+    result = self.Parse(data)
     myclass = result.Lookup("MyClass")
     self.assertEquals([t.name for t in myclass.template], ["U", "V"])
 
