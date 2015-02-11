@@ -24,16 +24,6 @@ from pytypedecl.parse import visitors
 
 class TestASTGeneration(parser_test.ParserTest):
 
-  def ParseWithVersion(self, src, version):
-    tree = parser.TypeDeclParser(version).Parse(src)
-    tree.Visit(visitors.VerifyVisitor())
-    return tree
-
-  def Parse(self, src):
-    tree = self.parser.Parse(src)
-    tree.Visit(visitors.VerifyVisitor())
-    return tree
-
   def TestThrowsSyntaxError(self, src):
     self.assertRaises((SyntaxError, SystemError), self.parser.Parse, src)
 
@@ -418,13 +408,13 @@ class TestASTGeneration(parser_test.ParserTest):
         attr1 : int
         def m1()
     """)
-    unit = self.ParseWithVersion(data, (2, 7, 3))
+    unit = self.Parse(data, version=(2, 7, 3))
     self.assertEquals([f.name for f in unit.functions], ["f"])
     self.assertEquals([f.name for f in unit.classes], ["A", "Foo"])
     self.assertEquals([f.name for f in unit.constants], ["c1"])
     self.assertEquals([f.name for f in unit.Lookup("Foo").methods], ["m1"])
     self.assertEquals([f.name for f in unit.Lookup("Foo").constants], ["attr1"])
-    unit = self.ParseWithVersion(data, (3, 3))
+    unit = self.Parse(data, version=(3, 3))
     self.assertEquals([f.name for f in unit.functions], ["g"])
     self.assertEquals([f.name for f in unit.classes], ["B", "Foo"])
     self.assertEquals([f.name for f in unit.constants], ["c2"])
@@ -462,13 +452,13 @@ class TestASTGeneration(parser_test.ParserTest):
     if python != 3.0.0:
       c14: int
     """)
-    unit = self.ParseWithVersion(data, (3, 0, 0))
+    unit = self.Parse(data, version=(3, 0, 0))
     self.assertEquals([f.name for f in unit.constants],
                       ["c2", "c3", "c4", "c5", "c6", "c10", "c13"])
-    unit = self.ParseWithVersion(data, (3, 1, 0))
+    unit = self.Parse(data, version=(3, 1, 0))
     self.assertEquals([f.name for f in unit.constants],
                       ["c3", "c5", "c6", "c7", "c10", "c11", "c14"])
-    unit = self.ParseWithVersion(data, (3, 1, 1))
+    unit = self.Parse(data, version=(3, 1, 1))
     self.assertEquals([f.name for f in unit.constants],
                       ["c6", "c7", "c8", "c10", "c11", "c12", "c14"])
 
@@ -487,10 +477,10 @@ class TestASTGeneration(parser_test.ParserTest):
     if python > 3.0.0:
       c6: int
     """)
-    unit = self.ParseWithVersion(data, (3, 0, 0))
+    unit = self.Parse(data, version=(3, 0, 0))
     self.assertEquals([f.name for f in unit.constants],
                       ["c1", "c2", "c3"])
-    unit = self.ParseWithVersion(data, (3, 0, 1))
+    unit = self.Parse(data, version=(3, 0, 1))
     self.assertEquals([f.name for f in unit.constants],
                       ["c4", "c5", "c6"])
 

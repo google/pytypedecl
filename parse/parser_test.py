@@ -20,6 +20,7 @@ import textwrap
 import unittest
 from pytypedecl import pytd
 from pytypedecl.parse import parser
+from pytypedecl.parse import visitors
 
 
 class ParserTest(unittest.TestCase):
@@ -30,9 +31,11 @@ class ParserTest(unittest.TestCase):
 
   def Parse(self, src, version=None):
     if version:
-      return parser.TypeDeclParser(version).Parse(textwrap.dedent(src))
+      tree = parser.TypeDeclParser(version).Parse(textwrap.dedent(src))
     else:
-      return self.parser.Parse(textwrap.dedent(src))
+      tree = self.parser.Parse(textwrap.dedent(src))
+    tree.Visit(visitors.VerifyVisitor())
+    return tree
 
   def ToSource(self, src_or_tree):
     # TODO: The callers are not consistent in how they use this
