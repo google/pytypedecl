@@ -118,7 +118,11 @@ class NotImplementedType:
 class NoneType:
     pass
 
-class str:
+# TODO: Only define this for Python 2
+class basestring:
+    pass
+
+class str(basestring):
     def __init__(self, object)
     def __init__(self)
     def __add__(self, y: str or bytearray) -> str
@@ -181,7 +185,7 @@ class str:
     def upper(self) -> str
     def zfill(self, width: int) -> str
 
-class unicode:
+class unicode(basestring):
     def __init__(self, string, ...)
     def __init__(self)
     def __add__(self, y: str or unicode or bytearray) -> unicode
