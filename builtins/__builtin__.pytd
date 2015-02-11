@@ -59,8 +59,8 @@ def issubclass(C, B: tuple) -> bool
 def issubclass(C: type, B: type) -> bool
 def iter(collection: str or unicode or bytearray or iterator) -> iterator
 def<T> iter(collection: list<T>) -> listiterator<T>
-def iter(collection: tuple) -> tupleiterator
-def iter(collection: set) -> setiterator
+def iter(collection: tuple<T>) -> tupleiterator<T>
+def iter(collection: set<T>) -> setiterator<T>
 def len(object) -> int
 def locals() -> dict<str, object>
 def map(function, sequence, sequence, ...) -> list
@@ -473,19 +473,19 @@ class <T> tuple:
     def __getitem__(self: tuple<T>, y: int) -> T
     def __getslice__(self, i: int, j: int) -> tuple<T>
     def __gt__(self, y: tuple) -> bool
-    def __iter__(self) -> tupleiterator
+    def __iter__(self: tuple<T>) -> tupleiterator<T>
     def __le__(self, y: tuple) -> bool
     def __len__(self) -> int
     def __lt__(self, y: tuple) -> bool
-    def __mul__(self, n: int) -> tuple
+    def __mul__(self: tuple<T>, n: int) -> tuple<T>
     def __ne__(self, y: tuple) -> bool
-    def __rmul__(self, n: int) -> tuple
+    def __rmul__(self: tuple<T>, n: int) -> tuple<T>
     def count(self, value: T) -> int
     def index(self, value, ...) -> int
 
-class tupleiterator:
-    def __iter__(self) -> tupleiterator
-    def next(self)
+class<T> tupleiterator:
+    def __iter__(self: tupleiterator<T>) -> tupleiterator<T>
+    def next(self: tupleiterator<T>) -> T
 
 class <T> set:
     def __init__(self: set<T>):
@@ -502,7 +502,7 @@ class <T> set:
     def __iand__(self, y: set) -> set
     def __ior__(self, y: set) -> set
     def __isub__(self, y: set) -> set
-    def __iter__(self) -> setiterator
+    def __iter__(self: set<T>) -> setiterator<T>
     def __ixor__(self, y: set) -> set
     def __le__(self, y: set) -> bool
     def __len__(self) -> int
@@ -555,9 +555,9 @@ class frozenset:
     def intersection(self, ...) -> frozenset
     def union(self, ...) -> frozenset
 
-class setiterator:
-    def __iter__(self) -> setiterator
-    def next(self) -> int
+class<T> setiterator:
+    def __iter__(self: setiterator<T>) -> setiterator<T>
+    def next(self: setiterator<T>) -> T
 
 class bool:
     def __init__(self, x)
