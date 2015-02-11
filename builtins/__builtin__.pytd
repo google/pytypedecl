@@ -412,12 +412,13 @@ class listreverseiterator:
     def next(self)
 
 class <T> list:
-    def __init__(self):
+    # TODO: The type of self should be automatic
+    def __init__(self: list<T>):
         self := list<nothing>
-    def <N> __init__(self, iterable: list<N>):
+    def <N> __init__(self: list<T>, iterable: list<N>):
         self := list<N>
-    def __init__(self, x):
-        self := list<unknown>
+    def __init__(self: list<T>, x):
+        self := list<?>
     def <A> __add__(self: list<T>, y: list<A>) -> list<T or A>
     def __contains__(self, y: T) -> bool
     def __delitem__(self, y: int) -> NoneType
@@ -456,8 +457,8 @@ class reversed:
     def next(self) -> str
 
 class <T> tuple:
-    def __init__(self, p0)
-    def __init__(self)
+    def __init__(self: tuple<T>, p0)
+    def __init__(self: tuple<T>)
     def <A> __add__(self: tuple<T>, y: tuple<A>) -> tuple<T or A>
     def __contains__(self, y: T) -> bool
     def __eq__(self, y: tuple) -> bool
@@ -480,12 +481,12 @@ class tupleiterator:
     def next(self)
 
 class <T> set:
-    def __init__(self):
+    def __init__(self: set<T>):
         self := set<nothing>
-    def <N> __init__(self, iterable: list<N>):
+    def <N> __init__(self: set<T>, iterable: list<N>):
         self := set<N>
-    def __init__(self, x):
-        self := set<unknown>
+    def __init__(self: set<T>, x):
+        self := set<nothing>  # TODO: should be set<?>
     def __and__(self, y: set) -> set
     def __contains__(self, y) -> bool
     def __eq__(self, y) -> bool
@@ -859,10 +860,11 @@ class memoryview:
     def tobytes(self, ...) -> str
     def tolist(self, ...) -> list<int>
 
-class property:
-    def __init__(self, ...)
-    def __delete__(self, obj) -> NoneType
-    def __get__(self, obj, ...) -> NoneType
+class<T> property:
+    def<N> __init__(self: property<T>, f: F):
+        self := property<F>
+    def __delete__(self: property<T>, obj) -> NoneType
+    def __get__(self: property<T>, obj, ...) -> T
 
 class type:
     def __init__(self, object)

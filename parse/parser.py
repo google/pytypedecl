@@ -443,6 +443,7 @@ class TypeDeclParser(object):
         set(d.name for d in p[7])):
       # TODO: raise a syntax error right when the identifier is defined.
       raise make_syntax_error(self, 'Duplicate identifier(s)', p)
+    # TODO: Adjust "self" to the right type on all signatures.
     p[0] = pytd.Class(name=p[3], parents=tuple(p[4]),
                       methods=tuple(MergeSignatures(funcdefs)),
                       constants=tuple(constants), template=tuple(p[2]))
