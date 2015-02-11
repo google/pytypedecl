@@ -71,9 +71,9 @@ class SATEncoderTest(unittest.TestCase):
         (self.inferencer.builtins.Lookup("bytearray").Lookup("__add__"),),
         (), ())
     res = self._SolveClasses([cls_a, cls_b])
-    self.assertItemsEqual({cls_a: self.float_type,
-                           cls_b: self.bytearray_type},
-                          res)
+    self.assertEqual({cls_a: self.float_type,
+                      cls_b: self.bytearray_type},
+                     res)
 
   def testMembersDirectFromParsedClass(self):
     # This is essentially the same as testMembersDirectFromClass with the cheat
@@ -92,7 +92,7 @@ class SATEncoderTest(unittest.TestCase):
         parsed_looked_up.classes)
     # Make sure that the classes that were given to the solver were as expected:
     self.assertEqual([c.name for c in parsed_looked_up.classes], ["A", "B"])
-    self.assertItemsEqual(
+    self.assertEqual(
         {parsed_looked_up.classes[0]: self.float_type,
          parsed_looked_up.classes[1]: self.bytearray_type},
         res)

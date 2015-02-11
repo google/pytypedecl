@@ -17,8 +17,8 @@ class SATProblemTest(unittest.TestCase):
 
   def _ProblemSolveAndCheck(self, **expected):
     self.problem.Solve()
-    self.assertItemsEqual(dict(**expected), self.problem._results,
-                          "Wrong result: " + str(self.problem))
+    self.assertEqual(dict(**expected), self.problem._results,
+                     "Wrong result: " + str(self.problem))
 
   def testConjunction(self):
     self.assertEqual(True,
@@ -123,7 +123,7 @@ class SATProblemPBTest(unittest.TestCase):
     self.problem.End()
     problem_expected = boolean_problem_pb2.LinearBooleanProblem()
     text_format.Parse(ascii_expected, problem_expected)
-    self.assertItemsEqual(vars_expected, self.problem._variables)
+    self.assertEqual(vars_expected, self.problem._variables)
     self.assertEqual(str(problem_expected), str(self.problem.problem))
 
   # TODO: The following tests are somewhat like a "change detector"

@@ -284,6 +284,8 @@ class IntersectionType(node.Node('type_list')):
 class GenericType(node.Node('base_type', 'parameters')):
   """Generic type. Takes a base type and type paramters.
 
+  This corresponds to the syntax: type<type1,>, type<type1, type2> (etc.).
+
   Attributes:
     base_type: The base type. Instance of Type.
     parameters: Type paramters. Tuple of instances of Type.
@@ -292,7 +294,11 @@ class GenericType(node.Node('base_type', 'parameters')):
 
 
 class HomogeneousContainerType(GenericType):
-  """Special generic type for homogeneous containers."""
+  """Special generic type for homogeneous containers. Only has one type param.
+
+  This differs from GenericType in that it assumes *all* items in a container
+  will be the same type. The syntax is type<t>. (Vs type<t,> for GenericType.)
+  """
   __slots__ = ()
 
   @property
