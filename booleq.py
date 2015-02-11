@@ -355,7 +355,7 @@ class Solver(object):
     for var in self.variables:
       for value in self.values:
         e = Eq(var, value)
-        if e in self.implications:
+        if e not in self.implications:
           # Missing implications are typically needed for variable/value
           # combinations not considered by the user, e.g. for auxiliary
           # variables introduced when setting up the "main" equations.
