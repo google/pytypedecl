@@ -642,8 +642,12 @@ class bool(int):
     def __or__(self, y: int) -> int
     def __or__(self, y: bool) -> bool
     def __pos__(self) -> int
-    def __pow__(self, y: int, ...) -> float or int
-    def __pow__(self, y: bool, ...) -> int
+    def __pow__(self, y: bool) -> int
+    def __pow__(self, y: int) -> int or float  # True ** -2 == 0.5
+    # 3-arg __pow__ raises TypeError if 2nd arg is negative
+    # TODO: disallow bool for 3rd arg?
+    # TODO: remove "or bool" when we sort out bool subclass of int
+    def __pow__(self, y: int or bool, modulo: int or bool) -> int raises TypeError
     def __radd__(self, y: int or bool) -> int
     def __rand__(self, y: int) -> int
     def __rand__(self, y: bool) -> bool
@@ -655,7 +659,7 @@ class bool(int):
     def __rmul__(self, y: int or bool) -> int
     def __ror__(self, y: int) -> int
     def __ror__(self, y: bool) -> bool
-    def __rpow__(self, x: int or bool, ...) -> int
+    def __rpow__(self, x: int or bool) -> int or float
     def __rrshift__(self, y: int or bool) -> int
     def __rshift__(self, y: int or bool) -> int
     def __rsub__(self, y: int or bool) -> int
@@ -695,13 +699,17 @@ class int:
     def __oct__(self) -> str
     def __or__(self, y: int) -> int
     def __pos__(self) -> int
-    def __pow__(self, y: int, ...) -> float or int
+    def __pow__(self, y: bool) -> int
+    def __pow__(self, y: int) -> int or float  # 1 ** -2 == 0.5
+    # 3-arg __pow__ raises TypeError if 2nd arg is negative
+    # TODO: disallow bool for 3rd arg?
+    def __pow__(self, y: int or bool, modulo: int or bool) -> int raises TypeError
     def __radd__(self, y: int) -> int
     def __rand__(self, y: int) -> int
     def __rlshift__(self, y: int) -> int
     def __rmul__(self, y: int) -> int
     def __ror__(self, y: int) -> int
-    def __rpow__(self, x: int, ...) -> int
+    def __rpow__(self, x: int) -> int or float
     def __rrshift__(self, y: int) -> int
     def __rshift__(self, y: int) -> int
     def __rsub__(self, y: int) -> int
@@ -724,6 +732,7 @@ class int:
     def __rmod__(self, y: int) -> int
     def __rtruediv__(self, y: int) -> float
 
+# TODO: # if version < 3:
 class long:
     def __init__(self, x: int or float or long, ...) -> NoneType
     def __init__(self) -> NoneType
@@ -749,14 +758,15 @@ class long:
     def __oct__(self) -> str
     def __or__(self, y: int or long) -> long
     def __pos__(self) -> long
-    def __pow__(self, y: int, ...) -> float or long
-    def __pow__(self, y: long, ...) -> long
+    def __pow__(self, y: int or long or bool) -> long or float  # 1L ** -2 = 0.5
+    # TODO: disallow bool for 3rd arg?
+    def __pow__(self, y: long or int or bool, modulo: long or int or bool) -> long raises TypeError
     def __radd__(self, y: int or long) -> long
     def __rand__(self, y: int or long) -> long
     def __rlshift__(self, y: int or long) -> long
     def __rmul__(self, y: int or long) -> long
     def __ror__(self, y: int or long) -> long
-    def __rpow__(self, x: int or long, ...) -> long
+    def __rpow__(self, x: int or long) -> long
     def __rrshift__(self, y: int or long) -> long
     def __rshift__(self, y: int or long) -> long
     def __rsub__(self, y: int or long) -> long
@@ -803,11 +813,12 @@ class float:
     def __nonzero__(self) -> bool
     def __oct__(self) -> str
     def __pos__(self) -> float
-    def __pow__(self, y: int or float, ...) -> float
+    def __pow__(self, y: int or bool or float or long) -> float
+    # there is no 3-arg version of __pow__ for float
     def __radd__(self, y: int or float) -> float
     def __rlshift__(self, y: int or float) -> int
     def __rmul__(self, y: int or float) -> float
-    def __rpow__(self, x: int or float, ...) -> float
+    def __rpow__(self, x: int or bool or long or float) -> float
     def __rrshift__(self, y: int or float) -> int
     def __rshift__(self, y: int or float) -> int
     def __rsub__(self, y: int or float) -> float
@@ -848,10 +859,11 @@ class complex:
     def __neg__(self) -> complex
     def __nonzero__(self) -> bool
     def __pos__(self) -> complex
-    def __pow__(self, y: int or float or complex, ...) -> complex
+    def __pow__(self, y: int or float or long or bool or complex) -> complex
+    # there is no 3-arg version of __pow__ for complex
     def __radd__(self, y: int or float or complex) -> complex
     def __rmul__(self, y: int or float or complex) -> complex
-    def __rpow__(self, x: int or float or complex, ...) -> complex
+    def __rpow__(self, x: int or float or long or bool or complex) -> complex
     def __rsub__(self, y: int or float or complex) -> complex
     def __sub__(self, y: int or float or complex) -> complex
     def __truediv__(self, y: int or float or complex) -> complex

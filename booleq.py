@@ -312,12 +312,19 @@ class Solver(object):
 
   def __str__(self):
     lines = []
+    count_false, count_true = 0, 0
     if self.ground_truth is not TRUE:
       lines.append("always: %s" % (self.ground_truth,))
     for e, implication in self.implications.items():
-      if implication not in (FALSE, TRUE):  # only print the "interesting" lines
+      # only print the "interesting" lines
+      if implication is FALSE:
+        count_false += 1
+      elif implication is TRUE:
+        count_true += 1
+      else:
         lines.append("if %s then %s" % (e, implication))
-    return "\n".join(lines) + "\n"
+    return "%s\n(%d FALSE, %d TRUE)\n" % (
+      "\n".join(lines), count_false, count_true)
 
   def register_variable(self, variable):
     """Register a variable. Call before calling solve()."""
@@ -326,10 +333,6 @@ class Solver(object):
   def register_value(self, value):
     """Register a value. Call before calling solve()."""
     self.values.append(value)
-
-  # Old names. TODO: remove.
-  register_complete = register_value
-  register_unknown = register_variable
 
   def always_true(self, formula):
     """Register a ground truth. Call before calling solve()."""
@@ -404,5 +407,3 @@ class Solver(object):
           something_changed |= (length_before != length_after)
 
     return assignments
-
-

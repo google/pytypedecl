@@ -248,7 +248,10 @@ class TypeMatch(utils.TypeMatcher):
                        for t in self.expand_superclasses(t1))
     elif isinstance(t2, pytd.ClassType):
       # ClassTypes on the right are exactly like Unions: We can match against
-      # this type or any of its superclasses.
+      # this type or any of its subclasses.
+      # TODO:
+      #    if not allow_subclass:
+      #      return self.match_type_against_type(t1, self.unclass(t2), subst)
       return booleq.Or(self.match_type_against_type(t1, t, subst)
                        for t in self.expand_subclasses(t2))
     assert not isinstance(t1, pytd.ClassType)
@@ -317,6 +320,10 @@ class TypeMatch(utils.TypeMatcher):
   def match_signature_against_function(self, sig, f, subst, skip_self=False):
     # TODO: We should abort after the first matching signature, to get
     # more precise types in the presence of overloading.
+    # TODO ... except it's possible that further computation will
+    #                     invalidate the first matching signature, so we need
+    #                     a way to preserve the alternatives and backtrack
+    #                     through them if necessary
     return booleq.And(
         booleq.Or(
             self.match_signature_against_signature(sig, s, subst, skip_self)

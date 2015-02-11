@@ -177,7 +177,7 @@ class TestBoolEq(unittest.TestCase):
   def testImplication(self):
     solver = self._MakeSolver()
     solver.implies(Eq("x", "1"), Eq("y", "1"))
-    solver.implies(Eq("x", "2"), booleq.FALSE)
+    solver.implies(Eq("x", "2"), booleq.FALSE)  # not Eq("x", "2")
     self.assertDictEqual(solver.solve(),
                          {"x": set(["1"]),
                           "y": set(["1"])})

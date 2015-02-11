@@ -392,19 +392,6 @@ class ReplaceTypes(object):
   # class names with no contents.
 
 
-class RemoveTemplates(object):
-  """Visitor for removing all templates from an AST.
-
-  This is a destructive operation.
-  """
-
-  def VisitHomogeneousContainerType(self, node):
-    return node.base_type
-
-  def VisitGenericType(self, node):
-    return node.base_type
-
-
 class ExtractSuperClassesByName(object):
   """Visitor for extracting all superclasses (i.e., the class hierarchy).
 
