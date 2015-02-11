@@ -26,6 +26,9 @@ class TypeInferencer(object):
 
   def ParseAndSolve(self, src):
     parsed = self.ParseAndLookup(src)
+    return self.Solve(parsed)
+
+  def Solve(self, parsed):
     class_names = [c.name for c in parsed.classes]
     # If all classes don't have unique names, the returned result could be
     # missing a result

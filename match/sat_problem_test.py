@@ -119,7 +119,7 @@ class SATProblemPBTest(unittest.TestCase):
 
   def _CheckProblemPB(self, vars_expected, ascii_expected):
     """Create LinearBooleanProblem protobuf from ascii representation."""
-    self.problem.End()
+    self.problem.Finalize()
     problem_expected = boolean_problem_pb2.LinearBooleanProblem()
     text_format.Parse(ascii_expected, problem_expected)
     self.assertEqual(vars_expected, self.problem._variables)

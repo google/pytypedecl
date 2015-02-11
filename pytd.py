@@ -77,15 +77,39 @@ class Constant(node.Node('name', 'type')):
 class Class(node.Node('name', 'parents', 'methods', 'constants', 'template')):
   """Represents a class declaration.
 
+  Used as dict/set key, so all components must be hashable.
+
   Attributes:
     name: Class name (string)
     parents: The super classes of this class (instances of Type).
     methods: List of class methods (instances of Function).
     constants: List of constant class attributes (instances of Constant).
     template: List of TemplateItem instances.
+       # TODO: fix comment on template - in at least one place
+                          NoneType is allowed -- kramm@ may know more.
+                          Or it could be a bug in kramm's code
   """
   # TODO: Rename "parents" to "bases". "Parents" is confusing since we're
   #              in a tree.
+
+  # Override __new__ so that we can catch un-hashable components.
+  # TODO: Removethis, once we're sure all callers behave properly
+  def __new__(cls, name, parents, methods, constants, template):
+    self = super(Class, cls).__new__(cls, name, parents, methods,
+                                     constants, template)
+    # TODO: remove the following once we're sure that
+    #                  caller passes in None:
+    # assert isinstance(template, tuple), (type(template), template)
+    hash(self)  # Make sure that the args are of sufficiently correct types
+    return self
+
+  # Override _replace so that we can catch un-hashable components.
+  # TODO: Remove this, once we're sure all callers behave properly
+  def _replace(_self, **kwds):
+    result = super(self, Class)._replace(**kwargs)
+    hash(result)  # Make sure that the args are of sufficiently correct types
+    return result
+
   __slots__ = ()
 
   def Lookup(self, name):
@@ -241,6 +265,9 @@ class ClassType(node.Node('name')):
     self.cls = None  # later, name is looked up, and cls is filled in
     return self
 
+  # __eq__ is inherited (using tuple equality + requiring the two classes
+  #                      be the same)
+
   def __str__(self):
     return str(self.cls.name) if self.cls else self.name
 
@@ -284,9 +311,12 @@ class UnionType(node.Node('type_list')):
   #       even though in most respects it acts like a frozenset
 
   def __hash__(self):
+    # See __eq__ - order doesn't matter, so use frozenset
     return hash(frozenset(self.type_list))
 
   def __eq__(self, other):
+    if self is other:
+      return True
     if isinstance(other, UnionType):
       # equality doesn't care about the ordering of the type_list
       return frozenset(self.type_list) == frozenset(other.type_list)

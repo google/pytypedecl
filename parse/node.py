@@ -91,18 +91,22 @@ def Node(*child_names):
       Returns:
         True or False.
       """
-      # This comparison blows up if "other" is an old-style class (not:
+      # This comparison blows up if "other" is an old-style class (not an
       # instance). That's fine, because trying to compare a tuple to a class is
       # almost certainly a programming error, and blowing up is better than
       # silently returning False.
-      if self.__class__ is other.__class__:
+      if self is other:
+        return True
+      elif self.__class__ is other.__class__:
         return tuple.__eq__(self, other)
       else:
         return NotImplemented
 
     def __ne__(self, other):
       """Compare two nodes for inequality. See __eq__."""
-      if self.__class__ is other.__class__:
+      if self is other:
+        return False
+      elif self.__class__ is other.__class__:
         return tuple.__ne__(self, other)
       else:
         return NotImplemented

@@ -131,7 +131,7 @@ class SATProblem(object):
     The result is available by self[var] or iterating over self
     """
 
-    self.End()
+    self.Finalize()
     problemfile, solutionfile, commandline = self._BuildSolverCmd()
     solution = None
     try:
@@ -145,6 +145,7 @@ class SATProblem(object):
         # The following will contain the problem also:
         logging.debug("SAT result")
         logging.debug("%s", solution)
+        logging.debug("%s", self.PrettyPB())
         logging.debug("SAT result (end)")
       if not solution.assignment.literals and self._variables:
         logging.error("SAT solver failed.")
@@ -172,7 +173,7 @@ class SATProblem(object):
               text_format.MessageToString(self.problem))
           logging.debug("solution problem (end)")
 
-  def End(self):
+  def Finalize(self):
     """Fill in the final details of the protobuf."""
     logging.info("%d formulae, %d variables",
                  len(self.problem.constraints), len(self._variables))
@@ -357,3 +358,42 @@ class SATProblem(object):
     """Hint the solver than var should have value."""
     # TODO(ampere): Add support for hinting the SAT solver with variable values.
     pass
+
+  def PrettyPB(self):
+    """Pretty version of the protobuff."""
+    return "".join(self._PrettyPB_yield())
+
+  def _PrettyPB_yield(self):
+    p = self.problem
+    yield "name: '{}'\n".format(p.name)
+    yield "num_variables: {:d}\n".format(p.num_variables)
+    yield "var_names: {}\n".format(
+        [(i, str(n)) for i, n in enumerate(p.var_names)])
+    for constraint in p.constraints:
+      assert len(constraint.literals) == len(constraint.coefficients)
+      coef_lit = zip(constraint.coefficients, constraint.literals)
+      zero_coef = [p.var_names[lit-1] for coef, lit in coef_lit if coef == 0]
+      if zero_coef:
+        yield "***zero-coefficients: {} ".format(zero_coef)
+      duplicates = [p.var_names[lit-1]
+                    for lit, count in collections.Counter(
+                        abs(lit) for lit in constraint.literals).items()
+                    if count > 1]
+      if duplicates:
+        yield "***duplicates: {} ".format(duplicates)
+      if constraint.HasField("lower_bound"):
+        yield "{:d} <= ".format(constraint.lower_bound)
+      for coef, lit in coef_lit:
+        if lit < 0:
+          lit_sign = "-"
+          lit = -lit
+        else:
+          lit_sign = ""
+        try:
+          lit_name = p.var_names[lit-1]  # The protobuf uses 1-origin indexing
+        except IndexError:
+          lit_name = "(!!{:d}!!)".format(lit)
+        yield "{:d}*{}{} ".format(coef, lit_sign, lit_name)
+      if constraint.HasField("upper_bound"):
+        yield "<= {:d} ".format(constraint.upper_bound)
+      yield " # {}\n".format(constraint.name)
