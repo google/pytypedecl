@@ -372,8 +372,17 @@ def Print(n):
   return re.sub(r" +\n", "\n", res)
 
 
-def PrologConstraint(n):
-  """Convert a PYTD node to a Prolog constraint string."""
+def PrologConstraints(n, prefix):
+  """Convert a PYTD node to a Prolog constraint string.
+
+  Args:
+    n: the pytd tree (node)
+    prefix: the prefix to add to each clause.
+
+  Returns:
+    string of constraint clauses.
+  """
+
   # TODO: fix circular import
   from pytypedecl.parse import visitors
-  return  n.Visit(visitors.PrologConstraintsVisitor())
+  return  n.Visit(visitors.PrologConstraintsVisitor(prefix))

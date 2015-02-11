@@ -99,9 +99,9 @@ class PrintVisitor(object):
 
   def VisitSignature(self, node):
     """Visit a signature, producing a string with %s for function name."""
+    # The '%s' is for VisitFunction (parent) to fill in the function name
     # E.g.:
     #   '%s(x: int, y: int, z: unicode) -> str raises ValueError'
-    # The '%s' is for VisitFunction (parent) to fill in the function name
     # TODO: Remove the %s because not needed any more. However,
     #                  it exposes a bug, namely pytype generating an invalid
     #                  tree (see visitors_test.py testPrintInvalidTree)
@@ -731,14 +731,40 @@ class PrologConstraintsVisitor(object):
   # Don't use \w in following because it can change with LOCALE/UNICODE.
   _PROLOG_VAR = re.compile(r"[A-Z][a-zA-Z0-9_]*$")
 
-  def __init__(self):
-    self.class_names = []  # allow nested classes
+  def __init__(self, prefix):
+    self.prefix = prefix
+    self.class_names = []  # allow nested classes Nested dicts of types within a
+    # class - mapping of type name to Prolog variable. There's an implicit empty
+    # "class" for module-level stuff. Each new dictionary gets merged into the
+    # one above on exit ... the main reason for having multiple dictionaries is
+    # so that the mapping of name to variable is as small as possible for each
+    # function or class.
+    self.type_names = [{}]
 
-  def PrologVariable(self, name):
+  def _PrologVariable(self, name):
     """Create a Prolog variable name."""
-    var = "Var_" + name
+    var = "Var_" + name.replace("~", "__").replace("-", "_")  # e.g. `~unknown1`
     assert self._PROLOG_VAR.match(var), var
     return var
+
+  def _PushTypeNames(self):
+    self.type_names.append({})
+
+  def _PopTypeNames(self):
+    if len(self.type_names) >= 2:
+      self.type_names[-2].update(self.type_names[-1])
+    self.type_names.pop()
+
+  def _MakeNamedType(self, name):
+    var_name = self._PrologVariable(name)
+    self.type_names[-1][name] = var_name
+    return "named_type({})".format(var_name)
+
+  def _TypeNamesStr(self):
+    return ("[" +
+            ", ".join("{}-{}".format(_SafeAtom(name), var)
+                           for name, var in sorted(self.type_names[-1].items()))
+            + "]")
 
   def VisitTypeDeclUnit(self, node):
     """Convert AST for an entire module back to constraints string."""
@@ -749,20 +775,35 @@ class PrologConstraintsVisitor(object):
                           if section_suite)
     return "\n\n".join(sections_as_string)
 
+  def EnterConstant(self, unused_node):
+    self._PushTypeNames()
+
+  def LeaveConstant(self, unused_node):
+    self._PopTypeNames()
+
   def VisitConstant(self, node):
     """Convert class-level or module-level constant to constraints string."""
-    return "constant_type({}, {}).".format(_SafeAtom(node.name), node.type)
+    prefix = "" if self.class_names else self.prefix
+    # TODO: use make_constant([name(...), types(...), type(...)],...)
+    #                  to make debugging easier.
+    return ("{prefix}constant({name}, constant({name}, {types}, "
+            "{type})).".format(
+                prefix=prefix, name=_SafeAtom(node.name),
+                types=self._TypeNamesStr(), type=node.type))
 
   def EnterClass(self, node):
     """Entering a class - record class name for children's use."""
+    self._PushTypeNames()
     n = _SafeAtom(node.name)
     if node.template:
       n += ("(" +
-            ", ".join(t.Visit(PrologConstraintsVisitor()) for t in node.template)
+            ", ".join(t.Visit(PrologConstraintsVisitor(self.prefix))
+                      for t in node.template)
             + ")")
     self.class_names.append(n)
 
   def LeaveClass(self, unused_node):
+    self._PopTypeNames()
     self.class_names.pop()
 
   def VisitClass(self, node):
@@ -770,28 +811,43 @@ class PrologConstraintsVisitor(object):
     # The string for functions assumes it's outside a class, so convert into
     # the form for being inside a class (trailing "." are stripped later).
     method_lines = sum((m.splitlines() for m in node.methods), [])
-    return ("class({name}, [{template}], [{parents}], "
-            "[{constants}],\n    [{methods}]).").format(
+    # TODO: use make_class([name(...), ...], ...)
+    #                  to make debugging easier.
+    return ("{prefix}class({name}, class({name}, [{template}], [{parents}], "
+            "[{constants}],\n    {types},\n    [{methods}])).").format(
+        prefix=self.prefix,
         name=_SafeAtom(node.name),
         template=", ".join(node.template or []),
         parents=", ".join(node.parents or []),
         constants=", ".join(node.constants),
+        types=self._TypeNamesStr(),
         methods=",\n     ".join(m.rstrip(".") for m in method_lines))
 
   def VisitFunction(self, node):
     """Visit function, producing multi-line string (one for each signature)."""
     # node.signatures has the function name incorporated with '%s'
     function_name = _SafeAtom(node.name)
-    return "\n".join(("function(" + sig + ").") % function_name
-                     for sig in node.signatures)
+    prefix = "" if self.class_names else self.prefix
+    sigs_with_name = (sig % function_name for sig in node.signatures)
+    return "\n".join("{prefix}function({name}, {sig}).".format(
+                         prefix=prefix, name=function_name, sig=sig)
+                     for sig in sigs_with_name)
+
+  def EnterSignature(self, unused_node):
+    self._PushTypeNames()
+
+  def LeaveSignature(self, unused_node):
+    self._PopTypeNames()
 
   def VisitSignature(self, node):
     """Visit a signature, producing a string with %s for function name."""
+    # The '%s' is for VisitFunction (parent) to fill in the function name.
     # E.g. for this (except VistFunction adds the 'function(' part), so it's
     #      not really needed right now)::
     #   function(%s, [], [param(a, str)], ...).
-    # The '%s' is for VisitFunction (parent) to fill in the function name.
-    before = "%s, [{}]".format(", ".join(node.template or []))
+    # TODO: use make_function([name(...), ...], ...)
+    #                  to make debugging easier.
+    before = "function(%s, [{}]".format(", ".join(node.template or []))
     return_type = node.return_type
     exc = ", ".join(node.exceptions) if node.exceptions else "no_raises"
     optional = "optional" if node.has_optional else "no_optional"
@@ -803,21 +859,29 @@ class PrologConstraintsVisitor(object):
 
     if mutable_params:
       body = ", ".join("mutable({name}, {new_type})".format(
-              name=name,
-              new_type=new_type.Visit(PrologConstraintsVisitor()))
-          for name, new_type in mutable_params)
+          name=name,
+          new_type=new_type.Visit(PrologConstraintsVisitor(self.prefix)))
+                       for name, new_type in mutable_params)
     else:
       body = ""
 
-    return ("{before}, [{params}], "
-            "{optional}, {return_type}, {exc}, [{body}]").format(
-                before=before, params=", ".join(node.params), optional=optional,
+    return ("{before}, {types}, [{params}], " +
+            "{optional}, {return_type}, {exc}, [{body}])").format(
+                before=before, types=self._TypeNamesStr(),
+                params=", ".join(node.params), optional=optional,
                 return_type=return_type, exc=exc, body=body)
 
   def VisitParameter(self, node):
     """Convert a function parameter to a string."""
-    return "param({name}, {type})".format (
-        name=_SafeAtom(node.name), type=node.type)
+    # TODO: The following is a hack, depending on unknown functions
+    #                  getting param names like "_1", etc. which will also be
+    #                  different from all other variable names.
+    if node.name.startswith("_"):
+      return "param({name}, {type})".format (
+          name=self._PrologVariable(node.name), type=node.type)
+    else:
+      return "param({name}, {type})".format (
+          name=_SafeAtom(node.name), type=node.type)
 
   def VisitMutableParameter(self, node):
     """Convert a mutable function parameter to a string."""
@@ -828,10 +892,7 @@ class PrologConstraintsVisitor(object):
         type=node.type_param, within=node.within_type)
 
   def VisitNamedType(self, node):
-    if node.name == "object":
-      return "object"
-    else:
-      return "named_type({})".format(_SafeAtom(node.name))
+    return self._MakeNamedType(node.name)
 
   def VisitNativeType(self, node):
     return "native_type({})".format(_SafeAtom(node.python_type.__name__))
@@ -843,10 +904,12 @@ class PrologConstraintsVisitor(object):
     return _SafeAtom("nothing")
 
   def VisitClassType(self, node):
-    return _SafeAtom(node.name)
+    return self._MakeNamedType(node.name)
 
   def VisitTypeParameter(self, node):
-    return self.PrologVariable(node.name)
+    # This is a template parameter and doesn't need to be recorded the way that
+    # a NamedType is.
+    return self._PrologVariable(node.name)
 
   def VisitHomogeneousContainerType(self, node):
     return "homogeneous({base}, {element})".format(
