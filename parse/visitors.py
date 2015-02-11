@@ -34,7 +34,7 @@ class PrintVisitor(object):
   def __init__(self):
     self.class_names = []  # allow nested classes
 
-  def SafeName(self, name):
+  def _SafeName(self, name):
     if not self._VALID_NAME.match(name):
       # We can do this because name will never contain backticks. Everything
       # we process here came in through the pytd parser, and the pytd syntax
@@ -54,11 +54,11 @@ class PrintVisitor(object):
 
   def VisitConstant(self, node):
     """Convert a class-level or module-level constant to a string."""
-    return self.SafeName(node.name) + ": " + node.type
+    return self._SafeName(node.name) + ": " + node.type
 
   def EnterClass(self, node):
     """Entering a class - record class name for children's use."""
-    n = self.SafeName(node.name)
+    n = self._SafeName(node.name)
     if node.template:
       n += "<{}>".format(
           ", ".join(t.Visit(PrintVisitor()) for t in node.template))
@@ -76,7 +76,7 @@ class PrintVisitor(object):
     else:
       parents = "(nothing)"
     template = "<" + ", ".join(node.template) + ">" if node.template else ""
-    header = "class " + self.SafeName(node.name) + template + parents + ":"
+    header = "class " + self._SafeName(node.name) + template + parents + ":"
     if node.methods or node.constants:
       # We have multiple methods, and every method has multiple signatures
       # (i.e., the method string will have multiple lines). Combine this into
@@ -92,7 +92,7 @@ class PrintVisitor(object):
   def VisitFunction(self, node):
     """Visit function, producing multi-line string (one for each signature)."""
     # node.signatures has the function name incorporated with '%s'
-    function_name = self.SafeName(node.name)
+    function_name = self._SafeName(node.name)
     return "\n".join("def " + function_name + sig for sig in node.signatures)
 
   def VisitSignature(self, node):
@@ -119,9 +119,9 @@ class PrintVisitor(object):
     # pylint: enable=no-member
     if mutable_params:
       body = ":\n" + "\n".join("{indent}{name} := {new_type}".format(
-              indent=self.INDENT, name=name,
-              new_type=new_type.Visit(PrintVisitor()))
-          for name, new_type in mutable_params)
+          indent=self.INDENT, name=name,
+          new_type=new_type.Visit(PrintVisitor()))
+                               for name, new_type in mutable_params)
     else:
       body = ""
 
@@ -136,9 +136,9 @@ class PrintVisitor(object):
       return node.name
     elif node.name == "self" and self.class_names and (
         node.type == self.class_names[-1]):
-      return self.SafeName(node.name)
+      return self._SafeName(node.name)
     else:
-      return self.SafeName(node.name) + ": " + node.type
+      return self._SafeName(node.name) + ": " + node.type
 
   def VisitMutableParameter(self, node):
     """Convert a mutable function parameter to a string."""
@@ -153,11 +153,11 @@ class PrintVisitor(object):
 
   def VisitNamedType(self, node):
     """Convert a type to a string."""
-    return self.SafeName(node.name)
+    return self._SafeName(node.name)
 
   def VisitNativeType(self, node):
     """Convert a native type to a string."""
-    return self.SafeName(node.python_type.__name__)
+    return self._SafeName(node.python_type.__name__)
 
   def VisitUnknownType(self, unused_node):
     """Convert an unknown type to a string."""
@@ -168,10 +168,10 @@ class PrintVisitor(object):
     return "nothing"
 
   def VisitClassType(self, node):
-    return self.SafeName(node.name)
+    return self._SafeName(node.name)
 
   def VisitTypeParameter(self, node):
-    return self.SafeName(node.name)
+    return self._SafeName(node.name)
 
   def VisitHomogeneousContainerType(self, node):
     """Convert a homogeneous container type to a string."""
@@ -404,6 +404,7 @@ class ExtractSuperClassesByName(object):
     result = {base_class: superclasses
               for base_class, superclasses in module.classes}
     for submodule in module.modules:
+      # pylint: disable=no-member
       result.update(
           {self.old_node.name + "." + name: superclasses
            for name, superclasses in submodule.items()})
@@ -755,3 +756,39 @@ class VerifyVisitor(object):
 
   def EnterScalar(self, node):
     pass
+
+
+class CanonicalOrderingVisitor(object):
+  """Visitor for converting ASTs back to canonical (sorted) ordering.
+  """
+
+  def VisitTypeDeclUnit(self, node):
+    return pytd.TypeDeclUnit(name=node.name,
+                             constants=sorted(node.constants),
+                             functions=sorted(node.functions),
+                             classes=sorted(node.classes),
+                             modules=sorted(node.modules))
+
+  def VisitClass(self, node):
+    return pytd.Class(name=node.name,
+                      parents=node.parents,
+                      methods=sorted(node.methods),
+                      constants=sorted(node.constants),
+                      template=node.template)
+
+  def VisitFunction(self, node):
+    return pytd.Function(name=node.name,
+                         signatures=sorted(node.signatures))
+
+  def VisitSignature(self, node):
+    # TODO: might want to do something special for
+    #                  the params that are an instance of
+    #                  pytd.MutableParameter, if they aren't
+    #                  printed in a specific order
+    return node
+
+  def VisitUnionType(self, node):
+    return pytd.UnionType(sorted(node.type_list))
+
+  def VisitIntersectionType(self, node):
+    return pytd.IntersectionType(sorted(node.type_list))
