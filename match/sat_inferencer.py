@@ -34,9 +34,9 @@ class TypeInferencer(object):
     res = self.SolveFromParsedLookedUpClasses(parsed.classes)
     res_by_name = {k.name: v for k, v in res.items()}
     assert len(res) == len(res_by_name)
-    # TODO: Does Solver() return empty dict
-    #                  for unsatisfiable?
-    assert set(class_names).issubset(set(res_by_name))
+    if res_by_name:  # Solver() can return empty dict if unsatisfiable
+      assert set(class_names).issubset(set(res_by_name)), (
+          class_names, res_by_name.keys())
     return res_by_name
 
   def SolveFromParsedLookedUpClasses(self, parsed_classes):

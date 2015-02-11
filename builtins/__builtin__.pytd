@@ -449,7 +449,7 @@ class <T> list:
     def __setitem__(self, i: int, y) -> NoneType
     def __setslice__(self, i: int, j: int, y) -> NoneType
     def <A> append(self, object: A) -> NoneType:
-      self := list<T or A>  # TODO: remove? see testTwoLists
+      self := list<T or A>
     def count(self, value: T) -> int
     def index(self, value, ...) -> int
     def <A> insert(self, index: int, object: A) -> NoneType:

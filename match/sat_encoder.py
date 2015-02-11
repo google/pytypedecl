@@ -40,6 +40,11 @@ class Type(object):
       return Type.FromPyTD(td.base_type)
     elif isinstance(td, pytd.UnionType):
       return UnionType(Type.FromPyTD(t) for t in td.type_list)
+    elif isinstance(td, pytd.UnknownType):
+      # TODO: also for NothingType, etc.?
+      return ClassType(
+          pytd.Class("<unknown>", parents=(), methods=(), constants=(), template=()),
+          complete=False)
     else:
       raise TypeError(
           "Cannot convert: {} ({!s}) ({!r})".format(type(td), td, td))

@@ -17,12 +17,13 @@ class SATEncoderTest(unittest.TestCase):
     if FLAGS.verbosity:
       logging.basicConfig(level=logging.INFO)
 
-    # TODO: reduce the builtins, to allow shorter, more readable,
-    #                  tests (for now - in future, restore builtins)
-    # self.inferencer = sat_inferencer.TypeInferencer(
-    #     builtins=parse_utils.GetBuiltinsFile(
-    #         "match/builtin_for_testing.pytd"))
-    self.inferencer = sat_inferencer.TypeInferencer()
+    # TODO: sat_inferencer.TypeInferencer()
+    self.inferencer = sat_inferencer.TypeInferencer(
+        builtins=parse_utils.GetBuiltinsFile(
+            # The original builtins, but without all the other modules:
+            #    "builtins/__builtin__.pytd"))
+            # The stripped-down builtins:
+            "match/builtin_for_testing.pytd"))
 
     list_cls = self.inferencer.builtins.Lookup("list")
     self.list_type = pytd.ClassType("list")
@@ -108,7 +109,7 @@ class SATEncoderTest(unittest.TestCase):
     # not yet supported in this system.
     self._ParseSolveCheck(src,
                           {"D": self.list_type,
-                           "D#.A": self.float_type,
+                           "D#.T": self.float_type,
                            "list": self.list_type})
 
   def testSingleListInOut(self):
@@ -124,7 +125,6 @@ class SATEncoderTest(unittest.TestCase):
     self._ParseSolveCheck(src,
                           {"A": self.float_type,
                            "D": self.list_type,
-                           "D#.A": self.float_type,
                            "D#.K": self.list_type,
                            "D#.T": self.float_type,
                            "D#.V": self.xrange_type,
@@ -144,7 +144,7 @@ class SATEncoderTest(unittest.TestCase):
     #     def append(self, object: T) -> NoneType
     self._ParseSolveCheck(src,
                           {"D": self.list_type,
-                           "D#.A": self.none_type,
+                           "D#.T": self.none_type,
                            "D2": self.list_type,
                            "D2#.T": self.float_type,
                            "list": self.list_type})
