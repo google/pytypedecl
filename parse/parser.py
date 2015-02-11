@@ -148,7 +148,7 @@ class PyLexer(object):
     r"""\t"""
     # Since nobody can agree anymore how wide tab characters are supposed
     # to be, disallow them altogether.
-    raise make_syntax_error(self, 'Use spaces, not tabs', t)
+    make_syntax_error(self, 'Use spaces, not tabs', t)
 
   def t_WHITESPACE(self, t):
     r"""[\n\r ]+"""  # explicit [...] instead of \s, to omit tab
@@ -165,6 +165,12 @@ class PyLexer(object):
     if i < 0:
       # whitespace in the middle of line
       return
+
+    eof = t.lexer.lexpos >= len(t.lexer.lexdata)
+    if not eof and t.lexer.lexdata[t.lexer.lexpos] == '#':
+      # empty line (ends with comment)
+      return
+
     indent = len(spaces_and_newlines) - i - 1
     if indent < self.indent_stack[-1]:
       self.indent_stack.pop()
@@ -179,7 +185,7 @@ class PyLexer(object):
         t.lexer.skip(-1)  # reprocess this whitespace
       t.type = 'DEDENT'
       return t
-    elif indent > self.indent_stack[-1]:
+    elif indent > self.indent_stack[-1] and not eof:
       self.indent_stack.append(indent)
       t.type = 'INDENT'
       return t
@@ -221,7 +227,7 @@ class PyLexer(object):
     # No return value. Token discarded
 
   def t_error(self, t):
-    raise make_syntax_error(self, "Illegal character '%s'" % t.value[0], t)
+    make_syntax_error(self, "Illegal character '%s'" % t.value[0], t)
 
 
 Params = collections.namedtuple('Params', ['required', 'has_optional'])
@@ -239,8 +245,8 @@ class Number(collections.namedtuple('Number', ['string'])):
     if (len(components) not in (1, 2, 3) or
         any(not digit.isdigit() for digit in components) or
         not all(0 <= int(digit) <= 9 for digit in components)):
-      raise make_syntax_error(parser,
-                              'Illegal version \"%s\"' % self.string, p)
+      make_syntax_error(parser,
+                        'Illegal version \"%s\"' % self.string, p)
     prefix = tuple(int(digit) for digit in components)
     return (prefix + (0, 0, 0))[0:3]
 
@@ -265,7 +271,6 @@ def MergeSignatures(signatures):
       name_to_signatures[name] = []
     name_to_signatures[name].append(signature)
 
-  # TODO: Return this as a dictionary.
   return [pytd.Function(name, tuple(signatures))
           for name, signatures in name_to_signatures.items()]
 
@@ -310,14 +315,12 @@ class InsertTypeParameters(object):
 def CheckStringIsPython(parser, string, p):
   if string == 'python':
     return
-  raise make_syntax_error(
+  make_syntax_error(
       parser, 'If conditions can only depend on the \'python\' variable', p)
 
 
 class TypeDeclParser(object):
   """Parser for type declaration language."""
-
-  # TODO: Check for name clashes.
 
   def __init__(self, python_version, **kwargs):
     """Initialize.
@@ -370,11 +373,15 @@ class TypeDeclParser(object):
     funcdefs = [x for x in p[1] if isinstance(x, NameAndSig)]
     constants = [x for x in p[1] if isinstance(x, pytd.Constant)]
     classes = [x for x in p[1] if isinstance(x, pytd.Class)]
-    if ({f.name for f in funcdefs} & {o.name for o in constants} or
-        {o.name for o in constants} & {c.name for c in classes} or
-        {c.name for c in classes} & {f.name for f in funcdefs}):
-      # TODO: raise a syntax error right when the identifier is defined.
-      raise make_syntax_error(self, 'Duplicate identifier(s)', p)
+    all_names = (list(set(f.name for f in funcdefs)) +
+                 [c.name for c in constants] +
+                 [c.name for c in classes])
+    duplicates = [name
+                  for name, count in collections.Counter(all_names).items()
+                  if count >= 2]
+    if duplicates:
+      make_syntax_error(
+          self, 'Duplicate top-level identifier(s):' + ', '.join(duplicates), p)
     p[0] = pytd.TypeDeclUnit(constants=tuple(constants),
                              functions=tuple(MergeSignatures(funcdefs)),
                              classes=tuple(classes),
@@ -550,7 +557,6 @@ class TypeDeclParser(object):
   def p_funcdef(self, p):
     """funcdef : DEF template NAME LPAREN params RPAREN return raises signature maybe_body"""
     #            1   2        3    4      5      6      7      8      9         10
-    # TODO: do name lookups for template within params, return, raises
     # TODO: Output a warning if we already encountered a signature
     #              with these types (but potentially different argument names)
     if p[3] == '__init__' and isinstance(p[7], pytd.UnknownType):
@@ -564,7 +570,7 @@ class TypeDeclParser(object):
     for mutator in p[10]:
       signature = signature.Visit(mutator)
       if not mutator.successful:
-        self.make_syntax_error(self, 'No parameter named %s' % mutator.name, p)
+        make_syntax_error(self, 'No parameter named %s' % mutator.name, p)
     p[0] = NameAndSig(name=p[3], signature=signature)
 
   def p_empty_body(self, p):
@@ -751,8 +757,8 @@ class TypeDeclParser(object):
     """scalar : NUMBER"""
     p[0] = pytd.Scalar(p[1].AsFloatOrInt())
 
-  def p_error(self, p):
-    raise make_syntax_error(self, 'Parse error', p)
+  def p_error(self, t):
+    raise make_syntax_error(self, 'Parse error: unexpected %r' % t.type, t)
 
 
 def make_syntax_error(parser_or_tokenizer, msg, p):
@@ -772,6 +778,8 @@ def make_syntax_error(parser_or_tokenizer, msg, p):
     # parser. Additionally, ply's yacc catches SyntaxError, but has broken
     # error handling (so we throw a SystemError for the time being).
     raise SystemError(msg, (lexpos, lineno))
+  elif p is None:
+    raise SystemError(msg)
 
   # Convert the lexer's offset to an offset within the line with the error
   # TODO: use regexp to split on r'[\r\n]' (for Windows, old MacOS):

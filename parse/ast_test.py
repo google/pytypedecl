@@ -122,6 +122,19 @@ class TestASTGeneration(unittest.TestCase):
     self.assertEquals(["bar"], [f.name for f in foo.methods])
     self.assertEquals(["baz"], [f.name for f in result.functions])
 
+  def testSpaces(self):
+    """Test that start-of-file / end-of-file whitespace is handled correctly."""
+    self.TestRoundTrip("x: int")
+    self.TestRoundTrip("x: int\n")
+    self.TestRoundTrip("\nx: int")
+    self.TestRoundTrip("\nx: int")
+    self.TestRoundTrip("\n\nx: int")
+    self.TestRoundTrip("  \nx: int")
+    self.TestRoundTrip("x: int  ")
+    self.TestRoundTrip("x: int  \n")
+    self.TestRoundTrip("x: int\n  ")
+    self.TestRoundTrip("x: int\n\n")
+
   def testAlignedComments(self):
     src = textwrap.dedent("""
         # comment 0
@@ -149,7 +162,6 @@ class TestASTGeneration(unittest.TestCase):
     """)
     self.TestRoundTrip(src, dest)
 
-  @unittest.skip("Needs better space handling.")
   def testUnalignedComments(self):
     src = textwrap.dedent("""
           # comment 0
@@ -157,22 +169,23 @@ class TestASTGeneration(unittest.TestCase):
             # comment 1
           def bar(x: X):
               # comment 2
-            X := X # eol line comment 2
+            x := X # eol line comment 2
                # comment 3
          # comment 4
           c: int
         def baz(i: X):
            # comment 6
-          X := X
+          i := X
             # comment 6
     """)
     dest = textwrap.dedent("""
         def baz(i: X):
-          X := X
+            i := X
+
         class Foo:
-          c: int
-          def bar(x: X):
-            X := X
+            c: int
+            def bar(x: X):
+                x := X
     """)
     self.TestRoundTrip(src, dest)
 
@@ -193,6 +206,38 @@ class TestASTGeneration(unittest.TestCase):
     src = textwrap.dedent("""
         class<T, T> A:
           pass
+    """)
+    self.TestThrowsSyntaxError(src)
+
+  def testDuplicates4(self):
+    src = textwrap.dedent("""
+        class A:
+          pass
+        class A:
+          pass
+    """)
+    self.TestThrowsSyntaxError(src)
+
+  def testDuplicates5(self):
+    src = textwrap.dedent("""
+        def x()
+        class x:
+          pass
+    """)
+    self.TestThrowsSyntaxError(src)
+
+  def testDuplicates6(self):
+    src = textwrap.dedent("""
+        x = int
+        class x:
+          pass
+    """)
+    self.TestThrowsSyntaxError(src)
+
+  def testDuplicates7(self):
+    src = textwrap.dedent("""
+        x = int
+        def x()
     """)
     self.TestThrowsSyntaxError(src)
 
