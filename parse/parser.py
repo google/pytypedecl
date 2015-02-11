@@ -43,6 +43,9 @@ class PyLexer(object):
     #                  $GENFILESDIR/pytypedecl_lexer.py and using it by
     #                  calling lex.lex(lextab=pytypedecl_lexer)
     self.lexer = lex.lex(module=self, debug=False)
+    self.default_get_token = self.lexer.token
+    # TODO: Is there a better way to use a custom lexer.token() function?
+    self.lexer.token = self.get_token
     self.lexer.escaping = False
 
   def set_parse_info(self, data, filename):
@@ -51,6 +54,7 @@ class PyLexer(object):
     self.indent_stack = [0]
     self.open_brackets = 0
     self.queued_dedents = 0
+    self.at_eof = False
 
   # The ply parsing library expects class members to be named in a specific way.
   t_ARROW = r'->'
@@ -152,6 +156,7 @@ class PyLexer(object):
 
   def t_WHITESPACE(self, t):
     r"""[\n\r ]+"""  # explicit [...] instead of \s, to omit tab
+
     if self.queued_dedents:
       self.queued_dedents -= 1
       t.type = 'DEDENT'
@@ -167,7 +172,11 @@ class PyLexer(object):
       return
 
     eof = t.lexer.lexpos >= len(t.lexer.lexdata)
-    if not eof and t.lexer.lexdata[t.lexer.lexpos] == '#':
+    if eof:
+      # Ignore white space at end of file.
+      return None
+
+    if not eof and t.lexer.lexdata[t.lexer.lexpos] in '#':
       # empty line (ends with comment)
       return
 
@@ -185,7 +194,7 @@ class PyLexer(object):
         t.lexer.skip(-1)  # reprocess this whitespace
       t.type = 'DEDENT'
       return t
-    elif indent > self.indent_stack[-1] and not eof:
+    elif indent > self.indent_stack[-1]:
       self.indent_stack.append(indent)
       t.type = 'INDENT'
       return t
@@ -225,6 +234,23 @@ class PyLexer(object):
   def t_COMMENT(self, t):
     r"""\#[^\n]*"""
     # No return value. Token discarded
+
+  def get_token(self):
+    if not self.at_eof:
+      t = self.default_get_token()
+      if t is not None:
+        return t
+    self.at_eof = True
+    if len(self.indent_stack) > 1:
+      self.indent_stack.pop()
+      t = lex.LexToken()
+      t.lexpos = self.lexer.lexpos
+      t.lineno = self.lexer.lineno
+      t.type = 'DEDENT'
+      t.value = None
+      return t
+    else:
+      return None
 
   def t_error(self, t):
     make_syntax_error(self, "Illegal character '%s'" % t.value[0], t)

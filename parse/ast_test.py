@@ -18,12 +18,10 @@ import unittest
 from pytypedecl import pytd
 from pytypedecl.parse import decorate
 from pytypedecl.parse import parser
+from pytypedecl.parse import parser_test
 
 
-class TestASTGeneration(unittest.TestCase):
-
-  def setUp(self):
-    self.parser = parser.TypeDeclParser(parser.DEFAULT_VERSION)
+class TestASTGeneration(parser_test.ParserTest):
 
   def ParseWithVersion(self, src, version):
     return parser.TypeDeclParser(version).Parse(src)
@@ -31,12 +29,11 @@ class TestASTGeneration(unittest.TestCase):
   def TestThrowsSyntaxError(self, src):
     self.assertRaises((SyntaxError, SystemError), self.parser.Parse, src)
 
-  def TestRoundTrip(self, src, old_src=None):
+  def TestRoundTrip(self, src, canonical_src=None):
     """Compile a string, and convert the result back to a string. Compare."""
     tree = self.parser.Parse(src)
     new_src = pytd.Print(tree)
-    # TODO: Use AssertSourceEquals from parser_test
-    self.assertEquals((old_src or src).strip(), new_src.strip())
+    self.AssertSourceEquals(new_src, (canonical_src or src))
 
   def testOneFunction(self):
     """Test parsing of a single function definition."""
@@ -134,6 +131,13 @@ class TestASTGeneration(unittest.TestCase):
     self.TestRoundTrip("x: int  \n")
     self.TestRoundTrip("x: int\n  ")
     self.TestRoundTrip("x: int\n\n")
+
+  def testSpacesWithIndent(self):
+    self.TestRoundTrip("def f(x: list<nothing>):\n    x := list<int>")
+    self.TestRoundTrip("\ndef f(x: list<nothing>):\n    x := list<int>")
+    self.TestRoundTrip("\ndef f(x: list<nothing>):\n    x := list<int>  ")
+    self.TestRoundTrip("def f(x: list<nothing>):\n    x := list<int>  \n")
+    self.TestRoundTrip("def f(x: list<nothing>):\n    x := list<int>\n  ")
 
   def testAlignedComments(self):
     src = textwrap.dedent("""
