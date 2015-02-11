@@ -238,8 +238,8 @@ COMPARE_OPS = [
     CompareOp("GT", CMP_GT, "__gt__"),
     CompareOp("GE", CMP_GE, "__ge__"),
     CompareOp("IN", CMP_IN, None),  # reversed __contains__
+    CompareOp("NOT_IN", CMP_NOT_IN, None),  # reversed inverted __contains__
     # these don't have a magic function:
-    CompareOp("NOT_IN", CMP_NOT_IN, None),
     CompareOp("IS", CMP_IS, None),
     CompareOp("IS_NOT", CMP_IS_NOT, None),
     CompareOp("EXC_MATCH", CMP_EXC_MATCH, None),
