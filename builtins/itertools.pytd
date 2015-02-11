@@ -4,7 +4,7 @@ class _grouper:
     pass
 
 class chain:
-    def from_iterable(...)
+    def from_iterable(...) -> ?
 
 class combinations:
     pass

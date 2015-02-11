@@ -39,7 +39,7 @@ class PyLexer(object):
   """Lexer for type declaration language."""
 
   def __init__(self):
-    # TODO: See comments with PyParser about generating the
+    # TODO: See comments with TypeDeclParser about generating the
     #                  $GENFILESDIR/pytypedecl_lexer.py and using it by
     #                  calling lex.lex(lextab=pytypedecl_lexer)
     self.lexer = lex.lex(module=self, debug=False)
@@ -591,7 +591,7 @@ class TypeDeclParser(object):
     #            1   2    3        4      5      6      7      8      9         10
     # TODO: Output a warning if we already encountered a signature
     #              with these types (but potentially different argument names)
-    if p[2] == '__init__' and isinstance(p[7], pytd.UnknownType):
+    if p[2] == '__init__' and isinstance(p[7], pytd.AnythingType):
       # for __init__, the default return value is None
       ret = pytd.NamedType('NoneType')
     else:
@@ -629,10 +629,17 @@ class TypeDeclParser(object):
     """return : ARROW type"""
     p[0] = p[2]
 
-  # We interpret a missing "-> type" as: "Type not specified"
-  def p_return_null(self, p):
-    """return :"""
-    p[0] = pytd.UnknownType()
+  # TODO: allow the return type to be missing from *only* __init__
+  #                  in which case it defaults to "-> NoneType"
+  # Design decision: Require a return type. An earlier design defaulted
+  #                  the return type to pytd.AnythingType but that led to
+  #                  confusion.
+  # This rule is commented out until we can add the logic for restricting
+  # NoneType to only definitions of __init__
+  # # We interpret a missing "-> type" as: "Type not specified"
+  # def p_return_null(self, p):
+  #   """return :"""
+  #   p[0] = pytd.NamedType("NoneType")
 
   def p_params_multi(self, p):
     """params : params COMMA param"""
@@ -771,7 +778,7 @@ class TypeDeclParser(object):
 
   def p_type_unknown(self, p):
     """type : QUESTIONMARK"""
-    p[0] = pytd.UnknownType()
+    p[0] = pytd.AnythingType()
 
   def p_type_nothing(self, p):
     """type : NOTHING"""
@@ -812,9 +819,9 @@ def make_syntax_error(parser_or_tokenizer, msg, p):
     # TODO: The code below only works in the tokenizer, not in the
     # parser. Additionally, ply's yacc catches SyntaxError, but has broken
     # error handling (so we throw a SystemError for the time being).
-    raise SystemError(msg, (lexpos, lineno))
+    raise SystemError(msg, parser_or_tokenizer.filename, (lexpos, lineno))
   elif p is None:
-    raise SystemError(msg)
+    raise SystemError(msg, parser_or_tokenizer.filename)
 
   # Convert the lexer's offset to an offset within the line with the error
   # TODO: use regexp to split on r'[\r\n]' (for Windows, old MacOS):

@@ -223,8 +223,8 @@ class TypeMatch(utils.TypeMatcher):
     t1 = self.maybe_lookup_type_param(t1, subst)
     t2 = self.maybe_lookup_type_param(t2, subst)
     # TODO: Use pytypedecl/utils:TypeMatcher to simplify this?
-    if isinstance(t1, pytd.UnknownType) or isinstance(t2, pytd.UnknownType):
-      # We can match anything against unknown
+    if isinstance(t1, pytd.AnythingType) or isinstance(t2, pytd.AnythingType):
+      # We can match anything against AnythingType
       return booleq.TRUE
     elif isinstance(t1, pytd.NothingType) and isinstance(t2, pytd.NothingType):
       # nothing matches against nothing.
@@ -346,4 +346,3 @@ class TypeMatch(utils.TypeMatcher):
         break
     # TODO: class attributes
     return booleq.And(implications)
-

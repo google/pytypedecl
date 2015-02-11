@@ -8,10 +8,10 @@ def getcodesize() -> int
 def getlower(...) -> int
 
 class SRE_Match:
-    def __copy__() raises TypeError
-    def __deepcopy__(...) raises TypeError
+    def __copy__() -> ? raises TypeError  # TODO: fix return type
+    def __deepcopy__(...) -> ? raises TypeError  # TODO: fix return type
     def end(...) -> int raises IndexError
-    def expand(...)
+    def expand(...) -> str  # TODO: unicode?
     def group(...) -> tuple
     def groupdict(...) -> dict
     def groups(...) -> tuple
@@ -19,8 +19,8 @@ class SRE_Match:
     def start(...) -> int raises IndexError
 
 class SRE_Pattern:
-    def __copy__() raises TypeError
-    def __deepcopy__(...) raises TypeError
+    def __copy__() -> ? raises TypeError  # TODO: fix return type
+    def __deepcopy__(...) -> ? raises TypeError  # TODO: fix return type
     def findall(source, ...) -> list<NoneType or tuple>
     def finditer(...) -> `callable-iterator`
     def match(pattern, ...) -> NoneType or SRE_Match

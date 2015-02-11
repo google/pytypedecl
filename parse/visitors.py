@@ -91,23 +91,18 @@ class PrintVisitor(object):
 
   def VisitFunction(self, node):
     """Visit function, producing multi-line string (one for each signature)."""
-    # node.signatures has the function name incorporated with '%s'
     function_name = self._SafeName(node.name)
     return "\n".join("def " + function_name + sig for sig in node.signatures)
 
   def VisitSignature(self, node):
     """Visit a signature, producing a string with %s for function name."""
-    # The '%s' is for VisitFunction (parent) to fill in the function name
-    # E.g.:
-    #   '%s(x: int, y: int, z: unicode) -> str raises ValueError'
-    # TODO: Remove the %s because not needed any more. However,
-    #                  it exposes a bug, namely pytype generating an invalid
-    #                  tree (see visitors_test.py testPrintInvalidTree)
     template = "<" + ", ".join(node.template) + ">" if node.template else ""
 
-    # Potentially abbreviate. "?" is the default.
-    return_type = node.return_type
-    ret = " -> " + return_type if return_type != "?" else ""
+    # TODO: might want special handling for __init__(...) -> NoneType
+    # Design decision: we used to allow the return type to default to "?"  (see
+    # comments in parser.py for the "return" rule) but that led to confusion, so
+    # we now require all function signatures to have a return type.
+    ret = " -> " + node.return_type
 
     exc = " raises " + ", ".join(node.exceptions) if node.exceptions else ""
     optional = ("...",) if node.has_optional else ()
@@ -159,8 +154,8 @@ class PrintVisitor(object):
     """Convert a native type to a string."""
     return self._SafeName(node.python_type.__name__)
 
-  def VisitUnknownType(self, unused_node):
-    """Convert an unknown type to a string."""
+  def VisitAnythingType(self, unused_node):
+    """Convert an anything type to a string."""
     return "?"
 
   def VisitNothingType(self, unused_node):
@@ -562,7 +557,7 @@ class AdjustSelf(object):
     self.replaced_self_types = (pytd.NamedType("object"),
                                 pytd.ClassType("object"))
     if replace_unknown:
-      self.replaced_self_types += (pytd.UnknownType(),)
+      self.replaced_self_types += (pytd.AnythingType(),)
 
   def EnterClass(self, cls):
     self.class_types.append(ClassAsType(cls))
@@ -600,7 +595,7 @@ class AdjustSelf(object):
 
 
 class RemoveUnknownClasses(object):
-  """Visitor for converting ClassTypes called ~unknown* to just UnknownType.
+  """Visitor for converting ClassTypes called ~unknown* to just AnythingType.
 
   For example, this will change
     def f() -> ~unknown1
@@ -612,13 +607,13 @@ class RemoveUnknownClasses(object):
 
   def VisitClassType(self, t):
     if t.name.startswith("~unknown"):
-      return pytd.UnknownType()
+      return pytd.AnythingType()
     else:
       return t
 
   def VisitNamedType(self, t):
     if t.name.startswith("~unknown"):
-      return pytd.UnknownType()
+      return pytd.AnythingType()
     else:
       return t
 
@@ -632,10 +627,11 @@ class RemoveUnknownClasses(object):
 
 
 # TODO: The `~unknown` functionality is becoming more important. Should
-# we have support for this on the pytd level? (That would mean changing
-# Class.name to a TYPE). Also, should we just use ~X instead of ~unknownX?
+#              we have support for this on the pytd level? (That would mean
+#              changing Class.name to a TYPE). Also, should we just use ~X
+#              instead of ~unknownX?
 class RaiseIfContainsUnknown(object):
-  """Find any 'unknown' Class or ClassType (not: pytd.UnknownType!) in a class.
+  """Find any 'unknown' Class or ClassType (not: pytd.AnythingType!) in a class.
 
   It throws HasUnknown on the first occurence.
   """
@@ -723,7 +719,7 @@ class VerifyVisitor(object):
   def EnterNativeType(self, node):
     assert isinstance(node.python_type, type), node
 
-  def EnterUnknownType(self, unused_node):
+  def EnterAnythingType(self, unused_node):
     pass
 
   def EnterNothingType(self, unused_node):

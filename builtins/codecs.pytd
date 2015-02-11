@@ -13,23 +13,24 @@ BOM_UTF32_BE: str
 BOM_UTF32_LE: str
 BOM_UTF8: str
 
+# TODO: check def's with "-> ?"
 class BufferedIncrementalDecoder:
-    def __init__(self, ...)
-    def _buffer_decode(self, input, errors, final) raises NotImplementedError
-    def decode(self, input, final) raises NotImplementedError
+    def __init__(self, ...) -> NoneType
+    def _buffer_decode(self, input, errors, final) -> ? raises NotImplementedError
+    def decode(self, input, final) -> ? raises NotImplementedError
     def getstate(self) -> tuple<str, int>
     def reset(self) -> NoneType
     def setstate(self, state) -> NoneType
 
 class BufferedIncrementalEncoder:
-    def __init__(self, ...)
-    def _buffer_encode(self, input, errors, final) raises NotImplementedError
-    def encode(self, input, final) raises NotImplementedError
+    def __init__(self, ...) -> NoneType
+    def _buffer_encode(self, input, errors, final) -> ? raises NotImplementedError
+    def encode(self, input, final) -> ? raises NotImplementedError
     def getstate(self) -> int
     def reset(self) -> NoneType
     def setstate(self, state) -> NoneType
 
 class Codec:
-    def __init__(self, ...)
-    def decode(self, input, errors) raises NotImplementedError
-    def encode(self, input, errors) raises NotImplementedError
+    def __init__(self, ...) -> NoneType
+    def decode(self, input, errors) -> ? raises NotImplementedError
+    def encode(self, input, errors) -> ? raises NotImplementedError

@@ -42,7 +42,7 @@ SIG_DFL: int or long
 SIG_IGN: int or long
 
 def alarm(a: int) -> int
-def default_int_handler(...) raises KeyboardInterrupt
+# def default_int_handler(...) raises KeyboardInterrupt  # TODO: is this defined?
 def getitimer(a: int) -> tuple
 def getsignal(a: int) -> NoneType raises ValueError
 def pause() -> NoneType

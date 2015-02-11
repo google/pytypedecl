@@ -224,12 +224,12 @@ class TestOptimize(parser_test.ParserTest):
     src = textwrap.dedent("""
         def f(x: list or tuple, y: frozenset or set) -> int or float
         def g(x: dict or Mapping, y: complex or int) -> set or dict or tuple or Container
-        def h(x)
+        def h(x) -> ?
     """)
     expected = textwrap.dedent("""
         def f(x: Sequence, y: Set) -> Real
         def g(x: Mapping, y: Complex) -> Container
-        def h(x)
+        def h(x) -> ?
     """)
     visitor = optimize.FindCommonSuperClasses(use_abcs=True)
     new_src = self.ApplyVisitorToString(src, visitor)
@@ -273,13 +273,13 @@ class TestOptimize(parser_test.ParserTest):
     src = textwrap.dedent("""
         def f(x: A or B, y: A, z: B) -> E or F or G
         def g(x: E or F or G or B) -> E or F
-        def h(x)
+        def h(x) -> ?
     """) + class_data
 
     expected = textwrap.dedent("""
         def f(x: AB, y: A, z: B) -> EFG
         def g(x) -> EFG
-        def h(x)
+        def h(x) -> ?
     """) + class_data
 
     hierarchy = self.Parse(src).Visit(visitors.ExtractSuperClassesByName())
@@ -304,20 +304,20 @@ class TestOptimize(parser_test.ParserTest):
 
   def testCombineContainers(self):
     src = textwrap.dedent("""
-        def f(x: list<int> or list<float>)
-        def g(x: list<int> or str or list<float> or set<int> or long)
-        def h(x: list<int> or list<str> or set<int> or set<float>)
-        def i(x: list<int> or list<int>)
-        def j(x: dict<int, float> or dict<float, int>)
-        def k(x: dict<int, bool> or list<int> or dict<bool, int> or list<bool>)
+        def f(x: list<int> or list<float>) -> ?
+        def g(x: list<int> or str or list<float> or set<int> or long) -> ?
+        def h(x: list<int> or list<str> or set<int> or set<float>) -> ?
+        def i(x: list<int> or list<int>) -> ?
+        def j(x: dict<int, float> or dict<float, int>) -> ?
+        def k(x: dict<int, bool> or list<int> or dict<bool, int> or list<bool>) -> ?
     """)
     expected = textwrap.dedent("""
-        def f(x: list<int or float>)
-        def g(x: list<int or float> or str or set<int> or long)
-        def h(x: list<int or str> or set<int or float>)
-        def i(x: list<int>)
-        def j(x: dict<int or float, float or int>)
-        def k(x: dict<int or bool, bool or int> or list<int or bool>)
+        def f(x: list<int or float>) -> ?
+        def g(x: list<int or float> or str or set<int> or long) -> ?
+        def h(x: list<int or str> or set<int or float>) -> ?
+        def i(x: list<int>) -> ?
+        def j(x: dict<int or float, float or int>) -> ?
+        def k(x: dict<int or bool, bool or int> or list<int or bool>) -> ?
     """)
     new_src = self.ApplyVisitorToString(src,
                                         optimize.CombineContainers())
@@ -330,20 +330,20 @@ class TestOptimize(parser_test.ParserTest):
             mymethod2: Method2
             member: Method3
         class Method1:
-            def __call__(self: A, x: int)
+            def __call__(self: A, x: int) -> ?
         class Method2:
-            def __call__(self: ?, x: int)
+            def __call__(self: ?, x: int) -> ?
         class Method3:
-            def __call__(x: bool, y: int)
+            def __call__(x: bool, y: int) -> ?
     """)
     expected = textwrap.dedent("""
         class A:
             member: Method3
-            def mymethod1(self, x: int)
-            def mymethod2(self, x: int)
+            def mymethod1(self, x: int) -> ?
+            def mymethod2(self, x: int) -> ?
 
         class Method3:
-            def __call__(x: bool, y: int)
+            def __call__(x: bool, y: int) -> ?
     """)
     new_src = self.ApplyVisitorToString(src,
                                         optimize.PullInMethodClasses())
@@ -359,7 +359,7 @@ class TestOptimize(parser_test.ParserTest):
         class B(A):
             bar: int
             def g(self, y: int) -> bool
-            def h(self, z: float)
+            def h(self, z: float) -> ?
     """)
     expected = textwrap.dedent("""
         class A(nothing):
@@ -371,7 +371,7 @@ class TestOptimize(parser_test.ParserTest):
             bar: int
             foo: bool
             def g(self, y: int) -> bool
-            def h(self, z: float)
+            def h(self, z: float) -> ?
             def f(self, x: int) -> float
     """)
     ast = self.Parse(src)
@@ -418,17 +418,17 @@ class TestOptimize(parser_test.ParserTest):
 
   def testAbsorbMutableParameters(self):
     src = textwrap.dedent("""
-        def popall(x: list<?>):
+        def popall(x: list<?>) -> ?:
             x := list<nothing>
-        def add_float(x: list<int>):
+        def add_float(x: list<int>) -> ?:
             x := list<int or float>
-        def f(x: list<int>):
+        def f(x: list<int>) -> ?:
             x := list<int or float>
     """)
     expected = textwrap.dedent("""
-        def popall(x: list<?>)
-        def add_float(x: list<int or float>)
-        def f(x: list<int or float>)
+        def popall(x: list<?>) -> ?
+        def add_float(x: list<int or float>) -> ?
+        def f(x: list<int or float>) -> ?
     """)
     tree = self.Parse(src)
     new_tree = tree.Visit(optimize.AbsorbMutableParameters())
@@ -440,12 +440,12 @@ class TestOptimize(parser_test.ParserTest):
     # pydoc about how AbsorbMutableParameters works on methods.
     src = textwrap.dedent("""
         class MyClass<T>:
-            def append<NEW>(self, x: NEW):
+            def append<NEW>(self, x: NEW) -> ?:
                 self := MyClass<T or NEW>
     """)
     expected = textwrap.dedent("""
         class MyClass<T>:
-            def append<NEW>(self: MyClass<T or NEW>, x: NEW)
+            def append<NEW>(self: MyClass<T or NEW>, x: NEW) -> ?
     """)
     tree = self.Parse(src)
     new_tree = tree.Visit(optimize.AbsorbMutableParameters())
@@ -457,7 +457,7 @@ class TestOptimize(parser_test.ParserTest):
       class A<T>:
           def foo<T2>(self, x: T or T2) -> T2
           def bar<T2, T3>(self, x: T or T2 or T3) -> T3
-          def baz<T2, T3>(self, x: T or T2, y: T2 or T3)
+          def baz<T2, T3>(self, x: T or T2, y: T2 or T3) -> ?
 
       class D<K, V>:
           def foo<T>(self, x: T) -> K or T
@@ -468,7 +468,7 @@ class TestOptimize(parser_test.ParserTest):
       class A<T>:
           def foo(self, x: T) -> T
           def bar(self, x: T) -> T
-          def baz(self, x: T, y: T)
+          def baz(self, x: T, y: T) -> ?
 
       class D<K, V>:
           def foo(self, x: K) -> K

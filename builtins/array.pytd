@@ -1,6 +1,7 @@
+# TODO: parameterize by type?
 class array:
-    def __copy__()
-    def __deepcopy__(...)
+    def __copy__() -> ?
+    def __deepcopy__(...) -> ?
     def __reduce__() -> tuple raises AttributeError
     def __sizeof__() -> long
     def append(...) -> NoneType
@@ -14,7 +15,7 @@ class array:
     def fromunicode(...) -> NoneType raises MemoryError, ValueError
     def index(...) -> int raises ValueError
     def insert(...) -> NoneType
-    def pop(...) raises IndexError
+    def pop(...) -> ? raises IndexError
     def read(...) -> NoneType raises DeprecationWarning
     def remove(...) -> NoneType raises ValueError
     def reverse() -> NoneType

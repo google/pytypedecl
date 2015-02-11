@@ -31,7 +31,7 @@ class TestTypeMatch(unittest.TestCase):
 
   def testUnknown(self):
     m = type_match.TypeMatch({})
-    eq = m.match_type_against_type(pytd.UnknownType(), pytd.UnknownType(), {})
+    eq = m.match_type_against_type(pytd.AnythingType(), pytd.AnythingType(), {})
     self.assertEquals(eq, booleq.TRUE)
 
   def testNothing(self):
@@ -96,10 +96,10 @@ class TestTypeMatch(unittest.TestCase):
   def testClassMatch(self):
     ast = parser.parse_string(textwrap.dedent("""
       class Left(nothing):
-        def method(self)
+        def method(self) -> ?
       class Right(nothing):
-        def method(self)
-        def method2(self)
+        def method(self) -> ?
+        def method2(self) -> ?
     """))
     ast = visitors.LookupClasses(ast)
     m = type_match.TypeMatch()

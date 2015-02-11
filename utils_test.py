@@ -104,10 +104,10 @@ class TestUtils(parser_test.ParserTest):
     """Test that JoinTypes() simplifies empty unions to 'nothing'."""
     self.assertIsInstance(utils.JoinTypes([]), pytd.NothingType)
 
-  def testJoinUnknownTypes(self):
+  def testJoinAnythingTypes(self):
     """Test that JoinTypes() simplifies unions containing '?'."""
-    types = [pytd.UnknownType(), pytd.NamedType("a")]
-    self.assertIsInstance(utils.JoinTypes(types), pytd.UnknownType)
+    types = [pytd.AnythingType(), pytd.NamedType("a")]
+    self.assertIsInstance(utils.JoinTypes(types), pytd.AnythingType)
 
   def testTypeMatcher(self):
     """Test for the TypeMatcher class."""
@@ -124,7 +124,7 @@ class TestUtils(parser_test.ParserTest):
                    for sig1, sig2 in zip(f1.signatures, f2.signatures))
 
     s1 = pytd.Signature((), pytd.NothingType(), (), (), False)
-    s2 = pytd.Signature((), pytd.UnknownType(), (), (), False)
+    s2 = pytd.Signature((), pytd.AnythingType(), (), (), False)
     match1 = MyTypeMatcher().match(pytd.Function("f1", (s1, s2)),
                                    pytd.Function("f2", (s1, s2)),
                                    mykeyword="foobar")

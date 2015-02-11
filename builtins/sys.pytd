@@ -33,14 +33,14 @@ version_info: tuple
 warnoptions: object
 
 def _clear_type_cache() -> NoneType
-def _current_frames()
-def _getframe(...) raises ValueError
-def call_tracing(a, b)
+def _current_frames() -> ?  # TODO: fix return type
+def _getframe(...) -> ? raises ValueError  # TODO: fix return type
+def call_tracing(a, b) -> ?  # TODO: fix return type
 def displayhook(...) -> NoneType raises RuntimeError
 def exc_clear() -> NoneType raises DeprecationWarning
 def exc_info() -> tuple
 def excepthook(...) -> NoneType
-def exit(...) raises SystemExit
+def exit(...) -> NoneType raises SystemExit
 def getcheckinterval() -> int
 def getdefaultencoding() -> str
 def getdlopenflags() -> int

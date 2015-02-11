@@ -76,7 +76,7 @@ class TestASTGeneration(parser_test.ParserTest):
 
   def testReturnTypes(self):
     src = textwrap.dedent("""
-        def a()  # implicitly ?
+        def a() -> ?  # TODO: remove "-> ?" if we allow implicit result
         def b() -> ?
         def c() -> object
         def d() -> None
@@ -88,8 +88,8 @@ class TestASTGeneration(parser_test.ParserTest):
     """)
     result = self.Parse(src)
     ret = {f.name: f.signatures[0].return_type for f in result.functions}
-    self.assertIsInstance(ret["a"], pytd.UnknownType)
-    self.assertIsInstance(ret["b"], pytd.UnknownType)
+    self.assertIsInstance(ret["a"], pytd.AnythingType)
+    self.assertIsInstance(ret["b"], pytd.AnythingType)
     self.assertEquals(ret["c"], pytd.NamedType("object"))
     self.assertEquals(ret["d"], pytd.NamedType("None"))
     self.assertIsInstance(ret["e"], pytd.UnionType)
@@ -114,8 +114,8 @@ class TestASTGeneration(parser_test.ParserTest):
   def testIndent(self):
     src = textwrap.dedent("""
         class Foo:
-          def bar()
-        def baz(i: int)
+          def bar() -> ?
+        def baz(i: int) -> ?
     """)
     result = self.Parse(src)
     foo = result.Lookup("Foo")
@@ -136,35 +136,35 @@ class TestASTGeneration(parser_test.ParserTest):
     self.TestRoundTrip("x: int\n\n")
 
   def testSpacesWithIndent(self):
-    self.TestRoundTrip("def f(x: list<nothing>):\n    x := list<int>")
-    self.TestRoundTrip("\ndef f(x: list<nothing>):\n    x := list<int>")
-    self.TestRoundTrip("\ndef f(x: list<nothing>):\n    x := list<int>  ")
-    self.TestRoundTrip("def f(x: list<nothing>):\n    x := list<int>  \n")
-    self.TestRoundTrip("def f(x: list<nothing>):\n    x := list<int>\n  ")
+    self.TestRoundTrip("def f(x: list<nothing>) -> ?:\n    x := list<int>")
+    self.TestRoundTrip("\ndef f(x: list<nothing>) -> ?:\n    x := list<int>")
+    self.TestRoundTrip("\ndef f(x: list<nothing>) -> ?:\n    x := list<int>  ")
+    self.TestRoundTrip("def f(x: list<nothing>) -> ?:\n    x := list<int>  \n")
+    self.TestRoundTrip("def f(x: list<nothing>) -> ?:\n    x := list<int>\n  ")
 
   def testAlignedComments(self):
     src = textwrap.dedent("""
         # comment 0
         class Foo: # eol line comment 0
           # comment 1
-          def bar(x: list<nothing>): # eol line comment 1
+          def bar(x: list<nothing>) -> ?: # eol line comment 1
             # comment 2
             x := list<float> # eol line comment 2
             # comment 3
           # comment 4
         # comment 5
-        def baz(i: list<nothing>): # eol line comment 3
+        def baz(i: list<nothing>) -> ?: # eol line comment 3
           # comment 6
           i := list<int> # eol line comment 4
           # comment 7
         # comment 8
     """)
     dest = textwrap.dedent("""
-        def baz(i: list<nothing>):
+        def baz(i: list<nothing>) -> ?:
             i := list<int>
 
         class Foo:
-            def bar(x: list<nothing>):
+            def bar(x: list<nothing>) -> ?:
                 x := list<float>
     """)
     self.TestRoundTrip(src, dest)
@@ -174,24 +174,24 @@ class TestASTGeneration(parser_test.ParserTest):
           # comment 0
         class Foo:
             # comment 1
-          def bar(x: X):
+          def bar(x: X) -> ?:
               # comment 2
             x := X # eol line comment 2
                # comment 3
          # comment 4
           c: int
-        def baz(i: X):
+        def baz(i: X) -> ?:
            # comment 6
           i := X
             # comment 6
     """)
     dest = textwrap.dedent("""
-        def baz(i: X):
+        def baz(i: X) -> ?:
             i := X
 
         class Foo:
             c: int
-            def bar(x: X):
+            def bar(x: X) -> ?:
                 x := X
     """)
     self.TestRoundTrip(src, dest)
@@ -251,9 +251,9 @@ class TestASTGeneration(parser_test.ParserTest):
   def testMutable(self):
     src = textwrap.dedent("""
         class Foo:
-          def append_int(l: list):
+          def append_int(l: list) -> ?:
             l := list<int>
-        def append_float(l: list):
+        def append_float(l: list) -> ?:
           l := list<float>
     """)
     module = self.Parse(src)
@@ -267,11 +267,11 @@ class TestASTGeneration(parser_test.ParserTest):
 
   def testMutableRoundTrip(self):
     src = textwrap.dedent("""
-        def append_float(l: list):
+        def append_float(l: list) -> ?:
             l := list<float>
 
         class Foo:
-            def append_int(l: list):
+            def append_int(l: list) -> ?:
                 l := list<int>
     """)
     self.TestRoundTrip(src)
@@ -385,7 +385,7 @@ class TestASTGeneration(parser_test.ParserTest):
   def testNoReturnType(self):
     """Test a parsing error (no return type)."""
 
-    data1 = "def foo()"
+    data1 = "def foo() -> ?"
     data2 = "def foo() -> None"
 
     self.TestRoundTrip(data1)
@@ -396,22 +396,22 @@ class TestASTGeneration(parser_test.ParserTest):
     data = textwrap.dedent("""
     if python < 3:
       c1: int
-      def f()
+      def f() -> ?
       class A:
         pass
     else:
       c2: int
-      def g()
+      def g() -> ?
       class B:
         pass
 
     class Foo:
       if python > 2.7.3:
         attr2 : int
-        def m2()
+        def m2() -> ?
       else:
         attr1 : int
-        def m1()
+        def m1() -> ?
     """)
     unit = self.Parse(data, version=(2, 7, 3))
     self.assertEquals([f.name for f in unit.functions], ["f"])
@@ -494,7 +494,7 @@ class TestASTGeneration(parser_test.ParserTest):
 
     data = textwrap.dedent("""
         class MyClass<C extends Cbase>:
-          def f1(p1: C)
+          def f1(p1: C) -> ?
           def f2<T,U>(p1: C, p2: T, p3: dict<C, C or T or int>) -> T raises Error<T>
         """)
 
@@ -526,7 +526,7 @@ class TestASTGeneration(parser_test.ParserTest):
 
     data = textwrap.dedent("""
         class MyClass<U, V>:
-          def f1(self)
+          def f1(self) -> ?
         """)
 
     result = self.Parse(data)

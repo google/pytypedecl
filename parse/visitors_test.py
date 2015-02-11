@@ -204,9 +204,9 @@ class TestVisitors(parser_test.ParserTest):
         class `~int`(nothing):
           pass
         class A(nothing):
-          def foobar(self, x: `~unknown1`)
+          def foobar(self, x: `~unknown1`) -> ?
         class B(nothing):
-          def foobar(self, x: `~int`)
+          def foobar(self, x: `~int`) -> ?
         class C(nothing):
           x: `~unknown_foobar`
         class D(`~unknown1`):

@@ -6,8 +6,8 @@ def WIFSIGNALED(...) -> bool
 def WIFSTOPPED(...) -> bool
 def WSTOPSIG(...) -> int
 def WTERMSIG(...) -> int
-def _exit(...)
-def abort()
+def _exit(...) -> NoneType  # TODO: raises?
+def abort() -> NoneType  # TODO: raises?
 def access(...) -> bool
 def chdir(...) -> NoneType
 def chmod(...) -> NoneType
@@ -19,8 +19,8 @@ def confstr(...) -> str or NoneType
 def ctermid() -> str
 def dup(...) -> int
 def dup2(...) -> NoneType
-def execv(...) raises MemoryError, TypeError, ValueError
-def execve(...) raises MemoryError, TypeError
+def execv(...) -> ? raises MemoryError, TypeError, ValueError
+def execve(...) -> ?  raises MemoryError, TypeError
 def fchdir(...) -> NoneType
 def fchmod(...) -> NoneType
 def fchown(...) -> NoneType
@@ -34,7 +34,7 @@ def fstatvfs(...) -> tuple
 def fsync(...) -> NoneType
 def ftruncate(...) -> NoneType
 def getcwd() -> str
-def getcwdu()
+def getcwdu() -> unicode
 def getegid() -> long or int
 def geteuid() -> long or int
 def getgid() -> long or int
@@ -72,7 +72,7 @@ def pipe() -> tuple
 def popen(...) -> file
 def putenv(...) -> NoneType raises MemoryError
 def read(...) -> str
-def readlink(...)
+def readlink(...) -> str
 def remove(...) -> NoneType
 def rename(...) -> NoneType
 def rmdir(...) -> NoneType

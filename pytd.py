@@ -215,7 +215,7 @@ class TemplateItem(node.Node('type_param', 'within_type')):
 #     Contains a base type and parameters.
 # 5.) UnionType / IntersectionType
 #     Can be multiple types at once.
-# 6.) NothingType / UnknownType
+# 6.) NothingType / AnythingType
 #     Special purpose types that represent nothing or everything.
 # 7.) TypeParameter
 #     A placeholder for a type.
@@ -269,15 +269,13 @@ class ClassType(node.Node('name')):
         cls='<unresolved>' if self.cls is None else '')
 
 
-# TODO: Rename this to "AnythingType". "Unknown" is too confusing since
-# we also have `~unknown`.
-class UnknownType(node.Node()):
-  """A type we know nothing about yet."""
+class AnythingType(node.Node()):
+  """A type we know nothing about yet ('?' in pytd)."""
   __slots__ = ()
 
 
 class NothingType(node.Node()):
-  """An "impossible" type, with no instances.
+  """An "impossible" type, with no instances ('nothing' in pytd).
 
   Also known as the "uninhabited" type. For representing empty lists, and
   functions that never return.
@@ -346,7 +344,7 @@ class HomogeneousContainerType(GenericType):
 
 
 # So we can do "isinstance(node, pytd.TYPE)":
-TYPE = (NamedType, NativeType, ClassType, UnknownType, UnionType,
+TYPE = (NamedType, NativeType, ClassType, AnythingType, UnionType,
         NothingType, GenericType, TypeParameter, Scalar,
         IntersectionType, Scalar)
 

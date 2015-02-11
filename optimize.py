@@ -563,7 +563,7 @@ class CollapseLongReturnUnions(object):
     class str:
       def __init__(self) -> ?
   In other words, if there are too many types "or"ed together, we just replace
-  the entire thing with "?" (UnknownType).
+  the entire thing with "?" (AnythingType).
 
   Attributes:
     max_length: The maximum number of types to allow in a return type. See
@@ -575,7 +575,7 @@ class CollapseLongReturnUnions(object):
 
   def VisitSignature(self, sig):
     return sig.Replace(return_type=sig.return_type.Visit(
-        CollapseLongUnions(self.max_length, pytd.UnknownType())))
+        CollapseLongUnions(self.max_length, pytd.AnythingType())))
 
 
 class AddInheritedMethods(object):
