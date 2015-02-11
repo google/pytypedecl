@@ -29,7 +29,7 @@ class Type(object):
   @staticmethod
   def FromPyTD(td, complete=True, path=None):
     if isinstance(td, pytd.ClassType):
-      assert td.cls, "unresolved class"
+      assert td.cls, repr(td)
       return ClassType(td.cls, complete)
     elif isinstance(td, pytd.TypeParameter):
       name = str(path or "") + "." + td.name
@@ -53,6 +53,10 @@ class Type(object):
     raise NotImplementedError(self)
 
   def __gt__(self, other):
+    # Needed for total_ordering.
+    # We could make this more efficient by using tuple.__gt__ (in subclass), but
+    # efficiency probably isn't an issue -- it's used by itertools.combinations
+    # from self.encoder.Generatee and maybe sort.
     return str(self) > str(other)
 
   def __eq__(self, other):
@@ -96,13 +100,8 @@ class ClassType(Type):
     return hash(self.cls)
 
   def __eq__(self, other):
-    eq = isinstance(other, ClassType) and (
+    return isinstance(other, ClassType) and (
         self.cls == other.cls and self.complete == other.complete)
-    if eq:  # __gt__ is defined in base class
-      assert not self.__gt__(other) and not other.__gt__(self)
-    else:
-      assert self.__gt__(other) or other.__gt__(self)
-    return eq
 
   def __ne__(self, other):
     return not self == other
@@ -168,12 +167,7 @@ class UnionType(Type):
     return hash(self.subtypes)
 
   def __eq__(self, other):
-    eq = isinstance(other, UnionType) and self.subtypes == other.subtypes
-    if eq:  # __gt__ is defined in base class
-      assert not self.__gt__(other) and not other.__gt__(self)
-    else:
-      assert self.__gt__(other) or other.__gt__(self)
-    return eq
+    return isinstance(other, UnionType) and self.subtypes == other.subtypes
 
   def __ne__(self, other):
     return not self == other
@@ -248,6 +242,7 @@ class SATEncoder(object):
       matches = [ty for ty in self.types
                  if isinstance(ty, ClassType) and td.name == ty.cls.name]
       if matches:
+        assert len(matches) == 1, [match.cls.name for match in matches]
         ty, = matches  # Fails if there is more than one class with name
         return ty
     return Type.FromPyTD(td, path=path)

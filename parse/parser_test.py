@@ -16,6 +16,7 @@
 """Utility classes for testing the PYTD parser."""
 
 import re
+import sys
 import textwrap
 import unittest
 from pytypedecl import pytd
@@ -28,6 +29,11 @@ class ParserTest(unittest.TestCase):
 
   def setUp(self):
     self.parser = parser.TypeDeclParser(parser.DEFAULT_VERSION)
+    self.save_maxDiff = self.maxDiff
+    self.maxDiff = None  # for better diff output (assertMultiLineEqual)
+
+  def tearDown(self):
+    self.maxDiff = self.save_maxDiff
 
   def Parse(self, src, version=None):
     if version:
@@ -36,28 +42,33 @@ class ParserTest(unittest.TestCase):
       return self.parser.Parse(textwrap.dedent(src))
 
   def ToSource(self, src_or_tree):
-    if isinstance(src_or_tree, tuple):
-      return src_or_tree.Visit(visitors.PrintVisitor())
-    else:
+    # TODO: The callers are not consistent in how they use this
+    #                  and in most (all?) cases they know whether they're
+    #                  passing in a source string or parse tree. It would
+    #                  be better if all the calles were consistent.
+    if isinstance(src_or_tree, basestring):
+      # If we trust Parse and Print, we can canonical-ize by:
+      #   return pytd.Print(self.Parse(src_or_tree + "\n"))
+      # This depends on pytd.Print not changing indents, which shouldn't happen:
       return src_or_tree
+    else:  # isinstance(src_or_tree, tuple):
+      return pytd.Print(src_or_tree)
 
   def AssertSourceEquals(self, src_or_tree_1, src_or_tree_2):
-    # As long as the parser is not aware of indent, we can just shrink
-    # any whitespace to a single space without changing the interpretation.
-    src1 = self.ToSource(src_or_tree_1)
-    src2 = self.ToSource(src_or_tree_2)
-
-    simplified1 = re.sub(r"\s+", " ", src1.strip())
-    simplified2 = re.sub(r"\s+", " ", src2.strip())
-
-    if simplified1 != simplified2:
-      print "Source files differ:"
-      print "-" * 36, " Actual ", "-" * 36
-      print textwrap.dedent(src1).strip()
-      print "-" * 36, "Expected", "-" * 36
-      print textwrap.dedent(src2).strip()
-      print "-" * 80
-      self.fail("source files differ")
+    # Strip leading "\n"s for convenience
+    src1 = self.ToSource(src_or_tree_1).strip()
+    src2 = self.ToSource(src_or_tree_2).strip()
+    # Due to differing opinions on the form of debug output, do
+    # two checks:
+    if src1 != src2:
+      print >>sys.stderr, "Source files differ:"
+      print >>sys.stderr, "-" * 36, " Actual ", "-" * 36
+      print >>sys.stderr, textwrap.dedent(src1).strip()
+      print >>sys.stderr, "-" * 36, "Expected", "-" * 36
+      print >>sys.stderr, textwrap.dedent(src2).strip()
+      print >>sys.stderr, "-" * 80
+      self.assertMultiLineEqual(src1, src2)
+      self.fail("source files differ")  # Should never reach here
 
   def ApplyVisitorToString(self, data, visitor):
     tree = self.Parse(data)

@@ -336,16 +336,10 @@ class ReplaceType(object):
     self.mapping = mapping
 
   def VisitNamedType(self, node):
-    if node.name in self.mapping:
-      return self.mapping[node.name]
-    else:
-      return node
+    return self.mapping.get(node.name, node)
 
   def VisitClassType(self, node):
-    if node.name in self.mapping:
-      return self.mapping[node.name]
-    else:
-      return node
+    return self.mapping.get(node.name, node)
 
 
 class RemoveTemplates(object):

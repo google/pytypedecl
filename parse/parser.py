@@ -784,7 +784,10 @@ class TypeDeclParser(object):
     p[0] = pytd.Scalar(p[1].AsFloatOrInt())
 
   def p_error(self, t):
-    raise make_syntax_error(self, 'Parse error: unexpected %r' % t.type, t)
+    if t is None:
+      make_syntax_error(self, 'Parse error: unexpected EOF', t)
+    else:
+      raise make_syntax_error(self, 'Parse error: unexpected %r' % t.type, t)
 
 
 def make_syntax_error(parser_or_tokenizer, msg, p):

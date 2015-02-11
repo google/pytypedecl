@@ -14,6 +14,7 @@
 # limitations under the License.
 
 
+import textwrap
 import unittest
 
 from pytypedecl import pytd
@@ -36,24 +37,26 @@ class TestVisitors(parser_test.ParserTest):
   """Tests the classes in parse/visitors."""
 
   def testLookupClasses(self):
-    src = """
+    src = textwrap.dedent("""
         class object:
-          pass
+            pass
+
         class A:
-          def a(self, a: A, b: B) -> A or B raises A, B
+            def a(self, a: A, b: B) -> A or B raises A, B
+
         class B:
-          def b(self, a: A, b: B) -> A or B raises A, B
-    """
+            def b(self, a: A, b: B) -> A or B raises A, B
+    """)
     tree = self.Parse(src)
     new_tree = visitors.LookupClasses(tree)
     self.AssertSourceEquals(new_tree, src)
     new_tree.Visit(VerifyLookup())
 
   def testMaybeFillInClasses(self):
-    src = """
+    src = textwrap.dedent("""
         class A:
-          def a(self, a: A, b: B) -> A or B raises A, B
-    """
+            def a(self, a: A, b: B) -> A or B raises A, B
+    """)
     tree = self.Parse(src)
     ty_a = pytd.ClassType("A")
     visitors.FillInClasses(ty_a, tree)
@@ -63,93 +66,94 @@ class TestVisitors(parser_test.ParserTest):
     self.assertIsNone(ty_b.cls)
 
   def testReplaceType(self):
-    src = """
+    src = textwrap.dedent("""
         class A:
-          def a(self, a: A or B) -> A or B raises A, B
-    """
-    expected = """
+            def a(self, a: A or B) -> A or B raises A, B
+    """)
+    expected = textwrap.dedent("""
         class A:
-          def a(self: A2, a: A2 or B) -> A2 or B raises A2, B
-    """
+            def a(self: A2, a: A2 or B) -> A2 or B raises A2, B
+    """)
     tree = self.Parse(src)
     new_tree = tree.Visit(visitors.ReplaceType({"A": pytd.NamedType("A2")}))
     self.AssertSourceEquals(new_tree, expected)
 
   def testSuperClasses(self):
-    src = """
+    src = textwrap.dedent("""
       class A:
-        pass
+          pass
       class B:
-        pass
+          pass
       class C(A):
-        pass
+          pass
       class D(A,B):
-        pass
+          pass
       class E(C,D,A):
-        pass
-    """
+          pass
+    """)
     tree = self.Parse(src)
     data = tree.Visit(visitors.ExtractSuperClasses())
     for base, superclass in ["CA", "DA", "DB", "EC", "ED", "EA"]:
       self.assertIn(superclass, data[base])
 
   def testInstantiateTemplates(self):
-    src = """
+    src = textwrap.dedent("""
         def foo(x: int) -> A<int>
 
         class<T> A:
-          def foo(a: T) -> T raises T
-    """
-    expected = """
+            def foo(a: T) -> T raises T
+    """)
+    expected = textwrap.dedent("""
         def foo(x: int) -> `A<int>`
 
         class `A<int>`:
-          def foo(a: int) -> int raises int
-    """
+            def foo(a: int) -> int raises int
+    """)
     tree = self.Parse(src)
     new_tree = visitors.InstantiateTemplates(tree)
     self.AssertSourceEquals(new_tree, expected)
 
   def testInstantiateTemplatesWithParameters(self):
-    src = """
+    src = textwrap.dedent("""
         def foo(x: int) -> T1<float, >
         def foo(x: int) -> T2<int, complex>
 
         class<A> T1:
-          def foo(a: A) -> A raises A
+            def foo(a: A) -> A raises A
 
         class<A, B> T2:
-          def foo(a: A) -> B raises B
-    """
-    expected = """
+            def foo(a: A) -> B raises B
+    """)
+    expected = textwrap.dedent("""
         def foo(x: int) -> `T1<float, >`
         def foo(x: int) -> `T2<int, complex>`
 
         class `T1<float, >`:
-          def foo(a: float) -> float raises float
+            def foo(a: float) -> float raises float
 
         class `T2<int, complex>`:
-          def foo(a: int) -> complex raises complex
-    """
+            def foo(a: int) -> complex raises complex
+    """)
     tree = self.Parse(src)
     new_tree = visitors.InstantiateTemplates(tree)
     self.AssertSourceEquals(new_tree, expected)
 
   def testStripSelf(self):
-    src = """
+    src = textwrap.dedent("""
         def add(x: int, y: int) -> int
         class A:
-          def bar(self, x: int) -> float
-          def baz(self) -> float
-          def foo(self, x: int, y: float) -> float
-    """
-    expected = """
+            def bar(self, x: int) -> float
+            def baz(self) -> float
+            def foo(self, x: int, y: float) -> float
+    """)
+    expected = textwrap.dedent("""
         def add(x: int, y: int) -> int
+
         class A:
-          def bar(x: int) -> float
-          def baz() -> float
-          def foo(x: int, y: float) -> float
-    """
+            def bar(x: int) -> float
+            def baz() -> float
+            def foo(x: int, y: float) -> float
+    """)
     tree = self.Parse(src)
     new_tree = tree.Visit(visitors.StripSelf())
     self.AssertSourceEquals(new_tree, expected)
