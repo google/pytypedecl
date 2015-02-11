@@ -285,9 +285,11 @@ class Mutator(object):
   def __init__(self, name, new_type):
     self.name = name
     self.new_type = new_type
+    self.successful = False
 
   def VisitParameter(self, p):
     if p.name == self.name:
+      self.successful = True
       return pytd.MutableParameter(p.name, p.type, self.new_type)
     else:
       return p
@@ -561,6 +563,8 @@ class TypeDeclParser(object):
                                has_optional=p[5].has_optional)
     for mutator in p[10]:
       signature = signature.Visit(mutator)
+      if not mutator.successful:
+        self.make_syntax_error(self, 'No parameter named %s' % mutator.name, p)
     p[0] = NameAndSig(name=p[3], signature=signature)
 
   def p_empty_body(self, p):

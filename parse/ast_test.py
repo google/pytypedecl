@@ -35,6 +35,7 @@ class TestASTGeneration(unittest.TestCase):
     """Compile a string, and convert the result back to a string. Compare."""
     tree = self.parser.Parse(src)
     new_src = pytd.Print(tree)
+    # TODO: Use AssertSourceEquals from parser_test
     self.assertEquals((old_src or src).strip(), new_src.strip())
 
   def testOneFunction(self):
@@ -120,6 +121,60 @@ class TestASTGeneration(unittest.TestCase):
     foo = result.Lookup("Foo")
     self.assertEquals(["bar"], [f.name for f in foo.methods])
     self.assertEquals(["baz"], [f.name for f in result.functions])
+
+  def testAlignedComments(self):
+    src = textwrap.dedent("""
+        # comment 0
+        class Foo: # eol line comment 0
+          # comment 1
+          def bar(x: list<nothing>): # eol line comment 1
+            # comment 2
+            x := list<float> # eol line comment 2
+            # comment 3
+          # comment 4
+        # comment 5
+        def baz(i: list<nothing>): # eol line comment 3
+          # comment 6
+          i := list<int> # eol line comment 4
+          # comment 7
+        # comment 8
+    """)
+    dest = textwrap.dedent("""
+        def baz(i: list<nothing>):
+            i := list<int>
+
+        class Foo:
+            def bar(x: list<nothing>):
+                x := list<float>
+    """)
+    self.TestRoundTrip(src, dest)
+
+  @unittest.skip("Needs better space handling.")
+  def testUnalignedComments(self):
+    src = textwrap.dedent("""
+          # comment 0
+        class Foo:
+            # comment 1
+          def bar(x: X):
+              # comment 2
+            X := X # eol line comment 2
+               # comment 3
+         # comment 4
+          c: int
+        def baz(i: X):
+           # comment 6
+          X := X
+            # comment 6
+    """)
+    dest = textwrap.dedent("""
+        def baz(i: X):
+          X := X
+        class Foo:
+          c: int
+          def bar(x: X):
+            X := X
+    """)
+    self.TestRoundTrip(src, dest)
 
   def testDuplicates1(self):
     src = textwrap.dedent("""

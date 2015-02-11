@@ -320,6 +320,10 @@ class Factorize(object):
         # arguments. Represent this signature as (original, None).
         groups[sig] = None
         continue
+      if isinstance(sig.params[i], pytd.MutableParameter):
+        # We can't group mutable parameters. Leave this signature alone.
+        groups[sig] = None
+        continue
 
       # Set type of parameter i to None
       params = list(sig.params)

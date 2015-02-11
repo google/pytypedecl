@@ -175,6 +175,29 @@ class TestOptimize(parser_test.ParserTest):
     self.AssertSourceEquals(
         self.ApplyVisitorToString(src, optimize.Factorize()), new_src)
 
+  def testFactorizeMutable(self):
+    src = """
+        def foo(a: list<bool>, b: X) -> Z:
+          a := list<int>
+        def foo(a: list<bool>, b: Y) -> Z:
+          a := list<int>
+        # not groupable:
+        def bar(a: int, b: list<int>) -> Z:
+          b := list<complex>
+        def bar(a: int, b: list<float>) -> Z:
+          b := list<str>
+    """
+    new_src = """
+        def foo(a: list<bool>, b: X or Y) -> Z:
+          a := list<int>
+        def bar(a: int, b: list<int>) -> Z:
+          b := list<complex>
+        def bar(a: int, b: list<float>) -> Z:
+          b := list<str>
+    """
+    self.AssertSourceEquals(
+        self.ApplyVisitorToString(src, optimize.Factorize()), new_src)
+
   def testOptionalArguments(self):
     src = """
         def foo(a: A, ...) -> Z
