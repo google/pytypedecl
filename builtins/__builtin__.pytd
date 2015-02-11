@@ -635,6 +635,12 @@ class int:
     def __truediv__(self, y: int) -> float
     def __trunc__(self, ...) -> int
     def __xor__(self, y: int) -> int
+    def __eq__(self, y) -> bool
+    def __ge__(self, y) -> bool
+    def __gt__(self, y) -> bool
+    def __le__(self, y) -> bool
+    def __lt__(self, y) -> bool
+    def __ne__(self, y) -> bool
     def bit_length(self) -> int
     def conjugate(self, ...) -> int
     def __rdiv__(self, y: int) -> int
@@ -684,6 +690,12 @@ class long:
     def __truediv__(self, y: int or long) -> float
     def __trunc__(self, ...) -> long
     def __xor__(self, y: int or long) -> long
+    def __eq__(self, y) -> bool
+    def __ge__(self, y) -> bool
+    def __gt__(self, y) -> bool
+    def __le__(self, y) -> bool
+    def __lt__(self, y) -> bool
+    def __ne__(self, y) -> bool
     def bit_length(self) -> int
     def conjugate(self, ...) -> long
     def __rdiv__(self, y: int or long) -> long
