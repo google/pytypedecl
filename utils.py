@@ -117,3 +117,28 @@ def prevent_direct_instantiation(cls, *args, **kwargs):
     raise AssertionError("Can't instantiate %s directly" % cls.__name__)
   return object.__new__(cls, *args, **kwargs)
 
+
+class TypeMatcher(object):
+  """Base class for modules that match types against each other.
+
+  Maps pytd node types (<type1>, <type2>) to a method "match_<type1>_<type2>".
+  So e.g. to write a matcher that compares Functions by name, you would write:
+
+    class MyMatcher(TypeMatcher):
+
+      def match_function_function(self, f1, f2):
+        return f1.name == f2.name
+  """
+
+  def default_match(self, t1, t2):
+    return t1 == t2
+
+  def match(self, t1, t2, *args, **kwargs):
+    name1 = t1.__class__.__name__
+    name2 = t2.__class__.__name__
+    f = getattr(self, "match_" + name1.lower() + "_" + name2.lower(), None)
+    if f:
+      return f(t1, t2, *args, **kwargs)
+    else:
+      return self.default_match(t1, t2, *args, **kwargs)
+
