@@ -860,11 +860,14 @@ class memoryview:
     def tobytes(self, ...) -> str
     def tolist(self, ...) -> list<int>
 
-class<T> property:
-    def<N> __init__(self: property<T>, f: F):
-        self := property<F>
-    def __delete__(self: property<T>, obj) -> NoneType
-    def __get__(self: property<T>, obj, ...) -> T
+class<G, S> property:
+    def<GET, SET> __init__(self: property<G, S>, get: GET, set: SET):
+        self := property<GET, SET>
+    def<GET> __init__(self: property<G, S>, get: GET):
+        self := property<GET, nothing>
+    def __delete__(self: property<G, S>, ...) -> NoneType
+    def __get__(self: property<G, S>, ...) -> G
+    def __set__(self: property<G, S>, ...) -> S
 
 class type:
     def __init__(self, object)
