@@ -413,8 +413,8 @@ class listreverseiterator:
 class <T> list:
     def __init__(self):
         self := list<nothing>
-    def __init__(self, iterable: list<T>):
-        self := list<T>
+    def <N> __init__(self, iterable: list<N>):
+        self := list<N>
     def __init__(self, x):
         self := list<unknown>
     def <A> __add__(self: list<T>, y: list<A>) -> list<T or A>
@@ -481,8 +481,8 @@ class tupleiterator:
 class <T> set:
     def __init__(self):
         self := set<nothing>
-    def __init__(self, iterable: list<T>):
-        self := set<T>
+    def <N> __init__(self, iterable: list<N>):
+        self := set<N>
     def __init__(self, x):
         self := set<unknown>
     def __and__(self, y: set) -> set
