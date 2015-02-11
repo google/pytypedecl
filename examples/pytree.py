@@ -660,14 +660,14 @@ if __name__ == "__main__":
 
     for prefix in ("xyz_", ""):
         l1 = Leaf(100, "self", prefix=prefix)
-        assertTrue(str(l1), prefix + "self")
+        assertEqual(str(l1), prefix + "self")
         assertEqual(l1.prefix, prefix)
 
     for prefix in ("xyz_", ""):
         l1 = Leaf(100, "self")
         l2 = Leaf(100, "foo", prefix="_")
         n1 = Node(1000, [l1, l2], prefix=prefix)
-        assertTrue(str(n1), prefix + "self_foo")
+        assertEqual(str(n1), prefix + "self_foo")
         assertEqual(n1.prefix, prefix)
         assertEqual(l1.prefix, prefix)
         assertEqual(l2.prefix, "_")
