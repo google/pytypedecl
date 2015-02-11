@@ -601,44 +601,6 @@ class AdjustSelf(object):
       return p
 
 
-# TODO: Remove this once it isn't used anymore?
-class AdjustInit(object):
-  """Visitor for setting the correct return type on __init__ methods.
-
-  So
-    class A:
-      def __init__(self) -> Foobar
-  becomes
-    class A:
-      def __init__(self) -> NoneType
-  .
-  """
-
-  def __init__(self):
-    self.class_types = []
-    self.methods = []
-
-  def EnterClass(self, cls):
-    self.class_types.append(cls)
-
-  def LeaveClass(self, unused_node):
-    self.class_types.pop()
-
-  def EnterFunction(self, f):
-    if self.class_types:
-      self.methods.append(f)
-
-  def LeaveFunction(self, _):
-    if self.class_types:
-      self.methods.pop()
-
-  def VisitSignature(self, sig):
-    if self.methods and self.methods[-1].name == "__init__":
-      return sig.Replace(return_type=pytd.NamedType("NoneType"))
-    else:
-      return sig
-
-
 class RemoveUnknownClasses(object):
   """Visitor for converting ClassTypes called ~unknown* to just AnythingType.
 
