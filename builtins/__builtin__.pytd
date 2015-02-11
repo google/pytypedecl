@@ -890,9 +890,10 @@ class staticmethod:
     def __init__(self, function)
     def __get__(self, obj, ...) -> str
 
-class classmethod:
-    def __init__(self, function)
-    def __get__(self, obj, ...) -> instancemethod
+class classmethod<T>:
+    def __init__<T2>(self, method: T2):
+        self := classmethod<T2>
+    def __get__(self, ...) -> T
 
 class iterator:
     def __iter__(self) -> iterator
