@@ -248,24 +248,24 @@ COMPARE_OPS = [
 
 # Used by abstractvm.py:
 def GetBinaryOperatorMapping():
-  return {slot.opcode[len("BINARY_"):]: slot.python_name
-          for slot in SLOTS
-          if slot.opcode and slot.opcode.startswith("BINARY_")}
+  return _GetSlotMagicMapping("BINARY_")
 
 
 def GetInplaceOperatorMapping():
-  return {slot.opcode[len("INPLACE_"):]: slot.python_name
-          for slot in SLOTS
-          if slot.opcode and slot.opcode.startswith("INPLACE_")}
+  return _GetSlotMagicMapping("INPLACE_")
 
 
 def GetUnaryOperatorMapping():
-  return {slot.opcode[len("UNARY_"):]: slot.python_name
-          for slot in SLOTS
-          if slot.opcode and slot.opcode.startswith("UNARY_")}
+  return _GetSlotMagicMapping("UNARY_")
 
 
 def GetCompareFunctionMapping():
   return {index: magic
           for op, index, magic in COMPARE_OPS
           if magic}
+
+
+def _GetSlotMagicMapping(prefix):
+  return {slot.opcode[len(prefix):]: slot.python_name
+          for slot in SLOTS
+          if slot.opcode and slot.opcode.startswith(prefix)}
