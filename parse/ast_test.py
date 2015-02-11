@@ -43,21 +43,21 @@ class TestASTGeneration(unittest.TestCase):
     self.TestRoundTrip(src)
 
   def testOnlyOptional(self):
-    """Test parsing of optional parameters"""
+    """Test parsing of optional parameters."""
     src = textwrap.dedent("""
         def foo(...) -> int
     """).strip()
     self.TestRoundTrip(src)
 
   def testOptional1(self):
-    """Test parsing of optional parameters"""
+    """Test parsing of optional parameters."""
     src = textwrap.dedent("""
         def foo(a: int, ...) -> int
     """).strip()
     self.TestRoundTrip(src)
 
   def testOptional2(self):
-    """Test parsing of optional parameters"""
+    """Test parsing of optional parameters."""
     src = textwrap.dedent("""
         def foo(a: int, c: bool, ...) -> int
     """).strip()
@@ -70,7 +70,7 @@ class TestASTGeneration(unittest.TestCase):
                        "def foo(a: int, c: bool, ...) -> int")
 
   def testConstants(self):
-    """Test parsing of constants"""
+    """Test parsing of constants."""
     src = textwrap.dedent("""
       a: int
       b: int or float
@@ -205,31 +205,26 @@ class TestASTGeneration(unittest.TestCase):
     data2 = r"def foo(a: Foo or (Bar and Zot)) -> object"
     result1 = self.parser.Parse(data1)
     result2 = self.parser.Parse(data2)
-    expect = pytd.TypeDeclUnit(
-        constants=(),
-        classes=(),
-        functions=(
-            pytd.Function(
-                name="foo",
-                signatures=(pytd.Signature(
-                    params=(
-                        pytd.Parameter(
-                            name="a",
-                            type=pytd.UnionType(
+    f = pytd.Function(
+        name="foo",
+        signatures=(pytd.Signature(
+            params=(
+                pytd.Parameter(
+                    name="a",
+                    type=pytd.UnionType(
+                        type_list=(
+                            pytd.NamedType("Foo"),
+                            pytd.IntersectionType(
                                 type_list=(
-                                    pytd.NamedType("Foo"),
-                                    pytd.IntersectionType(
-                                        type_list=(
-                                            pytd.NamedType("Bar"),
-                                            pytd.NamedType("Zot"))))
-                            )
-                        ),),
-                    return_type=pytd.NamedType("object"),
-                    template=(), has_optional=False,
-                    exceptions=()),)),),
-        modules={})
-    self.assertEqual(expect, result1)
-    self.assertEqual(expect, result2)
+                                    pytd.NamedType("Bar"),
+                                    pytd.NamedType("Zot"))))
+                    )
+                ),),
+            return_type=pytd.NamedType("object"),
+            template=(), has_optional=False,
+            exceptions=()),))
+    self.assertEqual(f, result1.Lookup("foo"))
+    self.assertEqual(f, result2.Lookup("foo"))
 
   def testTokens(self):
     """Test various token forms (int, float, n"...", etc.)."""
@@ -239,27 +234,23 @@ class TestASTGeneration(unittest.TestCase):
         """)
 
     result = self.parser.Parse(data)
-    expect = pytd.TypeDeclUnit(
-        constants=(),
-        classes=(),
-        functions=(
-            pytd.Function(
-                name="interface",
-                signatures=(pytd.Signature(
-                    params=(
-                        pytd.Parameter(name="abcde",
-                                       type=pytd.Scalar(value="xyz")),
-                        pytd.Parameter(name="foo",
-                                       type=pytd.Scalar(value='a"b')),
-                        pytd.Parameter(name="b",
-                                       type=pytd.Scalar(value=-1.0)),
-                        pytd.Parameter(name="c",
-                                       type=pytd.Scalar(value=666))),
-                    return_type=pytd.NamedType("int"),
-                    exceptions=(),
-                    template=(), has_optional=False),)),),
-        modules={})
-    self.assertEqual(expect, result)
+    f1 = result.Lookup("interface")
+    f2 = pytd.Function(
+        name="interface",
+        signatures=(pytd.Signature(
+            params=(
+                pytd.Parameter(name="abcde",
+                               type=pytd.Scalar(value="xyz")),
+                pytd.Parameter(name="foo",
+                               type=pytd.Scalar(value='a"b')),
+                pytd.Parameter(name="b",
+                               type=pytd.Scalar(value=-1.0)),
+                pytd.Parameter(name="c",
+                               type=pytd.Scalar(value=666))),
+            return_type=pytd.NamedType("int"),
+            exceptions=(),
+            template=(), has_optional=False),))
+    self.assertEqual(f1, f2)
 
   def testNoReturnType(self):
     """Test a parsing error (no return type)."""
@@ -410,27 +401,29 @@ class TestASTGeneration(unittest.TestCase):
 class TestDecorate(unittest.TestCase):
   """Test adding additional methods to nodes in a tree using decorate.py."""
 
-  def test1(self):
+  def testDecorator(self):
     decorator = decorate.Decorator()
 
-    # Change pytd.NamedType to also have a method called "test1"
+    # Change pytd.NamedType to also have a method called "Test1"
     @decorator  # pylint: disable=unused-variable
     class NamedType(pytd.NamedType):
-      def test1(self):
+
+      def Test1(self):
         pass
 
-    # Change pytd.Scalar to also have a method called "test2"
-    @decorator
+    # Change pytd.Scalar to also have a method called "Test2"
+    @decorator  # pylint: disable=unused-variable
     class Scalar(pytd.Scalar):
-      def test2(self):
+
+      def Test2(self):
         pass
 
     tree = pytd.Scalar(pytd.NamedType("test"))
     tree = decorator.Visit(tree)
     # test that we now have the "test2" method on pytd.Scalar
-    tree.test2()
+    tree.Test2()
     # test that we now have the "test1" method on pytd.NamedType
-    tree.value.test1()
+    tree.value.Test1()
 
 
 if __name__ == "__main__":
