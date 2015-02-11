@@ -38,6 +38,7 @@ def divmod(x: int or float, y: float) -> tuple<float, float>
 def divmod(x: int or float or complex, y: complex) -> tuple<complex, complex>
 def divmod(x: float, y: int) -> tuple<float, float>
 def divmod(x: complex, y: int or float) -> tuple<complex, complex>
+def eval(src, ...) -> ?
 def execfile(filename: str, ...) -> NoneType
 def filter(function_or_None, sequence: str or bytearray) -> str
 def filter(function_or_None, sequence: unicode) -> unicode
@@ -393,9 +394,13 @@ class <K, V> dict:
     def iterkeys(self) -> `dictionary-keyiterator`
     def itervalues(self) -> `dictionary-valueiterator`
     def keys(self) -> list<K>
-    def pop(self, k, ...)
+    def pop(self, k) -> V
+    def <V2> pop(self, k, d: V2) -> V or V2
     def popitem(self) -> tuple<unicode, object>
-    def setdefault(self, k: K, ...)
+    def <K2> setdefault(self, k: K2) -> V or NoneType:
+        self := dict<K or K2, V or NoneType>
+    def <K2, V2> setdefault(self, k: K2, v: V2) -> V or V2:
+        self := dict<K or K2, V or V2>
     def update(self, E, ...) -> NoneType
     def update(self) -> NoneType
     def values(self: dict<K, V>) -> list<V>
