@@ -123,5 +123,6 @@ class TestTypeMatch(unittest.TestCase):
     self.assertEquals(m.match(left, right, {}), booleq.TRUE)
     self.assertNotEquals(m.match(right, left, {}), booleq.TRUE)
 
+
 if __name__ == "__main__":
   unittest.main()

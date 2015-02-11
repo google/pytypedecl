@@ -199,7 +199,7 @@ class TypeMatch(utils.TypeMatcher):
     assert t in subst
     if subst[t] is None:
       # Function type parameter. Can be anything.
-      return pytd.UnknownType()
+      return pytd.AnythingType()
     else:
       return subst[t]
 
