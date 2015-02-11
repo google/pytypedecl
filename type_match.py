@@ -55,6 +55,23 @@ def is_complete(cls):
     return not cls.name.startswith("~")
 
 
+def is_partial(cls):
+  """Returns True if this is a partial class, e.g. "~list"."""
+  if isinstance(cls, str):
+    return cls.startswith("~")
+  elif hasattr(cls, "name"):
+    return cls.name.startswith("~")
+  else:
+    return False
+
+
+def unpack_name_of_partial(name):
+  """Convert e.g. "~int" to "int"."""
+  assert isinstance(name, str)
+  assert name.startswith("~")
+  return name.lstrip("~")
+
+
 class StrictType(node.Node("name")):
   """A type that doesn't allow sub- or superclasses to match.
 
