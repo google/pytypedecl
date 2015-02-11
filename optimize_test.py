@@ -287,7 +287,7 @@ class TestOptimize(parser_test.ParserTest):
     new_src = self.ApplyVisitorToString(src, visitor)
     self.AssertSourceEquals(new_src, expected)
 
-  def testShortenUnions(self):
+  def testCollapseLongUnions(self):
     src = textwrap.dedent("""
         def f(x: A or B or C or D) -> X
         def g(x: A or B or C or D or E) -> X
@@ -298,8 +298,8 @@ class TestOptimize(parser_test.ParserTest):
         def g(x) -> X
         def h(x) -> X
     """)
-    new_src = self.ApplyVisitorToString(src,
-                                        optimize.ShortenUnions(max_length=4))
+    new_src = self.ApplyVisitorToString(
+        src, optimize.CollapseLongUnions(max_length=4))
     self.AssertSourceEquals(new_src, expected)
 
   def testCombineContainers(self):

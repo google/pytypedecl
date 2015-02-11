@@ -497,36 +497,35 @@ class FindCommonSuperClasses(object):
     return utils.JoinTypes(new_type_list)
 
 
-class ShortenUnions(object):
-  """Shortens long unions to object.
+class CollapseLongUnions(object):
+  """Shortens long unions to object (or "?").
 
   Poor man's version of FindCommonSuperClasses. Shorten types like
-  "str or unicode or int or float or list" to just "object".
+  "str or unicode or int or float or list" to just "object" or "?".
 
   Additionally, if the union already contains at least one "object", we also
-  replace the entire union with just "object".
+  potentially replace the entire union with just "object".
 
   Attributes:
     max_length: The maximum number of types to allow in a union. If there are
-      more types than this (or the union contains "object"), we use "object"
-      for everything instead.  The current (experimental) default for this
-      parameter is four, so only up to four types can be represented as a union.
+      more types than this, it is shortened.
   """
 
-  def __init__(self, max_length=4):
+  def __init__(self, max_length=4, generic_type=None):
     assert isinstance(max_length, (int, long))
+    self.generic_type = generic_type or pytd.NamedType("object")
     self.max_length = max_length
 
   def VisitUnionType(self, union):
     if len(union.type_list) > self.max_length:
-      return pytd.NamedType("object")
+      return self.generic_type
     elif pytd.NamedType("object") in union.type_list:
       return pytd.NamedType("object")
     else:
       return union
 
 
-class ShortenParameterUnions(object):
+class CollapseLongParameterUnions(object):
   """Shortens long unions in parameters to object.
 
   This is a lossy optimization that changes overlong disjunctions in arguments
@@ -542,14 +541,41 @@ class ShortenParameterUnions(object):
 
   Attributes:
     max_length: The maximum number of types to allow in a parameter. See
-      ShortenUnions.
+      CollapseLongUnions.
   """
 
   def __init__(self, max_length=4):
     self.max_length = max_length
 
   def VisitParameter(self, param):
-    return param.Visit(ShortenUnions(self.max_length))
+    return param.Visit(CollapseLongUnions(self.max_length))
+
+
+class CollapseLongReturnUnions(object):
+  """Shortens long unions in return types to ?.
+
+  This is a lossy optimization that changes overlong disjunctions in returns
+  to just "object".
+  Some signature extractions generate signatures like
+    class str:
+      def __init__(self) -> str or unicode or int or float or list
+  We shorten that to
+    class str:
+      def __init__(self) -> ?
+  In other words, if there are too many types "or"ed together, we just replace
+  the entire thing with "?" (UnknownType).
+
+  Attributes:
+    max_length: The maximum number of types to allow in a return type. See
+      CollapseLongUnions.
+  """
+
+  def __init__(self, max_length=8):
+    self.max_length = max_length
+
+  def VisitSignature(self, sig):
+    return sig.Replace(return_type=sig.return_type.Visit(
+        CollapseLongUnions(self.max_length, pytd.UnknownType())))
 
 
 class AddInheritedMethods(object):
@@ -962,7 +988,8 @@ def Optimize(node, flags=None):
         FindCommonSuperClasses(hierarchy, flags and flags.use_abcs)
     )
   if flags and flags.max_union:
-    node = node.Visit(ShortenParameterUnions(flags.max_union))
+    node = node.Visit(CollapseLongParameterUnions(flags.max_union))
+    node = node.Visit(CollapseLongReturnUnions(flags.max_union))
   if flags and flags.remove_mutable:
     node = node.Visit(AbsorbMutableParameters())
     node = node.Visit(CombineContainers())
