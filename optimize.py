@@ -591,20 +591,44 @@ class PullInMethodClasses(object):
     self._total_count = collections.defaultdict(int)
     self._processed_count = collections.defaultdict(int)
 
-  def _IsSimpleCall(self, t, parent_class):
+  def _MaybeLookup(self, t):
+    if isinstance(t, pytd.NamedType):
+      try:
+        return self._module.Lookup(t.name)
+      except KeyError:
+        return None
+    elif isinstance(t, pytd.ClassType):
+      return t.cls
+    else:
+      return None
+
+  def _HasSelf(self, sig):
+    """True if a signature has a self parameter.
+
+    This only checks for the name, since the type can be too many different
+    things (type of the method, type of the parent class, object, unknown etc.)
+    and doesn't carry over to the simplified version, anyway.
+
+    Arguments:
+      sig: Function signature (instance of pytd.Signature)
+    Returns:
+      True if the signature has "self".
+    """
+    return sig.params and sig.params[0].name == "self"
+
+  def _IsSimpleCall(self, t):
     """Returns whether a type has only one method, "__call__"."""
-    if not isinstance(t, pytd.NamedType):
+    if not isinstance(t, (pytd.NamedType, pytd.ClassType)):
       # We only do this for simple types.
       return False
-    try:
-      cls = self._module.Lookup(t.name)
-    except KeyError:
+    cls = self._MaybeLookup(t)
+    if not cls:
+      # We don't know this class, so assume it's not a method.
       return False
     if [f.name for f in cls.methods] != ["__call__"]:
       return False
     method, = cls.methods
-    selftype = pytd.NamedType(parent_class.name)
-    return all(sig.params[0:1] == (("self", selftype),)
+    return all(self._HasSelf(sig)
                for sig in method.signatures)
 
   def _CanDelete(self, cls):
@@ -631,30 +655,33 @@ class PullInMethodClasses(object):
       self._module = module
 
   def VisitTypeDeclUnit(self, unit):
-    return unit.Replace(classes=[c for c in unit.classes
-                                 if not self._CanDelete(c)])
+    return unit.Replace(classes=tuple(c for c in unit.classes
+                                      if not self._CanDelete(c)))
 
-  def VisitClassType(self, _):
-    raise TypeError("PullInMethodClasses needs raw unresolved AST.")
+  def VisitClassType(self, t):
+    self._total_count[t.name] += 1
+    return t
 
   def VisitNamedType(self, t):
     self._total_count[t.name] += 1
     return t
 
   def VisitClass(self, cls):
-    """Visit a class, and changes constants to methods where possible."""
+    """Visit a class, and change constants to methods where possible."""
     new_constants = []
     new_methods = list(cls.methods)
     for const in cls.constants:
-      if self._IsSimpleCall(const.type, cls):
-        self._processed_count[const.type.name] += 1
-        signatures = self._module.Lookup(const.type.name).methods[0].signatures
+      if self._IsSimpleCall(const.type):
+        c = self._MaybeLookup(const.type)
+        signatures = c.methods[0].signatures
+        self._processed_count[c.name] += 1
         new_methods.append(
             pytd.Function(const.name, signatures))
       else:
         new_constants.append(const)  # keep
-    return cls.Replace(constants=new_constants,
-                       methods=new_methods)
+    cls = cls.Replace(constants=new_constants,
+                      methods=new_methods)
+    return cls.Visit(visitors.AdjustSelf(force=True))
 
 
 OptimizeFlags = collections.namedtuple("_", ["lossy", "use_abcs", "max_union"])

@@ -279,7 +279,7 @@ class TestOptimize(parser_test.ParserTest):
         class Method1:
           def __call__(self: A, x: int)
         class Method2:
-          def __call__(self: A, x: int)
+          def __call__(self: ?, x: int)
         class Method3:
           def __call__(x: bool, y: int)
     """

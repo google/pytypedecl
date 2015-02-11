@@ -29,6 +29,7 @@ import traceback
 from ply import lex
 from ply import yacc
 from pytypedecl import pytd
+from pytypedecl.parse import visitors
 
 
 DEFAULT_VERSION = (2, 7, 6)
@@ -291,66 +292,6 @@ class Mutator(object):
       return p
 
 
-def ClassAsType(cls):
-  """Converts a pytd.Class to an instance of pytd.Type."""
-  if not cls.template:
-    return pytd.NamedType(cls.name)
-  elif len(cls.template) == 1:
-    params = tuple(pytd.NamedType(item.name) for item in cls.template)
-    return pytd.HomogeneousContainerType(pytd.NamedType(cls.name),
-                                         params)
-  else:  # len(cls.template) >= 2
-    params = tuple(pytd.NamedType(item.name) for item in cls.template)
-    return pytd.GenericType(pytd.NamedType(cls.name), params)
-
-
-class AdjustSelf(object):
-  """Visitor for setting the correct type on self.
-
-  So
-    class A:
-      def f(self: object)
-  becomes
-    class A:
-      def f(self: A)
-  .
-  (Notice the latter won't be printed like this, as printing simplifies the
-   first argument to just "self")
-  """
-
-  def __init__(self):
-    self.class_type = None
-
-  def EnterClass(self, cls):
-    self.class_type = ClassAsType(cls)
-
-  def LeaveClass(self, _):
-    self.class_type = None
-
-  def VisitMutableParameter(self, p):
-    p2 = self.VisitParameter(p)
-    return pytd.MutableParameter(p2.name, p2.type, p.new_type)
-
-  def VisitParameter(self, p):
-    """Adjust all parameters called "self" to have their parent class type.
-
-    But do this only if their original type is unoccupied (i.e., "object").
-
-    Parameters:
-      p: pytd.Parameter instance.
-
-    Returns:
-      Adjusted pytd.Parameter instance.
-    """
-    if not self.class_type:
-      # We're not within a class, so this is not a parameter of a method.
-      return p
-    elif p.name == 'self' and p.type == pytd.NamedType('object'):
-      return pytd.Parameter('self', self.class_type)
-    else:
-      return p
-
-
 def CheckStringIsPython(parser, string, p):
   if string == 'python':
     return
@@ -513,7 +454,7 @@ class TypeDeclParser(object):
     cls = pytd.Class(name=p[3], parents=tuple(p[4]),
                      methods=tuple(MergeSignatures(funcdefs)),
                      constants=tuple(constants), template=tuple(p[2]))
-    p[0] = cls.Visit(AdjustSelf())
+    p[0] = cls.Visit(visitors.AdjustSelf())
 
   def p_class_funcs(self, p):
     """class_funcs : funcdefs"""
