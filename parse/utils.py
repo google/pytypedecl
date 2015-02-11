@@ -42,3 +42,8 @@ def GetBuiltins():
     if mod != "__builtin__.pytd":
       builtins.modules[mod] = parser.parse_file(mod_file)
   return builtins
+
+
+def GetBuiltinsFile(file):
+  """GetBuiltins(), but for a single files, not adding to builtins.modules."""
+  return parser.parse_file(utils.GetDataFile(file))

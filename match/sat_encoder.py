@@ -48,7 +48,7 @@ class Type(object):
     raise NotImplementedError(self)
 
   def __gt__(self, other):
-    return str(self) < str(other)
+    return str(self) > str(other)
 
   def __eq__(self, other):
     # Must be implemented by subclass (for total ordering):
@@ -107,7 +107,8 @@ class ClassType(Type):
         type=type(self).__name__, self=self)
 
   def __str__(self):
-    # Used by total ordering
+    # Also sed by total ordering
+    # TODO: Remove the '#'? but see comment in sat_encode_test.py
     return "{}{}".format(self.cls.name,
                          "" if self.complete else "#")
 
@@ -376,6 +377,9 @@ class SATEncoder(object):
       if isinstance(ty, ClassType) and not ty.complete:
         vs = sorted(v for v in variables if ty in v and v.Other(ty).complete)
         # logging.info("%r", vs)
+        # TODO: The following seems to force all incomplete classes
+        #                  to be assigned to at least one complete class. Need
+        #                  to verify.
         self.sat.BetweenNM(vs, 1, None, ty)
 
   def Solve(self):

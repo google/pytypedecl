@@ -5,6 +5,7 @@ import textwrap
 import unittest
 from pytypedecl import pytd
 from pytypedecl.match import sat_inferencer
+from pytypedecl.parse import utils as parse_utils
 
 
 FLAGS = flags.FLAGS  # TODO: move to google/
@@ -18,6 +19,9 @@ class SATEncoderTest(unittest.TestCase):
 
     # TODO: reduce the builtins, to allow shorter, more readable,
     #                  tests (for now - in future, restore builtins)
+    # self.inferencer = sat_inferencer.TypeInferencer(
+    #     builtins=parse_utils.GetBuiltinsFile(
+    #         "match/builtin_for_testing.pytd"))
     self.inferencer = sat_inferencer.TypeInferencer()
 
     list_cls = self.inferencer.builtins.Lookup("list")
@@ -40,6 +44,10 @@ class SATEncoderTest(unittest.TestCase):
     self.float_type = pytd.ClassType("float")
     self.float_type.cls = float_cls
 
+    xrange_cls = self.inferencer.builtins.Lookup("xrange")
+    self.xrange_type = pytd.ClassType("xrange")
+    self.xrange_type.cls = xrange_cls
+
     object_cls = self.inferencer.builtins.Lookup("object")
     self.object_type = pytd.ClassType("object")
     self.object_type.cls = object_cls
@@ -48,178 +56,132 @@ class SATEncoderTest(unittest.TestCase):
     self.none_type = pytd.ClassType("NoneType")
     self.none_type.cls = none_cls
 
-  def _SolveClasses(self, incomplete_classes):
-    parsed_incomplete = pytd.TypeDeclUnit(
-        constants=(),
-        classes=incomplete_classes,
-        functions=(),
-        modules={})
-    # The following 2 lines are the same as TypeInferencer.ParseAndSolve(),
-    # except the parsing has already been done to an AST (but no other
-    # processing has been done to the AST):
-    incomplete = self.inferencer.LookupParsed(parsed_incomplete)
-    return self.inferencer.SolveFromParsedLookedUpClasses(incomplete.classes)
+  def _ParseSolveCheck(self, src, expected):
+    res = self.inferencer.ParseAndSolve(textwrap.dedent(src))
+    self.assertEqual(expected, res)
 
-  def testMembersDirectFromClass(self):
+  def testMembersDirectFromParsedClass1(self):
     # Note that this test is a bit of a cheat: def _add__(self:float, ...)
-    cls_a = pytd.Class(
-        "A", (),
-        (self.inferencer.builtins.Lookup("float").Lookup("__add__"),),
-        (), ())
-    cls_b = pytd.Class(
-        "B", (),
-        (self.inferencer.builtins.Lookup("bytearray").Lookup("__add__"),),
-        (), ())
-    res = self._SolveClasses([cls_a, cls_b])
-    self.assertEqual({cls_a: self.float_type,
-                      cls_b: self.bytearray_type},
-                     res)
+    src = """
+      class A:
+        def __add__(self: float, y: int) -> float
+        def __add__(self: float, y: float) -> float
+      class B:
+        def __add__(self: bytearray, y: str) -> bytearray
+        def __add__(self: bytearray, y: bytearray) -> bytearray
+      """
+    self._ParseSolveCheck(src,
+                          {"A": self.float_type,
+                           "B": self.bytearray_type})
 
-  def testMembersDirectFromParsedClass(self):
-    # This is essentially the same as testMembersDirectFromClass with the cheat
-    # removed, and using the pytd parser.
+  def testMembersDirectFromParsedClass2(self):
+    # The same as testMembersDirectFromClass1 with the cheat removed.
     src = """
       class A:
         def __add__(self: A, x:int or float) -> float
       class B:
         def __add__(self: B, x:bytearray) -> bytearray
-    """
-    src = textwrap.dedent(src)
-    # The following 2 lines are the same as TypeInferencer.ParseAndSolve()
-    # but keep the parsed result for validation
-    parsed_looked_up = self.inferencer.ParseAndLookup(src)
-    res = self.inferencer.SolveFromParsedLookedUpClasses(
-        parsed_looked_up.classes)
-    # Make sure that the classes that were given to the solver were as expected:
-    self.assertEqual([c.name for c in parsed_looked_up.classes], ["A", "B"])
-    self.assertEqual(
-        {parsed_looked_up.classes[0]: self.float_type,
-         parsed_looked_up.classes[1]: self.bytearray_type},
-        res)
+      """
+    self._ParseSolveCheck(src,
+                          {"A": self.float_type,
+                           "B": self.bytearray_type})
 
   @unittest.skip("Not yet implemented")
   def testUnion(self):
-    cls_d = pytd.Class("D", (), (pytd.Function("append", (
-        pytd.Signature((pytd.Parameter("self", self.object_type),
-                        pytd.Parameter("v", self.int_type)),
-                       self.none_type, (), (), False),)),),
-                       (), ())
-    res = self._SolveClasses([cls_d])
-
-    self.assertEqual(res[cls_d],
-                     pytd.UnionType((self.list_type, self.bytearray_type)))
-    self.assertEqual(res[pytd.Class("D#.T", (), (), (), ())],
-                     self.int_type)
+    src = """
+      class D:
+        def append(self, v: int) -> NoneType
+      """
+    # TODO: The '#' in the class names is from
+    #                  sat_encode.ClassType.__str__ and possibly can be removed
+    self._ParseSolveCheck(src,
+                          {"D": pytd.UnionType(
+                              (self.list_type, self.bytearray_type)),
+                           "D#.T": self.int_type})
 
   def testSingleList(self):
-    cls_d = pytd.Class("D", (), (pytd.Function("append", (
-        pytd.Signature((pytd.Parameter("self", self.list_type),
-                        pytd.Parameter("v", self.float_type)),
-                       self.none_type, (), (), False),)),),
-                       (), ())
-    res = self._SolveClasses([cls_d])
-
-    self.assertEqual(res[cls_d], self.list_type)
-    # TODO: D#.A is actually wrong. It should be D#.T. However that
+    src = """
+      class D:
+        def append(self: list, v: float) -> NoneType
+      """
     # would require propogating information through mutable parameters which is
     # not yet supported in this system.
-    self.assertEqual(res[pytd.Class("D#.A", (), (), (), ())],
-                     self.float_type)
+    self._ParseSolveCheck(src,
+                          {"D": self.list_type,
+                           "D#.A": self.float_type,
+                           "list": self.list_type})
 
   def testSingleListInOut(self):
-    cls_a = pytd.Class(
-        "A", (),
-        (self.inferencer.builtins.Lookup("float").Lookup("__add__"),),
-        (), ())
-    type_a = pytd.ClassType("A")
-    type_a.cls = cls_a
+    src = """
+      class D:
+        def append(self: list, v: A) -> NoneType
+        def __getitem__(self: list, i) -> A
 
-    cls_d = pytd.Class("D", (), (
-        pytd.Function("append", (
-            pytd.Signature((pytd.Parameter("self", self.list_type),
-                            pytd.Parameter("v", type_a)),
-                           self.none_type, (), (), False),)),
-        pytd.Function("__getitem__", (
-            pytd.Signature((pytd.Parameter("self", self.list_type),
-                            pytd.Parameter("i", self.object_type)),
-                           type_a, (), (), False),))),
-                       (), ())
-    res = self._SolveClasses([cls_d, cls_a])
-
-    self.assertEqual(res[cls_d], self.list_type)
-    self.assertEqual(res[pytd.Class("D#.T", (), (), (), ())],
-                     self.float_type)
+      class A:
+        def __add__(self: float, y: int) -> float
+        def __add__(self: float, y: float) -> float
+      """
+    self._ParseSolveCheck(src,
+                          {"A": self.float_type,
+                           "D": self.list_type,
+                           "D#.A": self.float_type,
+                           "D#.K": self.list_type,
+                           "D#.T": self.float_type,
+                           "D#.V": self.xrange_type,
+                           "list": self.list_type})
 
   def testTwoLists(self):
-    cls_d = pytd.Class("D", (), (pytd.Function("append", (
-        pytd.Signature((pytd.Parameter("self", self.list_type),
-                        pytd.Parameter("v", self.none_type)),
-                       self.none_type, (), (), False),)),),
-                       (), ())
-    cls_d2 = pytd.Class("D2", (), (pytd.Function("remove", (
-        pytd.Signature((pytd.Parameter("self", self.list_type),
-                        pytd.Parameter("v", self.float_type)),
-                       self.none_type, (), (), False),)),),
-                        (), ())
-    res = self._SolveClasses([cls_d, cls_d2])
-
-    self.assertEqual(res[cls_d], self.list_type)
-    # TODO: D#.A is actually wrong. It should be D#.T. See testSingleList
-    self.assertEqual(res[pytd.Class("D#.A", (), (), (), ())],
-                     self.none_type)
-    self.assertEqual(res[cls_d2], self.list_type)
-    self.assertEqual(res[pytd.Class("D2#.T", (), (), (), ())],
-                     self.float_type)
+    src = """
+      class D:
+        def append(self: list, v: NoneType) -> NoneType
+      class D2:
+        def remove(self: list, v: float) -> NoneType
+      """
+    # TODO: D#.A is actually wrong. - should be D#.T
+    #                  See testSingleList
+    #  ... according to kramm, the bug should go away if, in
+    #  builtins_for_testing.pytd, define append as
+    #     def append(self, object: T) -> NoneType
+    self._ParseSolveCheck(src,
+                          {"D": self.list_type,
+                           "D#.A": self.none_type,
+                           "D2": self.list_type,
+                           "D2#.T": self.float_type,
+                           "list": self.list_type})
 
   def testUseOneOfManySignatures(self):
-    cls_a_type = pytd.ClassType("A")
-    cls_a = pytd.Class("A", (), (pytd.Function("__add__", (
-        pytd.Signature((pytd.Parameter("self", cls_a_type),
-                        pytd.Parameter("v", self.int_type)),
-                       self.float_type, (), (), False),)),),
-                       (), ())
-    cls_a_type.cls = cls_a
-    res = self._SolveClasses([cls_a])
-
-    self.assertEqual(res[cls_a],
-                     self.float_type)
+    src = """
+      class A:
+        def __add__(self, v: int) -> float
+      """
+    self._ParseSolveCheck(src,
+                          {"A": self.float_type})
 
   @unittest.skip("TODO: Failing probably due to a set ordering issue.")
   def testAllAtOnce(self):
-    cls_a = pytd.Class(
-        "A", (),
-        (self.inferencer.builtins.Lookup("float").Lookup("__add__"),),
-        (), ())
-    cls_b = pytd.Class(
-        "B", (),
-        (self.inferencer.builtins.Lookup("bytearray").Lookup("__add__"),),
-        (), ())
-    cls_c = pytd.Class(
-        "C", (),
-        (self.inferencer.builtins.Lookup("str").Lookup("join"),), (), ())
-    cls_d = pytd.Class("D", (), (pytd.Function("append", (
-        pytd.Signature((pytd.Parameter("self", self.list_type),
-                        pytd.Parameter("v", self.none_type)),
-                       self.none_type, (), (), False),)),),
-                       (), ())
-    cls_d2 = pytd.Class("D2", (), (pytd.Function("remove", (
-        pytd.Signature((pytd.Parameter("self", self.list_type),
-                        pytd.Parameter("v", self.float_type)),
-                       self.none_type, (), (), False),)),),
-                        (), ())
-
-    res = self._SolveClasses([cls_a, cls_b, cls_c, cls_d, cls_d2])
-
-    self.assertEqual(res[cls_a], self.float_type)
-    self.assertEqual(res[cls_b], self.bytearray_type)
-    self.assertEqual(res[cls_c], self.str_type)
-    self.assertEqual(res[cls_d], self.list_type)
-    # TODO: D#.A is actually wrong. It should be D#.T. See testSingleList
-    self.assertEqual(res[pytd.Class("D#.A", (), (), (), ())],
-                     self.none_type)
-    self.assertEqual(res[cls_d2], self.list_type)
-    self.assertEqual(res[pytd.Class("D2#.T", (), (), (), ())],
-                     self.float_type)
+    src = """
+      class A:
+        def __add__(self: float, y: int) -> float
+        def __add__(self: float, y: float) -> float
+      class B:
+        def __add__(self: bytearray, y: str) -> bytearray
+        def __add__(self: bytearray, y: bytearray) -> bytearray
+      class C:
+        def join(self: str, iterable) -> str
+        def join(self: str, iterable: unicode) -> str or unicode
+        def join(self: str, iterable: iterator) -> str or unicode
+      class D:
+        def append(self: list, v: NoneType) -> NoneType
+      """
+    # TODO: D#.A is actually wrong - should be D#.T.
+    #              See testSingleList
+    self._ParseSolveCheck(src,
+                          {"B": self.bytearray_type,
+                           "C": self.str_type,
+                           "D": self.list_type,
+                           "D#.A": self.none_type,
+                           "D2": self.list_type,
+                           "D2#.T": self.float_type})
 
 
 if __name__ == "__main__":

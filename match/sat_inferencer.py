@@ -26,7 +26,18 @@ class TypeInferencer(object):
 
   def ParseAndSolve(self, src):
     parsed = self.ParseAndLookup(src)
-    return self.SolveFromParsedLookedUp(parsed.classes)
+    class_names = [c.name for c in parsed.classes]
+    # Make sure that all the classes have unique names, otherwise
+    # the returned result will be missing a result
+    assert len(set(class_names)) == len(class_names), class_names
+
+    res = self.SolveFromParsedLookedUpClasses(parsed.classes)
+    res_by_name = {k.name: v for k, v in res.items()}
+    assert len(res) == len(res_by_name)
+    # TODO: Does Solver() return empty dict
+    #                  for unsatisfiable?
+    assert set(class_names).issubset(set(res_by_name))
+    return res_by_name
 
   def SolveFromParsedLookedUpClasses(self, parsed_classes):
     """Input from LookupParsed(...), output is a solution."""

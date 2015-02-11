@@ -173,14 +173,6 @@ class TypeParameter(node.Node('name')):
   """
   __slots__ = ()
 
-  # We identify TypeParameters by instance, not by name, to avoid name
-  # collisions. Hence, comparison uses object identity:
-  def __eq__(self, other):
-    return self is other
-
-  def __ne__(self, other):
-    return self is not other
-
 
 class TemplateItem(node.Node('type_param', 'within_type')):
   """Represents "template name extends bounded_type".
@@ -288,12 +280,15 @@ class UnionType(node.Node('type_list')):
   __slots__ = ()
 
   # TODO(ampere): Add __new__ that converts type_list to tuple?
+  # NOTE: type_list is kept as a list, to preserve the original order
+  #       even though in most respects it acts like a frozenset
 
   def __hash__(self):
     return hash(frozenset(self.type_list))
 
   def __eq__(self, other):
     if isinstance(other, UnionType):
+      # equality doesn't care about the ordering of the type_list
       return frozenset(self.type_list) == frozenset(other.type_list)
     return NotImplemented
 
