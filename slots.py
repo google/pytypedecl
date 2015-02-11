@@ -1,5 +1,9 @@
 """Mapping between slot / operator names."""
 
+
+import collections
+
+
 TYPEOBJECT_PREFIX = "tp_"
 NUMBER_PREFIX = "nb_"
 SEQUENCE_PREFIX = "sq_"
@@ -204,8 +208,33 @@ SLOTS = [
 ]
 
 
+CompareOp = collections.namedtuple("CompareOp", ["op", "index", "magic"])
+
+COMPARE_OPS = [
+    CompareOp("LT", 0, "__lt__"),
+    CompareOp("LE", 1, "__le__"),
+    CompareOp("EQ", 2, "__eq__"),
+    CompareOp("NE", 3, "__ne__"),
+    CompareOp("GT", 4, "__gt__"),
+    CompareOp("GE", 5, "__ge__"),
+    CompareOp("IN", 6, None),  # reversed __contains__
+    # these don't have a magic function:
+    CompareOp("NOT_IN", 7, None),
+    CompareOp("IS", 8, None),
+    CompareOp("IS_NOT", 9, None),
+    CompareOp("EXC_MATCH", 10, None),
+]
+
+
 # Used by abstractvm.py:
 def GetBinaryOperatorMapping():
   return {slot.opcode[len("BINARY_"):]: slot.python_name
           for slot in SLOTS
           if slot.opcode}
+
+
+def GetCompareFunctionMapping():
+  return {index: magic
+          for op, index, magic in COMPARE_OPS
+          if magic
+         }
