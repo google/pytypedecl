@@ -718,28 +718,14 @@ class TypeDeclParser(object):
     #              "type1 and type2" would be useful for anything. We
     #              should remove it.
     # This rule depends on precedence specification
-    if (isinstance(p[1], pytd.IntersectionType) and
-        isinstance(p[3], pytd.NamedType)):
-      p[0] = pytd.IntersectionType(p[1].type_list + (p[3],))
-    elif (isinstance(p[1], pytd.NamedType) and
-          isinstance(p[3], pytd.IntersectionType)):
-      # associative
-      p[0] = pytd.IntersectionType(((p[1],) + p[3].type_list))
-    else:
-      p[0] = pytd.IntersectionType((p[1], p[3]))
+    # IntersectionType flattens any contained IntersectinType's
+    p[0] = pytd.IntersectionType((p[1], p[3]))
 
   def p_type_or(self, p):
     """type : type OR type"""
     # This rule depends on precedence specification
-    if (isinstance(p[1], pytd.UnionType) and
-        isinstance(p[3], pytd.NamedType)):
-      p[0] = pytd.UnionType(p[1].type_list + (p[3],))
-    elif (isinstance(p[1], pytd.NamedType) and
-          isinstance(p[3], pytd.UnionType)):
-      # associative
-      p[0] = pytd.UnionType((p[1],) + p[3].type_list)
-    else:
-      p[0] = pytd.UnionType((p[1], p[3]))
+    # UnionType flattens any contained UnionType's
+    p[0] = pytd.UnionType((p[1], p[3]))
 
   # This is parameterized type
   # TODO(raoulDoc): support data types in future?

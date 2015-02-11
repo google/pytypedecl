@@ -33,7 +33,7 @@ def _FindBuiltinFile(name):
 _cached_builtins = {}
 
 
-def GetBuiltins(stdlib=True):
+def GetBuiltins(stdlib=True, builtin_name="__builtin__"):
   """Get the "default" AST used to lookup built in types.
 
   Get an AST for all Python builtins as well as the most commonly used standard
@@ -43,6 +43,7 @@ def GetBuiltins(stdlib=True):
     stdlib: Whether to load the standard library, too. If this is False,
       TypeDeclUnit.modules will be empty. If it's True, it'll contain modules
       like itertools and signal.
+    builtin_name: The base part of the builtins file name.
 
   Returns:
     A pytd.TypeDeclUnit instance. It'll directly contain the builtin classes
@@ -57,7 +58,8 @@ def GetBuiltins(stdlib=True):
   # We use the same parser instance to parse all builtin files. This changes
   # the run time from 1.0423s to 0.5938s (for 21 builtins).
   p = parser.TypeDeclParser()
-  builtins = p.Parse(_FindBuiltinFile("__builtin__.pytd"), name="__builtin__")
+  builtins = p.Parse(
+      _FindBuiltinFile(builtin_name + ".pytd"), name=builtin_name)
   # We list modules explicitly, because we might have to extract them out of
   # a PAR file, which doesn't have good support for listing directories.
   modules = ["array", "codecs", "errno", "fcntl", "gc", "itertools", "marshal",

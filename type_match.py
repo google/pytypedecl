@@ -279,7 +279,7 @@ class TypeMatch(utils.TypeMatcher):
       raise AssertionError("Don't know how to match %s against %s" % (
           type(t1), type(t2)))
 
-  def match_signature_again_signature(self, sig1, sig2, subst, skip_self):
+  def match_signature_against_signature(self, sig1, sig2, subst, skip_self):
     """Match a pytd.Signature against another pytd.Signature.
 
     Args:
@@ -318,8 +318,9 @@ class TypeMatch(utils.TypeMatcher):
     # TODO: We should abort after the first matching signature, to get
     # more precise types in the presence of overloading.
     return booleq.And(
-        booleq.Or(self.match_signature_again_signature(sig, s, subst, skip_self)
-                  for s in f.signatures)
+        booleq.Or(
+            self.match_signature_against_signature(sig, s, subst, skip_self)
+            for s in f.signatures)
         for inner_sig in sig.Visit(optimize.ExpandSignatures()))
 
   def match_function_against_function(self, f1, f2, subst, skip_self=False):

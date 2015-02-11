@@ -305,7 +305,7 @@ class TestASTGeneration(parser_test.ParserTest):
                       ["int", "bool"])
 
   def testComplexFunction(self):
-    """Test parsing of a function with unions, noneable etc."""
+    """Test parsing of a function with unions, none-able etc."""
 
     canonical = textwrap.dedent("""
         def foo(a: int, b: int or float or None, c: Foo and `s.Bar` and Zot) -> int raises Bad

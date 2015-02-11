@@ -20,6 +20,7 @@
 """AST representation of a pytd file."""
 
 
+import itertools
 import re
 from pytypedecl.parse import node
 
@@ -292,10 +293,14 @@ class UnionType(node.Node('type_list')):
   __slots__ = ()
 
   # NOTE: type_list is kept as a tuple, to preserve the original order
-  #       even though in most respects it acts like a frozenset
+  #       even though in most respects it acts like a frozenset.
+  #       It also flattens the input, such that printing without
+  #       parentheses gives the same result.
 
   def __new__(cls, type_list):
-    return super(UnionType, cls).__new__(cls, tuple(type_list))
+    flattened = itertools.chain.from_iterable(
+        t.type_list if isinstance(t, UnionType) else [t] for t in type_list)
+    return super(UnionType, cls).__new__(cls, tuple(flattened))
 
   def __hash__(self):
     # See __eq__ - order doesn't matter, so use frozenset
@@ -315,7 +320,34 @@ class UnionType(node.Node('type_list')):
 
 # TODO: Do we still need this?
 class IntersectionType(node.Node('type_list')):
+  """An intersection type that contains all types in self.type_list."""
   __slots__ = ()
+
+  # NOTE: type_list is kept as a tuple, to preserve the original order
+  #       even though in most respects it acts like a frozenset.
+  #       It also flattens the input, such that printing without
+  #       parentheses gives the same result.
+
+  def __new__(cls, type_list):
+    flattened = itertools.chain.from_iterable(
+        t.type_list if isinstance(t, IntersectionType) else [t]
+        for t in type_list)
+    return super(IntersectionType, cls).__new__(cls, tuple(flattened))
+
+  def __hash__(self):
+    # See __eq__ - order doesn't matter, so use frozenset
+    return hash(frozenset(self.type_list))
+
+  def __eq__(self, other):
+    if self is other:
+      return True
+    if isinstance(other, IntersectionType):
+      # equality doesn't care about the ordering of the type_list
+      return frozenset(self.type_list) == frozenset(other.type_list)
+    return NotImplemented
+
+  def __ne__(self, other):
+    return not self == other
 
 
 class GenericType(node.Node('base_type', 'parameters')):

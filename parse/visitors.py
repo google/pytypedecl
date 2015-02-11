@@ -346,6 +346,10 @@ class VerifyLookup(object):
     raise ValueError("Unreplaced NamedType: {!s} {!r}".format(node, node))
 
   def VisitClassType(self, node):
+    # TODO: Can we give more context for this error? It's not very
+    #                  useful when it says that "T" is unresolved (e.g., from
+    #                  "def foo(x: list<T>))" ... it would be nice to know what
+    #                  it's inside.
     if node.cls is None:
       raise ValueError("Unresolved ClassType: {!s} {!r}".format(node, node))
 
