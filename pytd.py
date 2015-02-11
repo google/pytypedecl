@@ -298,6 +298,7 @@ class UnionType(node.Node('type_list')):
   #       parentheses gives the same result.
 
   def __new__(cls, type_list):
+    assert type_list  # Disallow empty unions. Use NothingType for these.
     flattened = itertools.chain.from_iterable(
         t.type_list if isinstance(t, UnionType) else [t] for t in type_list)
     return super(UnionType, cls).__new__(cls, tuple(flattened))

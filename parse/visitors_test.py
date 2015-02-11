@@ -220,7 +220,6 @@ class TestVisitors(parser_test.ParserTest):
     self.assertRaises(visitors.RaiseIfContainsUnknown.HasUnknown, find_on, "C")
     self.assertRaises(visitors.RaiseIfContainsUnknown.HasUnknown, find_on, "D")
 
-  @unittest.skip("Needs CL 84347342")
   def testCanonicalOrderingVisitor(self):
     src1 = textwrap.dedent("""
     def f(x: list<a>) -> ?
