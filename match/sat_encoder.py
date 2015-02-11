@@ -80,7 +80,7 @@ class ClassType(Type):
 
   def __eq__(self, other):
     if isinstance(other, ClassType):
-      return self.cls == other.cls and self.complete == self.complete
+      return self.cls == other.cls and self.complete == other.complete
     else:
       return False
 
@@ -298,7 +298,8 @@ class SatEncoder(object):
       new_variables = set(Equality(*p)
                           for p in itertools.combinations(self.types, 2))
       added_variables = new_variables - variables
-      logging.warning("New variables: %r", added_variables)
+      for added_var in added_variables:
+        logging.warning("New variable: %r", added_var)
       variables = new_variables
 
     logging.info("# Types: %r", len(self.types))

@@ -139,11 +139,18 @@ class SATProblem(object):
         solution.ParseFromString(fi.read())
 
       self._results = {v: None for v in self._variables}
+
+      if not solution.assignment.literals and self._variables:
+        logging.error("SAT solver failed.")
+        self._results = {}
+        return
+
       for varid in solution.assignment.literals:
         self._results[self._variables[abs(varid)-1]] = varid > 0
+
     except subprocess.CalledProcessError:
-      logging.warning("SAT solver failed. Probably UNSAT, returning the empty "
-                  "result.", exc_info=True)
+      logging.error("SAT solver failed. Probably UNSAT, returning the empty "
+                    "result.", exc_info=True)
       self._results = {}
       return
     finally:

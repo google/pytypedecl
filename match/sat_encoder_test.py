@@ -11,7 +11,6 @@ from pytypedecl.parse import utils
 from pytypedecl.parse import visitors
 
 
-@unittest.skip("Too slow.")
 class SatEncoderTest(unittest.TestCase):
 
   def setUp(self):
@@ -140,11 +139,13 @@ class SatEncoderTest(unittest.TestCase):
                      self.float_type)
 
   def testUseOneOfManySignatures(self):
+    cls_a_type = pytd.ClassType("A")
     cls_a = pytd.Class("A", (), (pytd.Function("__add__", (
-        pytd.Signature((pytd.Parameter("self", self.object_type),
+        pytd.Signature((pytd.Parameter("self", cls_a_type),
                         pytd.Parameter("v", self.int_type)),
                        self.float_type, (), (), False),)),),
                        (), ())
+    cls_a_type.cls = cls_a
     res = self._Solve([cls_a])
 
     self.assertEqual(res[cls_a],

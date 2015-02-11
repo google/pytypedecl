@@ -270,7 +270,6 @@ class TestOptimize(parser_test.ParserTest):
                                         optimize.CombineContainers())
     self.AssertSourceEquals(new_src, expected)
 
-  @unittest.skip("code doesn't exist yet")
   def testPullInMethodClasses(self):
     src = """
         class A:
