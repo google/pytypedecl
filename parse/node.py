@@ -227,10 +227,14 @@ def _VisitNode(node, visitor, *args, **kwargs):
     visitor.old_node = node
     # Now call the user supplied callback(s), if they exists. Notice we only do
     # this for tuples.
-    visit_function = "Visit" + node.__class__.__name__
+    name = node.__class__.__name__
+    visit_function = "Visit" + name
+    if getattr(visitor, "implements_all_node_types", False) and name != "tuple":
+      assert hasattr(visitor, visit_function), (
+          "Missing implementation of %s" % name)
     if hasattr(visitor, visit_function):
       new_node = getattr(visitor, visit_function)(new_node, *args, **kwargs)
-    leave_function = "Leave" + node.__class__.__name__
+    leave_function = "Leave" + name
     if hasattr(visitor, leave_function):
       # Let the visitor know we're done with this node.
       getattr(visitor, leave_function)(node, *args, **kwargs)

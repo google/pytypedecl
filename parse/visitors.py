@@ -25,6 +25,7 @@ from .. import pytd
 
 class PrintVisitor(object):
   """Visitor for converting ASTs back to pytd source code."""
+  implements_all_node_types = True
 
   INDENT = " " * 4
   VALID_NAME = re.compile(r"^[a-zA-Z_]\w*$")
