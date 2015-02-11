@@ -170,13 +170,13 @@ class CombineContainers(object):
     single instances with the union type pushed down to the element_type level.
 
     Arguments:
-      union: A pytd.Union instance
+      union: A pytd.Union instance. Might appear in a parameter, a return type,
+        a constant type, etc.
 
     Returns:
       A simplified pytd.Union.
     """
-    if not any(isinstance(t, pytd.HomogeneousContainerType)
-               for t in union.type_list):
+    if not any(isinstance(t, pytd.GenericType) for t in union.type_list):
       # Optimization: If we're not going to change anything, return original.
       return union
     union = utils.JoinTypes(union.type_list)  # flatten
@@ -184,19 +184,21 @@ class CombineContainers(object):
       union = pytd.UnionType((union,))
     collect = {}
     for t in union.type_list:
-      if isinstance(t, pytd.HomogeneousContainerType):
+      if isinstance(t, pytd.GenericType):
         if t.base_type in collect:
-          collect[t.base_type] = utils.JoinTypes(
-              [collect[t.base_type], t.element_type])
+          collect[t.base_type] = tuple(
+              utils.JoinTypes([p1, p2])
+              for p1, p2 in zip(collect[t.base_type], t.parameters))
         else:
-          collect[t.base_type] = t.element_type
+          collect[t.base_type] = t.parameters
     result = pytd.NothingType()
+    done = set()
     for t in union.type_list:
-      if isinstance(t, pytd.HomogeneousContainerType):
-        if t.base_type not in collect:
+      if isinstance(t, pytd.GenericType):
+        if t.base_type in done:
           continue  # already added
-        add = t.Replace(parameters=(collect[t.base_type],))
-        del collect[t.base_type]
+        add = t.Replace(parameters=collect[t.base_type])
+        done.add(t.base_type)
       else:
         add = t
       result = utils.JoinTypes([result, add])
@@ -931,7 +933,9 @@ class MergeTypeParameters(TypeParameterScope):
           visitors.ReplaceTypeParameters(substitutions)).Visit(SimplifyUnions())
 
 
-OptimizeFlags = collections.namedtuple("_", ["lossy", "use_abcs", "max_union"])
+OptimizeFlags = collections.namedtuple("_",
+                                       ["lossy", "use_abcs", "max_union",
+                                        "remove_mutable"])
 
 
 def Optimize(node, flags=None, contains_unresolved=False):
@@ -963,6 +967,11 @@ def Optimize(node, flags=None, contains_unresolved=False):
         FindCommonSuperClasses(hierarchy, flags and flags.use_abcs)
     )
     node = node.Visit(ShortenParameterUnions(flags and flags.max_union))
+  if flags and flags.remove_mutable:
+    node = node.Visit(AbsorbMutableParameters())
+    node = node.Visit(CombineContainers())
+    node = node.Visit(MergeTypeParameters())
+    node = node.Visit(visitors.AdjustSelf(force=True))
   if not contains_unresolved:
     node = visitors.LookupClasses(node, parse_utils.GetBuiltins())
     node = node.Visit(RemoveInheritedMethods())

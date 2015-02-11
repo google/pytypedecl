@@ -130,7 +130,8 @@ class TestOptimize(parser_test.ParserTest):
         def foo(a: int) -> float raises IndexError
         def foo(a: str) -> complex raises AssertionError
     """)
-    flags = optimize.OptimizeFlags(lossy=True, use_abcs=True, max_union=4)
+    flags = optimize.OptimizeFlags(lossy=True, use_abcs=True, max_union=4,
+                                   remove_mutable=False)
     self.AssertSourceEquals(
         optimize.Optimize(self.Parse(src), flags),
         src)
@@ -307,12 +308,16 @@ class TestOptimize(parser_test.ParserTest):
         def g(x: list<int> or str or list<float> or set<int> or long)
         def h(x: list<int> or list<str> or set<int> or set<float>)
         def i(x: list<int> or list<int>)
+        def j(x: dict<int, float> or dict<float, int>)
+        def k(x: dict<int, bool> or list<int> or dict<bool, int> or list<bool>)
     """)
     expected = textwrap.dedent("""
         def f(x: list<int or float>)
         def g(x: list<int or float> or str or set<int> or long)
         def h(x: list<int or str> or set<int or float>)
         def i(x: list<int>)
+        def j(x: dict<int or float, float or int>)
+        def k(x: dict<int or bool, bool or int> or list<int or bool>)
     """)
     new_src = self.ApplyVisitorToString(src,
                                         optimize.CombineContainers())

@@ -307,7 +307,7 @@ class UnionType(node.Node('type_list')):
   """A union type that contains all types in self.type_list."""
   __slots__ = ()
 
-  # NOTE: type_list is kept as a list, to preserve the original order
+  # NOTE: type_list is kept as a tuple, to preserve the original order
   #       even though in most respects it acts like a frozenset
 
   def __hash__(self):

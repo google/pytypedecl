@@ -514,14 +514,13 @@ def InstantiateTemplates(node):
 
 def ClassAsType(cls):
   """Converts a pytd.Class to an instance of pytd.Type."""
-  if not cls.template:
+  params = tuple(item.type_param for item in cls.template)
+  if not params:
     return pytd.NamedType(cls.name)
-  elif len(cls.template) == 1:
-    params = tuple(pytd.NamedType(item.name) for item in cls.template)
+  elif len(params) == 1:
     return pytd.HomogeneousContainerType(pytd.NamedType(cls.name),
                                          params)
   else:  # len(cls.template) >= 2
-    params = tuple(pytd.NamedType(item.name) for item in cls.template)
     return pytd.GenericType(pytd.NamedType(cls.name), params)
 
 
