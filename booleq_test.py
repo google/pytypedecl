@@ -166,6 +166,29 @@ class TestBoolEq(unittest.TestCase):
     self.assertEquals(And([Eq("x", "1"), Eq("y", "1")]),
                       equation.simplify(values))
 
+  def _MakeSolver(self):
+    solver = booleq.Solver()
+    solver.register_variable("x")
+    solver.register_variable("y")
+    solver.register_value("1")
+    solver.register_value("2")
+    return solver
+
+  def testImplication(self):
+    solver = self._MakeSolver()
+    solver.implies(Eq("x", "1"), Eq("y", "1"))
+    solver.implies(Eq("x", "2"), booleq.FALSE)
+    self.assertDictEqual(solver.solve(),
+                         {"x": set(["1"]),
+                          "y": set(["1"])})
+
+  def testGroundTruth(self):
+    solver = self._MakeSolver()
+    solver.implies(Eq("x", "1"), Eq("y", "1"))
+    solver.always_true(Eq("x", "1"))
+    self.assertDictEqual(solver.solve(),
+                         {"x": set(["1"]),
+                          "y": set(["1"])})
 
 if __name__ == "__main__":
   unittest.main()

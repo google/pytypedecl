@@ -37,6 +37,7 @@ class BooleanTerm(object):
     """
     raise NotImplementedError()
 
+  # TODO: "pivot" is probably the wrong name.
   def extract_pivots(self):
     """Find variables that appear in every term.
 
@@ -277,3 +278,131 @@ class Or(BooleanTerm):
         values |= p[pivot]
       pivots[pivot] = values
     return pivots
+
+
+class Solver(object):
+  """Solver for boolean equations.
+
+  This solver computes the union of all solutions. I.e. rather than assigning
+  exactly one value to each variable, it will create a list of values for each
+  variable: All the values this variable has in any of the solutions.
+
+  To accomplish this, we use the following rewriting rules:
+    [1]  (t in X && ...) || (t in Y && ...) -->  t in (X | Y)
+    [2]  t in X && t in Y                   -->  t in (X & Y)
+  Applying these iteratively for each variable in turn ("extracting pivots")
+  reduces the system to one where we can "read off" the possible values for each
+  variable.
+
+  Attributes:
+    variables: A list of all variables.
+    values: A list of all values. It's assumed that any variable can contain
+      any of these values.
+    implications: A dictionary mapping Eq instances to BooleanTerm
+      instances. This is used to specify rules like "if x is 1, then ..."
+    ground_truths: An equation that needs to always be TRUE. If this is FALSE,
+      or can be reduced to FALSE, the system is unsolvable.
+  """
+
+  def __init__(self):
+    self.variables = []
+    self.values = []
+    self.implications = {}
+    self.ground_truth = TRUE
+
+  def __str__(self):
+    lines = []
+    if self.ground_truth is not TRUE:
+      lines.append("always: %s" % (self.ground_truth,))
+    for e, implication in self.implications.items():
+      if implication not in (FALSE, TRUE):  # only print the "interesting" lines
+        lines.append("if %s then %s" % (e, implication))
+    return "\n".join(lines) + "\n"
+
+  def register_variable(self, variable):
+    """Register a variable. Call before calling solve()."""
+    self.variables.append(variable)
+
+  def register_value(self, value):
+    """Register a value. Call before calling solve()."""
+    self.values.append(value)
+
+  # Old names. TODO: remove.
+  register_complete = register_value
+  register_unknown = register_variable
+
+  def always_true(self, formula):
+    """Register a ground truth. Call before calling solve()."""
+    assert formula != FALSE
+    self.ground_truth = And([self.ground_truth, formula])
+
+  def implies(self, e, implication):
+    """Register an implication. Call before calling solve()."""
+    # COV_NF_START
+    if e is FALSE or e is TRUE:
+      raise AssertionError("Illegal equation")
+    # COV_NF_END
+    assert isinstance(e, Eq)
+    assert e not in self.implications
+    self.implications[e] = implication
+
+  def _complete(self):
+    """Insert missing implications.
+
+    Insert all implications needed to have one implication for every
+    (variable, value) combination.
+    """
+    for var in self.variables:
+      for value in self.values:
+        e = Eq(var, value)
+        if e in self.implications:
+          # Missing implications are typically needed for variable/value
+          # combinations not considered by the user, e.g. for auxiliary
+          # variables introduced when setting up the "main" equations.
+          self.implications[e] = TRUE
+
+  def solve(self):
+    """Solve the system of equations.
+
+    Returns:
+      An assignment, mapping strings (variables) to sets of strings (values).
+    """
+    self._complete()
+
+    assignments = {var: set(value
+                            for value in self.values
+                            if self.implications[Eq(var, value)] != FALSE)
+                   for var in self.variables
+                  }
+
+    ground_pivots = self.ground_truth.simplify(assignments).extract_pivots()
+    for pivot, possible_values in ground_pivots.items():
+      if pivot in assignments:
+        assignments[pivot] &= set(possible_values)
+
+    something_changed = True
+    while something_changed:
+      something_changed = False
+      for var in self.variables:
+        terms = []
+        for value in assignments[var].copy():
+          e = Eq(var, value)
+          if self.implications[e].simplify(assignments) is FALSE:
+            # As an example of what kind of code triggers this,
+            # see MatchTest.test_filter.
+            assignments[var].remove(value)
+            something_changed = True
+          terms.append(self.implications[e])
+        d = Or(terms)
+        d = d.simplify(assignments)
+        for pivot, possible_values in d.extract_pivots().items():
+          if pivot not in assignments:
+            continue
+          length_before = len(assignments[pivot])
+          assignments[pivot] &= set(possible_values)
+          length_after = len(assignments[pivot])
+          something_changed |= (length_before != length_after)
+
+    return assignments
+
+
