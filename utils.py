@@ -25,6 +25,7 @@ import os
 
 
 from pytypedecl import pytd
+from pytypedecl.parse import visitors
 
 
 def GetDataFile(filename=""):
@@ -143,3 +144,10 @@ class TypeMatcher(object):
     else:
       return self.default_match(t1, t2, *args, **kwargs)
 
+
+
+def CanonicalOrdering(n):
+  """Convert a PYTD node to a canonical (sorted) ordering."""
+  # TODO: use the original .py to decide the ordering rather
+  #                  than an arbitrary sort order
+  return n.Visit(visitors.CanonicalOrderingVisitor())

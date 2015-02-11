@@ -762,33 +762,39 @@ class CanonicalOrderingVisitor(object):
   """Visitor for converting ASTs back to canonical (sorted) ordering.
   """
 
+  # TODO: might want to add __new__ defns to the various types here
+  #                  to ensure the args are tuple, and can then remove the
+  #                  tuple(...) wrappers here ...
+
   def VisitTypeDeclUnit(self, node):
     return pytd.TypeDeclUnit(name=node.name,
-                             constants=sorted(node.constants),
-                             functions=sorted(node.functions),
-                             classes=sorted(node.classes),
-                             modules=sorted(node.modules))
+                             constants=tuple(sorted(node.constants)),
+                             functions=tuple(sorted(node.functions)),
+                             classes=tuple(sorted(node.classes)),
+                             modules=tuple(sorted(node.modules)))
 
   def VisitClass(self, node):
     return pytd.Class(name=node.name,
                       parents=node.parents,
-                      methods=sorted(node.methods),
-                      constants=sorted(node.constants),
+                      methods=tuple(sorted(node.methods)),
+                      constants=tuple(sorted(node.constants)),
                       template=node.template)
 
   def VisitFunction(self, node):
-    return pytd.Function(name=node.name,
-                         signatures=sorted(node.signatures))
+    # signatures should *not* be sorted because their order determines lookup
+    # order. This do-nothing method is left here as a reminder of that.
+    # TODO: consider a bool in this visitor to decide whether to
+    #                  sort the signatures.
+    return node
 
   def VisitSignature(self, node):
-    # TODO: might want to do something special for
-    #                  the params that are an instance of
-    #                  pytd.MutableParameter, if they aren't
-    #                  printed in a specific order
+    # params that are an instance of pytd.MutableParameters are
+    # already in the same order as the params, so no need to
+    # do anything.
     return node
 
   def VisitUnionType(self, node):
-    return pytd.UnionType(sorted(node.type_list))
+    return pytd.UnionType(tuple(sorted(node.type_list)))
 
   def VisitIntersectionType(self, node):
-    return pytd.IntersectionType(sorted(node.type_list))
+    return pytd.IntersectionType(tuple(sorted(node.type_list)))

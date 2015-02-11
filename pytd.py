@@ -359,12 +359,3 @@ def Print(n):
   # Remove trailing blanks on lines (*not* \s which includes \n) -- these come
   # from indents that have no other code on them.
   return re.sub(r" +\n", "\n", res)
-
-
-def CanonicalOrdering(n):
-  """Convert a PYTD node to a canonical (sorted) ordering."""
-  # TODO: fix circular import
-  from pytypedecl.parse import visitors
-  # TODO: use the original .py to decide the ordering rather
-  #                  than an arbitrary sort order
-  return n.Visit(visitors.CanonicalOrderingVisitor())
