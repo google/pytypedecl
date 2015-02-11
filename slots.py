@@ -150,10 +150,10 @@ SLOTS = [
     Slot("__isub__", "nb_inplace_subtract", "binary",
          opcode="INPLACE_SUBTRACT"),
     Slot("__imul__", "nb_inplace_multiply", "binary",
-         opcode="INPLACE_MUL"),
+         opcode="INPLACE_MULTIPLY"),
     Slot("__idiv__", "nb_inplace_divide", "binary",
-         opcode="INPLACE_DIV"),
-    Slot("__irem__", "nb_inplace_remainder", "binary",
+         opcode="INPLACE_DIVIDE"),
+    Slot("__imod__", "nb_inplace_remainder", "binary",
          opcode="INPLACE_MODULO"),
     Slot("__ipow__", "nb_inplace_power", "ternary",
          opcode="INPLACE_POWER"),
@@ -251,6 +251,12 @@ def GetBinaryOperatorMapping():
   return {slot.opcode[len("BINARY_"):]: slot.python_name
           for slot in SLOTS
           if slot.opcode and slot.opcode.startswith("BINARY_")}
+
+
+def GetInplaceOperatorMapping():
+  return {slot.opcode[len("INPLACE_"):]: slot.python_name
+          for slot in SLOTS
+          if slot.opcode and slot.opcode.startswith("INPLACE_")}
 
 
 def GetUnaryOperatorMapping():
