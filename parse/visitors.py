@@ -308,13 +308,12 @@ def FillInClasses(target, global_module=None):
     target.Visit(_FillInClasses(global_module, global_module))
 
 
-def LookupClasses(module, global_module=None, allow_unresolved=False):
+def LookupClasses(module, global_module=None):
   """Converts a module from one using NamedType to ClassType.
 
   Args:
     module: The module to process.
     global_module: The global (builtins) module for name lookup. Can be None.
-    allow_unresolved: If it's OK for some lookups to be unresolved.
 
   Returns:
     A new module that only uses ClassType. All ClassType instances will point
@@ -325,8 +324,7 @@ def LookupClasses(module, global_module=None, allow_unresolved=False):
   """
   module = module.Visit(NamedTypeToClassType())
   FillInClasses(module, global_module)
-  if not allow_unresolved:
-    module.Visit(VerifyLookup())
+  module.Visit(VerifyLookup())
   return module
 
 

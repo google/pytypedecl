@@ -5,6 +5,7 @@ import unittest
 
 from pytypedecl import pytd
 from pytypedecl.parse import utils
+from pytypedecl.parse import visitors
 
 
 class UtilsTest(unittest.TestCase):
@@ -16,6 +17,8 @@ class UtilsTest(unittest.TestCase):
   def testGetBuiltins(self):
     self.assertIsNotNone(self.builtins)
     self.assertTrue(hasattr(self.builtins, "modules"))
+    # Will throw an error for unresolved identifiers:
+    visitors.LookupClasses(self.builtins)
 
   def testHasMutableParameters(self):
     append = self.builtins.Lookup("list").Lookup("append")

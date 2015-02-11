@@ -60,8 +60,8 @@ def issubclass(C, B: tuple) -> bool
 def issubclass(C: type, B: type) -> bool
 def iter(collection: str or unicode or bytearray or iterator) -> iterator
 def iter<T>(collection: list<T>) -> listiterator<T>
-def iter(collection: tuple<T>) -> tupleiterator<T>
-def iter(collection: set<T>) -> setiterator<T>
+def iter<T>(collection: tuple<T>) -> tupleiterator<T>
+def iter<T>(collection: set<T>) -> setiterator<T>
 def len(object) -> int
 def locals() -> dict<str, object>
 def map(function, sequence, sequence, ...) -> list
