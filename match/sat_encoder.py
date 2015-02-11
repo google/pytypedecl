@@ -29,13 +29,13 @@ class Type(object):
   @staticmethod
   def FromPyTD(td, complete=True, path=None):
     if isinstance(td, pytd.ClassType):
-      if td.cls:
-        return ClassType(td.cls, complete)
-      else:
-        name = str(path or "") + "." + td.name
-        return ClassType(
-            pytd.Class(name, parents=(), methods=(), constants=(), template=()),
-            complete=False)
+      assert td.cls, "unresolved class"
+      return ClassType(td.cls, complete)
+    elif isinstance(td, pytd.TypeParameter):
+      name = str(path or "") + "." + td.name
+      return ClassType(
+          pytd.Class(name, parents=(), methods=(), constants=(), template=()),
+          complete=False)
     elif isinstance(td, pytd.PARAMETRIC_TYPES):
       return Type.FromPyTD(td.base_type)
     elif isinstance(td, pytd.UnionType):

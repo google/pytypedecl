@@ -157,9 +157,9 @@ class PrintVisitor(object):
   def VisitTemplateItem(self, node):
     """Convert a template (E.g. "<X extends list>") to a string."""
     if str(node.within_type) == "object":
-      return node.name
+      return node.type_param
     else:
-      return node.name + " extends " + node.within_type
+      return node.type_param + " extends " + node.within_type
 
   def VisitNamedType(self, node):
     """Convert a type to a string."""
@@ -178,6 +178,9 @@ class PrintVisitor(object):
     return "nothing"
 
   def VisitClassType(self, node):
+    return self.SafeName(node.name)
+
+  def VisitTypeParameter(self, node):
     return self.SafeName(node.name)
 
   def VisitHomogeneousContainerType(self, node):
@@ -373,6 +376,16 @@ class ExtractSuperClasses(object):
     return (cls.name, [parent.name for parent in cls.parents])
 
 
+class ReplaceTypeParameter(object):
+  """Visitor for replacing type parameters with actual types."""
+
+  def __init__(self, mapping):
+    self.mapping = mapping
+
+  def VisitTypeParameter(self, p):
+    return self.mapping[p]
+
+
 class InstantiateTemplatesVisitor(object):
   """Tries to remove templates by instantiating the corresponding types.
 
@@ -387,15 +400,10 @@ class InstantiateTemplatesVisitor(object):
     self.classes_to_instantiate = collections.OrderedDict()
 
   def _InstantiatedClass(self, name, node, symbol_table):
-    if isinstance(node, pytd.HomogeneousContainerType):
-      element_types = [node.element_type]
-    else:
-      element_types = node.parameters
-
     cls = symbol_table.Lookup(node.base_type.name)
-    names = [t.name for t in cls.template]
-    mapping = {name: e for name, e in zip(names, element_types)}
-    return cls.Replace(name=name, template=None).Visit(ReplaceType(mapping))
+    mapping = {t.type_param: e for t, e in zip(cls.template, node.parameters)}
+    return cls.Replace(name=name, template=None).Visit(
+        ReplaceTypeParameter(mapping))
 
   def InstantiatedClasses(self, symbol_table):
     return [self._InstantiatedClass(name, node, symbol_table)

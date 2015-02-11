@@ -398,18 +398,18 @@ class TestASTGeneration(unittest.TestCase):
     f1 = myclass.Lookup("f1").signatures[0]
     param = f1.params[0]
     self.assertEquals(param.name, "p1")
-    self.assertIsInstance(param.type, pytd.NamedType)
+    self.assertIsInstance(param.type, pytd.TypeParameter)
 
     f2 = myclass.Lookup("f2").signatures[0]
     self.assertEquals([p.name for p in f2.params], ["p1", "p2", "p3"])
     self.assertEquals([t.name for t in f2.template], ["T", "U"])
     p1, p2, p3 = f2.params
     t1, t2, t3 = p1.type, p2.type, p3.type
-    self.assertIsInstance(t1, pytd.NamedType)
-    self.assertIsInstance(t2, pytd.NamedType)
-    self.assertNotIsInstance(t3, pytd.NamedType)
+    self.assertIsInstance(t1, pytd.TypeParameter)
+    self.assertIsInstance(t2, pytd.TypeParameter)
+    self.assertNotIsInstance(t3, pytd.TypeParameter)
     self.assertEquals(t3.base_type.name, "dict")
-    self.assertIsInstance(f2.return_type, pytd.NamedType)
+    self.assertIsInstance(f2.return_type, pytd.TypeParameter)
     self.assertEquals(f2.return_type.name, "T")
     self.assertEquals(len(f2.exceptions), 1)
     self.assertEquals(len(f2.template), 2)
@@ -429,10 +429,10 @@ class TestASTGeneration(unittest.TestCase):
     f = myclass.Lookup("f1").signatures[0]
     self_param = f.params[0]
     self.assertEquals(self_param.name, "self")
-    u = pytd.NamedType("U")
-    v = pytd.NamedType("V")
+    u, v = myclass.template
     self.assertEquals(self_param.type,
-                      pytd.GenericType(pytd.NamedType("MyClass"), (u, v)))
+                      pytd.GenericType(pytd.NamedType("MyClass"),
+                                       (u.type_param, v.type_param)))
 
 
 class TestDecorate(unittest.TestCase):

@@ -163,22 +163,46 @@ class MutableParameter(node.Node('name', 'type', 'new_type')):
   __slots__ = ()
 
 
-class TemplateItem(node.Node('name', 'within_type')):
+class TypeParameter(node.Node('name')):
+  """Represents a type parameter.
+
+  A type parameter is a bound variable in the context of a function or class
+  definition. It specifies an equivalence between types.
+  For example, this defines a identity function:
+    def<T> f(x: T) -> T
+  """
+  __slots__ = ()
+
+  # We identify TypeParameters by instance, not by name, to avoid name
+  # collisions. Hence, comparison uses object identity:
+  def __eq__(self, other):
+    return self is other
+
+  def __ne__(self, other):
+    return self is not other
+
+
+class TemplateItem(node.Node('type_param', 'within_type')):
   """Represents "template name extends bounded_type".
 
   This is used for classes and signatures. The 'template' field of both is
   a list of TemplateItems. Note that *using* the template happens through
-  NamedType.  E.g. in:
+  TypeParameters.  E.g. in:
     class<T> A:
       def f(T x) -> T
-  both the "T"s in the definition of f() are using pytd.NamedType to refer to
-  the TemplateItem in class A's template.
+  both the "T"s in the definition of f() are using pytd.TypeParameter to refer
+  to the TemplateItem in class A's template.
 
   Attributes:
-    name: the name that's used in a generic type
-    type: the "extends" type for this name (e.g., NamedType('object'))
+    type_param: the TypeParameter instance used. This is the actual instance
+      that's used wherever this type parameter appears, e.g. within a class.
+    within_type: the "extends" type for this name (e.g., NamedType('object'))
   """
   __slots__ = ()
+
+  @property
+  def name(self):
+    return self.type_param.name
 
 
 # There are multiple representations of a "type" (used for return types,

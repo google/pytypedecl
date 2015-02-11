@@ -293,6 +293,18 @@ class Mutator(object):
       return p
 
 
+class InsertTypeParameters(object):
+  """Visitor for inserting TypeParameter instances."""
+
+  def VisitClass(self, node):
+    return node.Visit(visitors.ReplaceType({p.name: p.type_param
+                                            for p in node.template}))
+
+  def VisitSignature(self, node):
+    return node.Visit(visitors.ReplaceType({p.name: p.type_param
+                                            for p in node.template}))
+
+
 def CheckStringIsPython(parser, string, p):
   if string == 'python':
     return
@@ -338,7 +350,8 @@ class TypeDeclParser(object):
     self.data = data  # Keep a copy of what's being parsed
     self.filename = filename if filename else '<string>'
     self.lexer.set_parse_info(self.data, self.filename)
-    return self.parser.parse(data, **kwargs)
+    ast = self.parser.parse(data, **kwargs)
+    return ast.Visit(InsertTypeParameters())
 
   precedence = (
       ('left', 'OR'),
@@ -505,11 +518,11 @@ class TypeDeclParser(object):
 
   def p_template_item(self, p):
     """template_item : NAME"""
-    p[0] = pytd.TemplateItem(p[1], pytd.NamedType('object'))
+    p[0] = pytd.TemplateItem(pytd.TypeParameter(p[1]), pytd.NamedType('object'))
 
   def p_template_item_subclss(self, p):
     """template_item : NAME EXTENDS type"""
-    p[0] = pytd.TemplateItem(p[1], p[3])
+    p[0] = pytd.TemplateItem(pytd.TypeParameter(p[1]), p[3])
 
   def p_funcdefs_func(self, p):
     """funcdefs : funcdefs funcdef"""
