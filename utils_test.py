@@ -16,6 +16,7 @@
 
 import textwrap
 import unittest
+from pytypedecl import pytd
 from pytypedecl import utils
 from pytypedecl.parse import parser_test
 
@@ -73,6 +74,40 @@ class TestUtils(parser_test.ParserTest):
     """)
     combined = utils.Concat(ast1, ast2)
     self.AssertSourceEquals(combined, expected)
+
+  def testJoinTypes(self):
+    """Test that JoinTypes() does recursive flattening."""
+    n1, n2, n3, n4, n5, n6 = [pytd.NamedType("n%d" % i) for i in xrange(6)]
+    # n1 or (n2 or (n3))
+    nested1 = pytd.UnionType((n1, pytd.UnionType((n2, pytd.UnionType((n3,))))))
+    # ((n4) or n5) or n6
+    nested2 = pytd.UnionType((pytd.UnionType((pytd.UnionType((n4,)), n5)), n6))
+    joined = utils.JoinTypes([nested1, nested2])
+    self.assertEquals(joined.type_list,
+                      (n1, n2, n3, n4, n5, n6))
+
+  def testJoinSingleType(self):
+    """Test that JoinTypes() returns single types as-is."""
+    a = pytd.NamedType("a")
+    self.assertEquals(utils.JoinTypes([a]), a)
+    self.assertEquals(utils.JoinTypes([a, a]), a)
+
+  def testJoinNothingType(self):
+    """Test that JoinTypes() removes or collapses 'nothing'."""
+    a = pytd.NamedType("a")
+    nothing = pytd.NothingType()
+    self.assertEquals(utils.JoinTypes([a, nothing]), a)
+    self.assertEquals(utils.JoinTypes([nothing]), nothing)
+    self.assertEquals(utils.JoinTypes([nothing, nothing]), nothing)
+
+  def testJoinEmptyTypesToNothing(self):
+    """Test that JoinTypes() simplifies empty unions to 'nothing'."""
+    self.assertIsInstance(utils.JoinTypes([]), pytd.NothingType)
+
+  def testJoinUnknownTypes(self):
+    """Test that JoinTypes() simplifies unions containing '?'."""
+    types = [pytd.UnknownType(), pytd.NamedType("a")]
+    self.assertIsInstance(utils.JoinTypes(types), pytd.UnknownType)
 
 
 if __name__ == "__main__":

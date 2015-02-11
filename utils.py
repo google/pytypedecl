@@ -20,6 +20,7 @@ This provides a utility function to access data files in a way that works either
 locally or within a larger repository.
 """
 
+import collections
 import os
 
 
@@ -52,3 +53,41 @@ def Concat(pytd1, pytd2):
                            classes=pytd1.classes + pytd2.classes,
                            functions=pytd1.functions + pytd2.functions,
                            modules=modules_union)
+
+
+def JoinTypes(types):
+  """Combine a list of types into a union type, if needed.
+
+  Leaves singular return values alone, or wraps a UnionType around them if there
+  are multiple ones, or if there are no elements in the list (or only
+  NothingType) return NothingType.
+
+  Arguments:
+    types: A list of types. This list might contain other UnionTypes. If
+    so, they are flattened.
+
+  Returns:
+    A type that represents the union of the types passed in. Order is preserved.
+  """
+  queue = collections.deque(types)
+  seen = set()
+  new_types = []
+  while queue:
+    t = queue.popleft()
+    if isinstance(t, pytd.UnionType):
+      queue.extendleft(reversed(t.type_list))
+    elif isinstance(t, pytd.NothingType):
+      pass
+    elif t not in seen:
+      new_types.append(t)
+      seen.add(t)
+
+  if len(new_types) == 1:
+    return new_types.pop()
+  elif any(isinstance(t, pytd.UnknownType) for t in new_types):
+    return pytd.UnknownType()
+  elif new_types:
+    return pytd.UnionType(tuple(new_types))  # tuple() to make unions hashable
+  else:
+    return pytd.NothingType()
+

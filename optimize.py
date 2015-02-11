@@ -28,7 +28,8 @@ import itertools
 
 from pytypedecl import abc_hierarchy
 from pytypedecl import pytd
-from pytypedecl.parse import utils
+from pytypedecl import utils
+from pytypedecl.parse import utils as parse_utils  # a.k.a. "builtins"
 from pytypedecl.parse import visitors
 
 
@@ -74,43 +75,6 @@ class _ReturnsAndExceptions(object):
     self.exceptions.extend(exception
                            for exception in signature.exceptions
                            if exception not in self.exceptions)
-
-
-def JoinTypes(types):
-  """Combine a list of types into a union type, if needed.
-
-  Leaves singular return values alone, or wraps a UnionType around them if there
-  are multiple ones, or if there are no elements in the list (or only
-  NothingType) return NothingType.
-
-  Arguments:
-    types: A list of types. This list might contain other UnionTypes. If
-    so, they are flattened.
-
-  Returns:
-    A type that represents the union of the types passed in. Order is preserved.
-  """
-  queue = collections.deque(types)
-  seen = set()
-  new_types = []
-  while queue:
-    t = queue.popleft()
-    if isinstance(t, pytd.UnionType):
-      queue.extendleft(reversed(t.type_list))
-    elif isinstance(t, pytd.NothingType):
-      pass
-    elif t not in seen:
-      new_types.append(t)
-      seen.add(t)
-
-  if len(new_types) == 1:
-    return new_types.pop()
-  elif any(isinstance(t, pytd.UnknownType) for t in new_types):
-    return pytd.UnknownType()
-  elif new_types:
-    return pytd.UnionType(tuple(new_types))  # tuple() to make unions hashable
-  else:
-    return pytd.NothingType()
 
 
 class CombineReturnsAndExceptions(object):
@@ -162,7 +126,7 @@ class CombineReturnsAndExceptions(object):
 
     new_signatures = []
     for stripped_signature, ret_exc in groups.items():
-      ret = JoinTypes(ret_exc.return_types)
+      ret = utils.JoinTypes(ret_exc.return_types)
       exc = tuple(ret_exc.exceptions)
 
       new_signatures.append(
@@ -197,14 +161,14 @@ class CombineContainers(object):
                for t in union.type_list):
       # Optimization: If we're not going to change anything, return original.
       return union
-    union = JoinTypes(union.type_list)  # flatten
+    union = utils.JoinTypes(union.type_list)  # flatten
     if not isinstance(union, pytd.UnionType):
       union = pytd.UnionType((union,))
     collect = {}
     for t in union.type_list:
       if isinstance(t, pytd.HomogeneousContainerType):
         if t.base_type in collect:
-          collect[t.base_type] = JoinTypes(
+          collect[t.base_type] = utils.JoinTypes(
               [collect[t.base_type], t.element_type])
         else:
           collect[t.base_type] = t.element_type
@@ -217,7 +181,7 @@ class CombineContainers(object):
         del collect[t.base_type]
       else:
         add = t
-      result = JoinTypes([result, add])
+      result = utils.JoinTypes([result, add])
     return result
 
 
@@ -363,7 +327,8 @@ class Factorize(object):
         if types:
           # One or more options for argument <i>:
           new_params = list(sig.params)
-          new_params[i] = pytd.Parameter(sig.params[i].name, JoinTypes(types))
+          new_params[i] = pytd.Parameter(sig.params[i].name,
+                                         utils.JoinTypes(types))
           sig = sig.Replace(params=tuple(new_params))
           new_sigs.append(sig)
         else:
@@ -447,7 +412,7 @@ class FindCommonSuperClasses(object):
     if builtins:  # Some tests use their own builtins.
       self._superclasses = builtins.Visit(visitors.ExtractSuperClassesByName())
     else:
-      self._superclasses = utils.GetBuiltinsHierarchy()
+      self._superclasses = parse_utils.GetBuiltinsHierarchy()
     self._superclasses.update(superclasses or {})
     if use_abcs:
       self._superclasses.update(abc_hierarchy.GetSuperClasses())
@@ -512,7 +477,7 @@ class FindCommonSuperClasses(object):
     new_type_list = tuple(cls for cls in intersection
                           if not self._HasSubClassInSet(cls, intersection))
 
-    return JoinTypes(new_type_list)
+    return utils.JoinTypes(new_type_list)
 
 
 class ShortenUnions(object):
@@ -856,6 +821,6 @@ def Optimize(node, flags=None, contains_unresolved=False):
     )
     node = node.Visit(ShortenParameterUnions(flags and flags.max_union))
   if not contains_unresolved:
-    node = visitors.LookupClasses(node, utils.GetBuiltins())
+    node = visitors.LookupClasses(node, parse_utils.GetBuiltins())
     node = node.Visit(RemoveInheritedMethods())
   return node
