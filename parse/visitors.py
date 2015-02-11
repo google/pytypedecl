@@ -61,7 +61,7 @@ class PrintVisitor(object):
     return node.name + ": " + node.type
 
   def EnterClass(self, cls):
-    self.class_name = cls.name + self.ClassTemplateString(cls)
+    self.class_name = self.SafeName(cls.name + self.ClassTemplateString(cls))
 
   def LeaveClass(self, _):
     self.class_name = None
