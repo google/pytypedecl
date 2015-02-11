@@ -31,8 +31,7 @@ class ParserTest(unittest.TestCase):
 
   def Parse(self, src, version=None):
     # TODO: Using self.parser here breaks tests. Why?
-    tree = parser.TypeDeclParser(version=version).Parse(
-        textwrap.dedent(src))
+    tree = parser.TypeDeclParser(version=version).Parse(textwrap.dedent(src))
     tree.Visit(visitors.VerifyVisitor())
     return tree
 

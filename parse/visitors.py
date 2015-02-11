@@ -281,6 +281,22 @@ class NamedTypeToClassType(object):
     return pytd.ClassType(node.name)
 
 
+class ClassTypeToNamedType(object):
+  """Change all ClassType objects to NameType objects.
+  """
+
+  def VisitClassType(self, node):
+    """Converts a class type to a named type.
+
+    Args:
+      node: The ClassType.
+
+    Returns:
+      A NamedType.
+    """
+    return pytd.NamedType(node.name)
+
+
 def FillInClasses(target, global_module=None):
   """Fill in class pointers in ClassType nodes for a PyTD object.
 
