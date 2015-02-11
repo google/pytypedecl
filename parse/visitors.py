@@ -268,8 +268,16 @@ class _FillInClasses(object):
     return node
 
 
+class ClearClassTypePointers(object):
+  """For ClassType nodes: Set their cls pointer to None."""
+
+  def EnterClassType(self, node):
+    node.cls = None
+
+
 class NamedTypeToClassType(object):
-  """Change all NamedType objects to ClassType objects."""
+  """Change all NamedType objects to ClassType objects.
+  """
 
   def VisitNamedType(self, node):
     """Converts a named type to a class type, to be filled in later.
@@ -286,11 +294,18 @@ class NamedTypeToClassType(object):
 def FillInClasses(target, global_module=None):
   """Fill in class pointers in ClassType nodes for a PyTD object.
 
+  This will adjust the "cls" pointer for existing ClassType nodes so that they
+  point to their named class. It will only do this for cls pointers that are
+  None, otherwise it will keep the old value.  Use the NamedTypeToClassType
+  visitor to create the ClassType nodes in the first place. Use the
+  ClearClassTypePointers visitor to set the "cls" pointers for already existing
+  ClassType nodes back to None.
+
   Args:
     target: The PyTD object to operate on. Changes will happen in-place. If this
-    is a TypeDeclUnit it will also be used for lookups.
+      is a TypeDeclUnit it will also be used for lookups.
     global_module: Global symbols. Tried if a name doesn't exist locally. This
-    is required if target is not a TypeDeclUnit.
+      is required if target is not a TypeDeclUnit.
   """
   if global_module is None:
     global_module = target
@@ -308,12 +323,15 @@ def FillInClasses(target, global_module=None):
     target.Visit(_FillInClasses(global_module, global_module))
 
 
-def LookupClasses(module, global_module=None):
+def LookupClasses(module, global_module=None, overwrite=False):
   """Converts a module from one using NamedType to ClassType.
 
   Args:
     module: The module to process.
     global_module: The global (builtins) module for name lookup. Can be None.
+    overwrite: If we should overwrite the "cls" pointer of existing ClassType
+      nodes. Otherwise, "cls" pointers of existing ClassType nodes will only
+      be written if they are None.
 
   Returns:
     A new module that only uses ClassType. All ClassType instances will point
@@ -323,6 +341,9 @@ def LookupClasses(module, global_module=None):
     KeyError: If we can't find a class.
   """
   module = module.Visit(NamedTypeToClassType())
+  if overwrite:
+    # Set cls pointers to None so that FillInClasses is allowed to set them.
+    module = module.Visit(ClearClassTypePointers())
   FillInClasses(module, global_module)
   module.Visit(VerifyLookup())
   return module
