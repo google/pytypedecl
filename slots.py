@@ -1,4 +1,9 @@
-"""Mapping between slot / operator names."""
+"""Mapping between slot / operator names.
+
+This defines the internal constants CPython uses to map magic methods to slots
+of PyTypeObject structures, and also other constants, like compare operator
+mappings.
+"""
 
 
 import collections
@@ -210,19 +215,33 @@ SLOTS = [
 
 CompareOp = collections.namedtuple("CompareOp", ["op", "index", "magic"])
 
+
+CMP_LT = 0
+CMP_LE = 1
+CMP_EQ = 2
+CMP_NE = 3
+CMP_GT = 4
+CMP_GE = 5
+CMP_IN = 6
+CMP_NOT_IN = 7
+CMP_IS = 8
+CMP_IS_NOT = 9
+CMP_EXC_MATCH = 9
+
+
 COMPARE_OPS = [
-    CompareOp("LT", 0, "__lt__"),
-    CompareOp("LE", 1, "__le__"),
-    CompareOp("EQ", 2, "__eq__"),
-    CompareOp("NE", 3, "__ne__"),
-    CompareOp("GT", 4, "__gt__"),
-    CompareOp("GE", 5, "__ge__"),
-    CompareOp("IN", 6, None),  # reversed __contains__
+    CompareOp("LT", CMP_LT, "__lt__"),
+    CompareOp("LE", CMP_LE, "__le__"),
+    CompareOp("EQ", CMP_EQ, "__eq__"),
+    CompareOp("NE", CMP_NE, "__ne__"),
+    CompareOp("GT", CMP_GT, "__gt__"),
+    CompareOp("GE", CMP_GE, "__ge__"),
+    CompareOp("IN", CMP_IN, None),  # reversed __contains__
     # these don't have a magic function:
-    CompareOp("NOT_IN", 7, None),
-    CompareOp("IS", 8, None),
-    CompareOp("IS_NOT", 9, None),
-    CompareOp("EXC_MATCH", 10, None),
+    CompareOp("NOT_IN", CMP_NOT_IN, None),
+    CompareOp("IS", CMP_IS, None),
+    CompareOp("IS_NOT", CMP_IS_NOT, None),
+    CompareOp("EXC_MATCH", CMP_EXC_MATCH, None),
 ]
 
 
