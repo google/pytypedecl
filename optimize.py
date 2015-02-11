@@ -788,6 +788,25 @@ class PullInMethodClasses(object):
     return cls.Visit(visitors.AdjustSelf(force=True))
 
 
+class AbsorbMutableParameters(object):
+  """Converts mutable parameters to unions. This is lossy.
+
+  For example, this will change
+    def f(x: list<int>):
+      x := list<int or float>
+  to
+    def f(x: list<int> or list<int or float>)
+  .
+  (Use optimize.CombineContainers to then change x to list<int or float>.)
+
+  This also works for methods - it will then potentially change the type of
+  "self". The resulting AST is temporary and needs careful handling.
+  """
+
+  def VisitMutableParameter(self, p):
+    return pytd.Parameter(p.name, utils.JoinTypes([p.type, p.new_type]))
+
+
 OptimizeFlags = collections.namedtuple("_", ["lossy", "use_abcs", "max_union"])
 
 

@@ -396,5 +396,41 @@ class TestOptimize(parser_test.ParserTest):
     ast = ast.Visit(optimize.RemoveInheritedMethods())
     self.AssertSourceEquals(ast, expected)
 
+  def testAbsorbMutableParameters(self):
+    src = textwrap.dedent("""
+        def popall(x: list<?>):
+            x := list<nothing>
+        def add_float(x: list<int>):
+            x := list<int or float>
+        def f(x: list<int>):
+            x := list<int or float>
+    """)
+    expected = textwrap.dedent("""
+        def popall(x: list<?>)
+        def add_float(x: list<int or float>)
+        def f(x: list<int or float>)
+    """)
+    tree = self.Parse(src)
+    new_tree = tree.Visit(optimize.AbsorbMutableParameters())
+    new_tree = new_tree.Visit(optimize.CombineContainers())
+    self.AssertSourceEquals(new_tree, expected)
+
+  def testAbsorbMutableParametersFromMethods(self):
+    # This is a test for intermediate data. See AbsorbMutableParameters class
+    # pydoc about how AbsorbMutableParameters works on methods.
+    src = textwrap.dedent("""
+        class MyClass<T>:
+            def append<NEW>(self, x: NEW):
+                self := MyClass<T or NEW>
+    """)
+    expected = textwrap.dedent("""
+        class MyClass<T>:
+            def append<NEW>(self: MyClass<T or NEW>, x: NEW)
+    """)
+    tree = self.Parse(src)
+    new_tree = tree.Visit(optimize.AbsorbMutableParameters())
+    new_tree = new_tree.Visit(optimize.CombineContainers())
+    self.AssertSourceEquals(new_tree, expected)
+
 if __name__ == "__main__":
   unittest.main()
