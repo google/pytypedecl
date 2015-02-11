@@ -277,7 +277,7 @@ class TestOptimize(parser_test.ParserTest):
         def h(x)
     """) + class_data
 
-    hierarchy = self.Parse(src).Visit(visitors.ExtractSuperClasses())
+    hierarchy = self.Parse(src).Visit(visitors.ExtractSuperClassesByName())
     visitor = optimize.FindCommonSuperClasses(hierarchy, use_abcs=False)
     new_src = self.ApplyVisitorToString(src, visitor)
     self.AssertSourceEquals(new_src, expected)

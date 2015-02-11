@@ -445,7 +445,7 @@ class FindCommonSuperClasses(object):
 
   def __init__(self, superclasses=None, use_abcs=True, builtins=None):
     if builtins:  # Some tests use their own builtins.
-      self._superclasses = builtins.Visit(visitors.ExtractSuperClasses())
+      self._superclasses = builtins.Visit(visitors.ExtractSuperClassesByName())
     else:
       self._superclasses = utils.GetBuiltinsHierarchy()
     self._superclasses.update(superclasses or {})
@@ -850,7 +850,7 @@ def Optimize(node, flags=None, contains_unresolved=False):
   node = node.Visit(ApplyOptionalArguments())
   node = node.Visit(CombineContainers())
   if flags and flags.lossy:
-    hierarchy = node.Visit(visitors.ExtractSuperClasses())
+    hierarchy = node.Visit(visitors.ExtractSuperClassesByName())
     node = node.Visit(
         FindCommonSuperClasses(hierarchy, flags and flags.use_abcs)
     )

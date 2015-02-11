@@ -72,11 +72,11 @@ class TestVisitors(parser_test.ParserTest):
     new_tree = tree.Visit(visitors.ReplaceTypes({"A": pytd.NamedType("A2")}))
     self.AssertSourceEquals(new_tree, expected)
 
-  def testSuperClasses(self):
+  def testSuperClassesByName(self):
     src = textwrap.dedent("""
-      class A:
+      class A(nothing):
           pass
-      class B:
+      class B(nothing):
           pass
       class C(A):
           pass
@@ -86,9 +86,34 @@ class TestVisitors(parser_test.ParserTest):
           pass
     """)
     tree = self.Parse(src)
-    data = tree.Visit(visitors.ExtractSuperClasses())
-    for base, superclass in ["CA", "DA", "DB", "EC", "ED", "EA"]:
-      self.assertIn(superclass, data[base])
+    data = tree.Visit(visitors.ExtractSuperClassesByName())
+    self.assertItemsEqual((), data["A"])
+    self.assertItemsEqual((), data["B"])
+    self.assertItemsEqual(("A",), data["C"])
+    self.assertItemsEqual(("A", "B"), data["D"])
+    self.assertItemsEqual(("A", "C", "D"), data["E"])
+
+  def testSuperClasses(self):
+    src = textwrap.dedent("""
+      class A(nothing):
+          pass
+      class B(nothing):
+          pass
+      class C(A):
+          pass
+      class D(A,B):
+          pass
+      class E(C,D,A):
+          pass
+    """)
+    ast = visitors.LookupClasses(self.Parse(src))
+    data = ast.Visit(visitors.ExtractSuperClasses())
+    self.assertItemsEqual([], [t.name for t in data[ast.Lookup("A")]])
+    self.assertItemsEqual([], [t.name for t in data[ast.Lookup("B")]])
+    self.assertItemsEqual(["A"], [t.name for t in data[ast.Lookup("C")]])
+    self.assertItemsEqual(["A", "B"], [t.name for t in data[ast.Lookup("D")]])
+    self.assertItemsEqual(["C", "D", "A"],
+                          [t.name for t in data[ast.Lookup("E")]])
 
   def testInstantiateTemplates(self):
     src = textwrap.dedent("""

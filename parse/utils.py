@@ -32,22 +32,29 @@ def _FindBuiltinFile(name):
   return utils.GetDataFile(os.path.join("builtins", name))
 
 
-_cached_builtins = None
+# TODO: Use a memoizing decorator instead.
+# Keyed by the parameter(s) passed to GetBuiltins:
+_cached_builtins = {}
 
 
-def GetBuiltins():
+def GetBuiltins(stdlib=True):
   """Get the "default" AST used to lookup built in types.
 
   Get an AST for all Python builtins as well as the most commonly used standard
   libraries.
 
+  Args:
+    stdlib: Whether to load the standard library, too. If this is False,
+      TypeDeclUnit.modules will be empty. If it's True, it'll contain modules
+      like itertools and signal.
+
   Returns:
     A pytd.TypeDeclUnit instance. It'll directly contain the builtin classes
     and functions, and submodules for each of the standard library modules.
   """
-  global _cached_builtins
-  if _cached_builtins:
-    return _cached_builtins
+  cache_key = stdlib
+  if cache_key in _cached_builtins:
+    return _cached_builtins[cache_key]
   # TODO: This can be fairly slow; suggest pickling the result and
   #                  reusing if possible (see lib2to3.pgen2.grammar)
 
@@ -60,17 +67,27 @@ def GetBuiltins():
   modules = ["array", "codecs", "errno", "fcntl", "gc", "itertools", "marshal",
              "os", "posix", "pwd", "select", "signal", "_sre", "StringIO",
              "strop", "_struct", "sys", "_warnings", "warnings", "_weakref"]
-  for mod in modules:
-    builtins.modules[mod] = p.Parse(_FindBuiltinFile(mod + ".pytd"))
-  _cached_builtins = builtins
+  if stdlib:
+    for mod in modules:
+      builtins.modules[mod] = p.Parse(_FindBuiltinFile(mod + ".pytd"))
+  _cached_builtins[cache_key] = builtins
   return builtins
 
 
 def GetBuiltinsHierarchy():
   builtins = GetBuiltins()
-  return builtins.Visit(visitors.ExtractSuperClasses())
+  return builtins.Visit(visitors.ExtractSuperClassesByName())
 
 
+# TODO: memoize?
 def ParseBuiltinsFile(filename):
-  """GetBuiltins(), but for a single file, not adding to builtins.modules."""
+  """GetBuiltins(), but for a single file, not adding to builtins.modules.
+
+  Only used in tests, e.g. for loading reduced or specialized builtin files.
+
+  Args:
+    filename: Filename, relative to pytypedecl/builtins/
+  Returns:
+    A PyTypeDeclUnit for a single module.
+  """
   return parser.parse_string(_FindBuiltinFile(filename))

@@ -268,9 +268,9 @@ class ClassType(node.Node('name')):
 
   __slots__ = ()
 
-  def __new__(cls, name):
+  def __new__(cls, name, clsref=None):
     self = super(ClassType, cls).__new__(cls, name)
-    self.cls = None  # later, name is looked up, and cls is filled in
+    self.cls = clsref  # potentially filled in later (by visitors.FillInClasses)
     return self
 
   # __eq__ is inherited (using tuple equality + requiring the two classes

@@ -374,8 +374,15 @@ class RemoveTemplates(object):
     return node.base_type
 
 
-class ExtractSuperClasses(object):
-  """Visitor for extracting all superclasses (i.e., the class hierarchy)."""
+class ExtractSuperClassesByName(object):
+  """Visitor for extracting all superclasses (i.e., the class hierarchy).
+
+  This returns a mapping by name, e.g. {
+    "bool": ["int"],
+    "int": ["object"],
+    ...
+  }.
+  """
 
   def VisitTypeDeclUnit(self, module):
     result = {base_class: superclasses
@@ -387,6 +394,29 @@ class ExtractSuperClasses(object):
 
   def VisitClass(self, cls):
     return (cls.name, [parent.name for parent in cls.parents])
+
+
+class ExtractSuperClasses(object):
+  """Visitor for extracting all superclasses (i.e., the class hierarchy).
+
+  When called on a TypeDeclUnit, this yields a dictionary mapping pytd.Class
+  to lists of pytd.TYPE.
+  """
+
+  def VisitTypeDeclUnit(self, module):
+    result = {base_class: superclasses
+              for base_class, superclasses in module.classes}
+    for module_dict in module.modules.values():
+      result.update({cls: superclasses
+                     for cls, superclasses in module_dict.items()})
+    return result
+
+  def VisitNamedType(self, _):
+    raise AssertionError(
+        "This visitor needs a resolved AST. Call LookupClasses() before.")
+
+  def VisitClass(self, cls):
+    return (cls, cls.parents)
 
 
 class ReplaceTypeParameters(object):
