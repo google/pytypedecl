@@ -187,8 +187,7 @@ class SATProblem(object):
   def _BuildSolverCmd(self):
     """File names and commandline list for sat_runner."""
     logging.info("Storing SAT problem buffer")
-    tmpdir = os.environ.get("TEST_TMPDIR", None) or (
-        os.environ.get("TMPDIR", None))
+    tmpdir = os.environ.get("TEST_TMPDIR") or os.environ.get("TMPDIR")
     with tempfile.NamedTemporaryFile(
         prefix="problem_", delete=False, dir=tmpdir, mode="wb") as fi:
       fi.write(self.problem.SerializeToString())
