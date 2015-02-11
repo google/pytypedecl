@@ -27,11 +27,11 @@ class ParserTest(unittest.TestCase):
   """Test utility class. Knows how to parse PYTD and compare source code."""
 
   def setUp(self):
-    self.parser = parser.TypeDeclParser(parser.DEFAULT_VERSION)
+    self.parser = parser.TypeDeclParser()
 
   def Parse(self, src, version=None):
     # TODO: Using self.parser here breaks tests. Why?
-    tree = parser.TypeDeclParser(version or parser.DEFAULT_VERSION).Parse(
+    tree = parser.TypeDeclParser(version=version).Parse(
         textwrap.dedent(src))
     tree.Visit(visitors.VerifyVisitor())
     return tree

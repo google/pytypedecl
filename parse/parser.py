@@ -348,12 +348,12 @@ def CheckStringIsPython(parser, string, p):
 class TypeDeclParser(object):
   """Parser for type declaration language."""
 
-  def __init__(self, python_version, **kwargs):
+  def __init__(self, version=None, **kwargs):
     """Initialize.
 
     Parameters:
-      python_version: A tuple of three numbers: (major, minor, micro).
-                      E.g. (3,4,0).
+      version: A tuple of three numbers: (major, minor, micro).
+               E.g. (3,4,0).
       kwargs: Additional parameters to pass to yacc.yacc().
     """
     # TODO: Don't generate the lex/yacc tables each time. This should
@@ -366,7 +366,7 @@ class TypeDeclParser(object):
     #                  [might also need optimize=True]
     self.lexer = PyLexer()
     self.tokens = self.lexer.tokens
-    self.python_version = python_version
+    self.python_version = version or DEFAULT_VERSION
 
     self.parser = yacc.yacc(
         start='start',  # warning: ply ignores this
@@ -377,12 +377,13 @@ class TypeDeclParser(object):
         # errorlog=yacc.NullLogger(),  # If you really want to suppress messages
         **kwargs)
 
-  def Parse(self, data, filename=None, **kwargs):
+  def Parse(self, data, name=None, filename='<string>', **kwargs):
     self.data = data  # Keep a copy of what's being parsed
     self.filename = filename if filename else '<string>'
     self.lexer.set_parse_info(self.data, self.filename)
     ast = self.parser.parse(data, **kwargs)
-    return ast.Visit(InsertTypeParameters())
+    name = name or object.__repr__(data)
+    return ast.Visit(InsertTypeParameters()).Replace(name=name)
 
   precedence = (
       ('left', 'OR'),
@@ -408,10 +409,11 @@ class TypeDeclParser(object):
     if duplicates:
       make_syntax_error(
           self, 'Duplicate top-level identifier(s):' + ', '.join(duplicates), p)
-    p[0] = pytd.TypeDeclUnit(constants=tuple(constants),
+    p[0] = pytd.TypeDeclUnit(name=None,  # replaced later, in Parse
+                             constants=tuple(constants),
                              functions=tuple(MergeSignatures(funcdefs)),
                              classes=tuple(classes),
-                             modules={})
+                             modules=())
 
   def p_alldefs_constant(self, p):
     """alldefs : alldefs constantdef"""
@@ -824,9 +826,9 @@ def make_syntax_error(parser_or_tokenizer, msg, p):
                      p.lineno, p.lexpos - last_line_offset + 1, line))
 
 
-def parse_string(string, version=DEFAULT_VERSION):
+def parse_string(string, name=None, filename=None, version=DEFAULT_VERSION):
   try:
-    return TypeDeclParser(version).Parse(string)
+    return TypeDeclParser(version).Parse(string, name, filename)
   except SyntaxError as unused_exception:
     # without all the tedious traceback stuff from PLY:
     # TODO: What happens if we don't catch SyntaxError?
@@ -834,6 +836,6 @@ def parse_string(string, version=DEFAULT_VERSION):
     sys.exit(1)
 
 
-def parse_file(filename, version=DEFAULT_VERSION):
+def parse_file(filename, name=None, version=DEFAULT_VERSION):
   with open(filename) as f:
-    return parse_string(f.read(), version)
+    return parse_string(f.read(), name, filename, version)

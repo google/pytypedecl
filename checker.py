@@ -46,7 +46,7 @@ class ParserUtils(object):
   def __init__(self):
     # For runtime checking, we want the builtins for the Python version
     # we're actually running.
-    self._parser = parser.TypeDeclParser(tuple(sys.version_info))
+    self._parser = parser.TypeDeclParser(version=tuple(sys.version_info))
 
   def LoadTypeDeclaration(self, content, filename=""):
     """Parse a type declaration from a str.

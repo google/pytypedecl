@@ -28,14 +28,16 @@ from pytypedecl.parse import node
 #               convert arguments to tuples?
 
 
-class TypeDeclUnit(node.Node('constants', 'classes', 'functions', 'modules')):
+class TypeDeclUnit(node.Node('name', 'constants', 'classes', 'functions',
+                             'modules')):
   """Module node. Holds module contents (classes / functions) and submodules.
 
   Attributes:
-    constants: List of module-level constants.
-    functions: List of functions defined in this type decl unit.
-    classes: List of classes defined in this type decl unit.
-    modules: Map of submodules of the current module.
+    name: Name of this module, or None for the top-level module.
+    constants: Iterable of module-level constants.
+    functions: Iterable of functions defined in this type decl unit.
+    classes: Iterable of classes defined in this type decl unit.
+    modules: Iterable of submodules of the current module.
   """
   __slots__ = ()
 
@@ -58,7 +60,7 @@ class TypeDeclUnit(node.Node('constants', 'classes', 'functions', 'modules')):
       return self._name2item[name]
     except AttributeError:
       self._name2item = {}
-      for x in self.constants + self.functions + self.classes:
+      for x in self.constants + self.functions + self.classes + self.modules:
         self._name2item[x.name] = x
       return self._name2item[name]
 

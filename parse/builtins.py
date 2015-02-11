@@ -56,16 +56,18 @@ def GetBuiltins(stdlib=True):
 
   # We use the same parser instance to parse all builtin files. This changes
   # the run time from 1.0423s to 0.5938s (for 21 builtins).
-  p = parser.TypeDeclParser(parser.DEFAULT_VERSION)
-  builtins = p.Parse(_FindBuiltinFile("__builtin__.pytd"))
+  p = parser.TypeDeclParser()
+  builtins = p.Parse(_FindBuiltinFile("__builtin__.pytd"), name="__builtin__")
   # We list modules explicitly, because we might have to extract them out of
   # a PAR file, which doesn't have good support for listing directories.
   modules = ["array", "codecs", "errno", "fcntl", "gc", "itertools", "marshal",
              "os", "posix", "pwd", "select", "signal", "_sre", "StringIO",
              "strop", "_struct", "sys", "_warnings", "warnings", "_weakref"]
   if stdlib:
-    for mod in modules:
-      builtins.modules[mod] = p.Parse(_FindBuiltinFile(mod + ".pytd"))
+    builtins = builtins.Replace(
+        modules=tuple(p.Parse(_FindBuiltinFile(mod + ".pytd"),
+                              filename=mod + ".pytd", name=mod)
+                      for mod in modules))
   _cached_builtins[cache_key] = builtins
   return builtins
 
@@ -73,17 +75,3 @@ def GetBuiltins(stdlib=True):
 def GetBuiltinsHierarchy():
   builtins = GetBuiltins()
   return builtins.Visit(visitors.ExtractSuperClassesByName())
-
-
-# TODO: memoize (like GetBuiltins)
-def ParseBuiltinsFile(filename):
-  """GetBuiltins(), but for a single file, not adding to builtins.modules.
-
-  Only used in tests, e.g. for loading reduced or specialized builtin files.
-
-  Args:
-    filename: Filename, relative to pytypedecl/builtins/
-  Returns:
-    A PyTypeDeclUnit for a single module.
-  """
-  return parser.parse_string(_FindBuiltinFile(filename))

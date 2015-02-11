@@ -46,13 +46,11 @@ def Concat(pytd1, pytd2):
   """Concatenate two pytd ASTs."""
   assert isinstance(pytd1, pytd.TypeDeclUnit)
   assert isinstance(pytd2, pytd.TypeDeclUnit)
-  modules_union = {}
-  modules_union.update(pytd1.modules)
-  modules_union.update(pytd2.modules)
-  return pytd.TypeDeclUnit(constants=pytd1.constants + pytd2.constants,
+  return pytd.TypeDeclUnit(name=pytd1.name + " + " + pytd2.name,
+                           constants=pytd1.constants + pytd2.constants,
                            classes=pytd1.classes + pytd2.classes,
                            functions=pytd1.functions + pytd2.functions,
-                           modules=modules_union)
+                           modules=pytd1.modules + pytd2.modules)
 
 
 def JoinTypes(types):
