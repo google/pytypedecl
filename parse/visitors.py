@@ -402,7 +402,7 @@ class InstantiateTemplatesVisitor(object):
   def _InstantiatedClass(self, name, node, symbol_table):
     cls = symbol_table.Lookup(node.base_type.name)
     mapping = {t.type_param: e for t, e in zip(cls.template, node.parameters)}
-    return cls.Replace(name=name, template=None).Visit(
+    return cls.Replace(name=name, template=()).Visit(
         ReplaceTypeParameter(mapping))
 
   def InstantiatedClasses(self, symbol_table):

@@ -82,24 +82,19 @@ class Class(node.Node('name', 'parents', 'methods', 'constants', 'template')):
   Attributes:
     name: Class name (string)
     parents: The super classes of this class (instances of Type).
-    methods: List of class methods (instances of Function).
-    constants: List of constant class attributes (instances of Constant).
-    template: List of TemplateItem instances.
-       # TODO: fix comment on template - in at least one place
-                          NoneType is allowed -- kramm@ may know more.
-                          Or it could be a bug in kramm's code
+    methods: Tuple of class methods (instances of Function).
+    constants: Tuple of constant class attributes (instances of Constant).
+    template: Tuple of TemplateItem instances.
   """
   # TODO: Rename "parents" to "bases". "Parents" is confusing since we're
   #              in a tree.
 
   # Override __new__ so that we can catch un-hashable components.
-  # TODO: Removethis, once we're sure all callers behave properly
+  # TODO: Remove this, once we're sure all callers behave properly
   def __new__(cls, name, parents, methods, constants, template):
     self = super(Class, cls).__new__(cls, name, parents, methods,
                                      constants, template)
-    # TODO: remove the following once we're sure that
-    #                  caller passes in None:
-    # assert isinstance(template, tuple), (type(template), template)
+    assert isinstance(template, tuple), (type(template), template)
     hash(self)  # Make sure that the args are of sufficiently correct types
     return self
 
@@ -272,16 +267,9 @@ class ClassType(node.Node('name')):
     return str(self.cls.name) if self.cls else self.name
 
   def __repr__(self):
-    # TODO: can name and cls.name ever differ?
-    #                  -- should remove this redundancy
-    if self.cls:
-      assert self.name == self.cls.name, (self.name, self.cls.name, self)
     return '{type}{cls}({name})'.format(
-        type=type(self).__name__,
-        name=self.name,
+        type=type(self).__name__, name=self.name,
         cls='<unresolved>' if self.cls is None else '')
-        # if self.cls.name == self.name
-        # else '[' + self.cls.name + ']')
 
 
 class UnknownType(node.Node()):
@@ -306,7 +294,6 @@ class UnionType(node.Node('type_list')):
   """A union type that contains all types in self.type_list."""
   __slots__ = ()
 
-  # TODO(ampere): Add __new__ that converts type_list to tuple?
   # NOTE: type_list is kept as a list, to preserve the original order
   #       even though in most respects it acts like a frozenset
 
@@ -353,10 +340,6 @@ class HomogeneousContainerType(GenericType):
   @property
   def element_type(self):
     return self.parameters[0]
-
-
-# TODO: Remove this and just get ride of HomogenousContainerType?
-PARAMETRIC_TYPES = (HomogeneousContainerType, GenericType)
 
 
 def Print(n):

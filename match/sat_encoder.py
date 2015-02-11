@@ -36,7 +36,7 @@ class Type(object):
       return ClassType(
           pytd.Class(name, parents=(), methods=(), constants=(), template=()),
           complete=False)
-    elif isinstance(td, pytd.PARAMETRIC_TYPES):
+    elif isinstance(td, pytd.GenericType):
       return Type.FromPyTD(td.base_type)
     elif isinstance(td, pytd.UnionType):
       return UnionType(Type.FromPyTD(t) for t in td.type_list)
