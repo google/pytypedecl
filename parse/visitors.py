@@ -178,13 +178,7 @@ class PrintVisitor(object):
     return "nothing"
 
   def VisitClassType(self, node):
-    if node.cls is not None:
-      return self.SafeName(node.cls.name)
-    else:
-      # We mark unresolved classes with "~".
-      # You rarely see these - this only happens if you print the tree
-      # while LookupClasses() is in the process of changing it.
-      return "~" + self.SafeName(node.name)
+    return self.SafeName(node.name)
 
   def VisitHomogeneousContainerType(self, node):
     """Convert a homogeneous container type to a string."""
