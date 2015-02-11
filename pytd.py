@@ -370,3 +370,10 @@ def Print(n):
   # Remove trailing blanks on lines (*not* \s which includes \n) -- these come
   # from indents that have no other code on them.
   return re.sub(r" +\n", "\n", res)
+
+
+def PrologConstraint(n):
+  """Convert a PYTD node to a Prolog constraint string."""
+  # TODO: fix circular import
+  from pytypedecl.parse import visitors
+  return  n.Visit(visitors.PrologConstraintsVisitor())

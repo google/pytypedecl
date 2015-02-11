@@ -29,25 +29,19 @@ class PrintVisitor(object):
 
   INDENT = " " * 4
   # Don't use \w in following because it can change with LOCALE/UNICODE.
-  VALID_NAME = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+  _VALID_NAME = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
   def __init__(self):
     self.class_names = []  # allow nested classes
 
   def SafeName(self, name):
-    if not self.VALID_NAME.match(name):
+    if not self._VALID_NAME.match(name):
       # We can do this because name will never contain backticks. Everything
       # we process here came in through the pytd parser, and the pytd syntax
       # doesn't allow escaping backticks themselves.
-      return "`%s`" % name
+      return r"`" + name + r"`"
     else:
       return name
-
-  @staticmethod
-  def TemplateParameterString(parameters):
-    # The syntax for a parameterized type with one parameter is "X<T,>"
-    # (E.g. "tuple<int,>")
-    return parameters[0] + ", " + ", ".join(parameters[1:])
 
   def VisitTypeDeclUnit(self, node):
     """Convert the AST for an entire module back to a string."""
@@ -62,75 +56,47 @@ class PrintVisitor(object):
 
   def VisitConstant(self, node):
     """Convert a class-level or module-level constant to a string."""
-    return node.name + ": " + node.type
+    return self.SafeName(node.name) + ": " + node.type
 
-  def EnterClass(self, cls):
-    self.class_names.append(
-        self.SafeName(cls.name) + self.ClassTemplateString(cls))
+  def EnterClass(self, node):
+    """Entering a class - record class name for children's use."""
+    n = self.SafeName(node.name)
+    if node.template:
+      n += "<{}>".format(
+          ", ".join(t.Visit(PrintVisitor()) for t in node.template))
+    self.class_names.append(n)
 
-  def LeaveClass(self, cls):
+  def LeaveClass(self, unused_node):
     self.class_names.pop()
 
-  def ClassTemplateString(self, cls):
-    return ("<" +
-            ", ".join(self.SafeName(t.name) for t in cls.template) +
-            ">" if cls.template else "")
-
   def VisitClass(self, node):
-    """Visit a class, producing a string.
-
-    class name<template>(parents....):
-      constants...
-      methods...
-
-    Args:
-      node: class node
-    Returns:
-      string representation of this class
-    """
+    """Visit a class, producing a multi-line, properly indented string."""
     parents = "(" + ", ".join(node.parents) + ")" if node.parents else ""
+    template = "<" + ", ".join(node.template) + ">" if node.template else ""
+    header = "class " + self.SafeName(node.name) + template + parents + ":"
     if node.methods or node.constants:
       # We have multiple methods, and every method has multiple signatures
       # (i.e., the method string will have multiple lines). Combine this into
       # an array that contains all the lines, then indent the result.
-      all_lines = sum((m.splitlines() for m in node.methods), [])
       constants = [self.INDENT + m for m in node.constants]
-      methods = [self.INDENT + m for m in all_lines]
+      method_lines = sum((m.splitlines() for m in node.methods), [])
+      methods = [self.INDENT + m for m in method_lines]
     else:
       constants = []
       methods = [self.INDENT + "pass"]
-    template = ("<" + ", ".join(node.template) + ">") if node.template else ""
-    header = "class " + self.SafeName(node.name) + template + parents + ":"
     return "\n".join([header] + constants + methods) + "\n"
 
   def VisitFunction(self, node):
-    """Visit a function, producing a multi-line string (one for each signature).
-
-    E.g.:
-      def multiply(x:int, y:int) -> int
-      def multiply(x:float, y:float) -> float
-
-    Args:
-      node: A function node.
-    Returns:
-      string representation of the function.
-    """
+    """Visit function, producing multi-line string (one for each signature)."""
     # node.signatures has the function name incorporated with '%s'
     function_name = self.SafeName(node.name)
     return "\n".join(("def " + sig) % function_name for sig in node.signatures)
 
   def VisitSignature(self, node):
-    """Visit a signature, producing a string.
-
-    E.g.:
-      (x: int, y: int, z: unicode) -> str raises ValueError
-
-    Args:
-      node: signature node
-    Returns:
-      string representation of the signature with %s for the function name.
-    """
-    # The '%s' is for VisitFunction to fill in the function name
+    """Visit a signature, producing a string with %s for function name."""
+    # E.g.:
+    #   '%s(x: int, y: int, z: unicode) -> str raises ValueError'
+    # The '%s' is for VisitFunction (parent) to fill in the function name
     # TODO: Remove the %s because not needed any more. However,
     #                  it exposes a bug, namely pytype generating an invalid
     #                  tree (see visitors_test.py testPrintInvalidTree)
@@ -146,16 +112,22 @@ class PrintVisitor(object):
     exc = " raises " + ", ".join(node.exceptions) if node.exceptions else ""
     optional = ("...",) if node.has_optional else ()
 
-    mutable_params = [p for p in self.old_node.params  # pylint: disable=no-member (old_node is set in parse/node.py)
+    # pylint: disable=no-member
+    #     (old_node is set in parse/node.py)
+    mutable_params = [(p.name, p.new_type) for p in self.old_node.params
                       if isinstance(p, pytd.MutableParameter)]
+    # pylint: enable=no-member
     if mutable_params:
-      stmts = "\n".join(self.INDENT + name + " := " + pytd.Print(new)
-                        for name, _, new in mutable_params)
-      body = ":\n" + stmts
+      body = ":\n" + "\n".join("{indent}{name} := {new_type}".format(
+              indent=self.INDENT, name=name,
+              new_type=new_type.Visit(PrintVisitor()))
+          for name, new_type in mutable_params)
     else:
       body = ""
 
-    return before + "(" + ", ".join(node.params + optional) + ")" + ret + exc + body
+    return "{before}({params}){ret}{exc}{body}".format(
+        before=before, params=", ".join(node.params + optional),
+        ret=ret, exc=exc, body=body)
 
   def VisitParameter(self, node):
     """Convert a function parameter to a string."""
@@ -164,16 +136,16 @@ class PrintVisitor(object):
       return node.name
     elif node.name == "self" and self.class_names and (
         node.type == self.class_names[-1]):
-      return node.name
+      return self.SafeName(node.name)
     else:
-      return node.name + ": " + node.type
+      return self.SafeName(node.name) + ": " + node.type
 
   def VisitMutableParameter(self, node):
     """Convert a mutable function parameter to a string."""
     return self.VisitParameter(node)
 
   def VisitTemplateItem(self, node):
-    """Convert a template (E.g. "<X extends list>") to a string."""
+    """Convert a template to a string (e.g. "X extends list")."""
     if str(node.within_type) == "object":
       return node.type_param
     else:
@@ -207,7 +179,9 @@ class PrintVisitor(object):
 
   def VisitGenericType(self, node):
     """Convert a generic type (E.g. list<int>) to a string."""
-    param_str = self.TemplateParameterString(node.parameters)
+    # The syntax for a parameterized type with one parameter is "X<T,>"
+    # (E.g. "tuple<int,>")
+    param_str = node.parameters[0] + ", " + ", ".join(node.parameters[1:])
     return node.base_type + "<" + param_str + ">"
 
   def VisitUnionType(self, node):
@@ -278,13 +252,14 @@ class _FillInClasses(object):
       try:
         node.cls = self._local_lookup.Lookup(node.name)
       except KeyError:
-        if self._global_lookup:
-          try:
-            node.cls = self._global_lookup.Lookup and self._global_lookup.Lookup(node.name)
-          except KeyError:
-            pass  # TODO: This shouldn't be needed
-        else:
-          raise
+        try:  # TODO: Remove this try/pass
+          node.cls = (self._global_lookup.Lookup and
+                      self._global_lookup.Lookup(node.name))
+        except KeyError:
+          if self._global_lookup.Lookup:
+            pass  # TODO: Shouldn't be needed
+          else:
+            raise
     return node
 
 
@@ -351,11 +326,11 @@ class VerifyLookup(object):
   """Utility class for testing visitors.LookupClasses."""
 
   def VisitNamedType(self, node):
-    raise ValueError("Unreplaced NamedType node: %s %r." % (node, node))
+    raise ValueError("Unreplaced NamedType: {!s} {!r}".format(node, node))
 
   def VisitClassType(self, node):
     if node.cls is None:
-      raise ValueError("Unresolved ClassType node: %s %r." % (node, node))
+      raise ValueError("Unresolved ClassType: {!s} {!r}".format(node, node))
 
 
 class ReplaceTypes(object):
@@ -547,6 +522,7 @@ class AdjustSelf(object):
 
   def VisitMutableParameter(self, p):
     p2 = self.VisitParameter(p)
+    # pylint: disable=maybe-no-member
     return pytd.MutableParameter(p2.name, p2.type, p.new_type)
 
   def VisitParameter(self, p):
@@ -698,3 +674,161 @@ class VerifyVisitor(object):
     assert isinstance(node.type_list, tuple), node
     assert all(isinstance(t, pytd.TYPE) for t in node.type_list), node
 
+
+class PrologConstraintsVisitor(object):
+  """Visitor for outputting Prolog constraints.
+
+  This is very similar to PrintVisitor, so see comments there.
+  """
+
+  # TODO: When we've finished verifying the methodology of generating
+  #                  constraints, this code might be retired.
+
+  implements_all_node_types = True
+
+  # The definition of a Prolog unquoted atom.
+  # Don't use \w in following because it can change with LOCALE/UNICODE.
+  _UNQUOTED_ATOM = re.compile(r"^[a-z][a-zA-Z0-9_]*$")
+
+  # The definition of a Prolog variable.
+  # As above, don't use \w
+  _PROLOG_VAR = re.compile(r"[A-Z][a-zA-Z0-9_]*$")
+
+  def __init__(self):
+    self.class_names = []  # allow nested classes
+
+  def SafeAtom(self, name):
+    """Create a Prolog atom from a name, quoting if needed."""
+    if self._UNQUOTED_ATOM.match(name):
+      return name
+    else:
+      # A somewhat simple way of turning into Prolog atom form.
+      # Probably does the wrong thing with non-ASCII.
+      return "'" + str(name).replace("'", "''") + "'"
+
+  def PrologVariable(self, name):
+    """Create a Prolog variable name."""
+    var = "Var_" + name
+    assert self._PROLOG_VAR.match(var), var
+    return var
+
+  def VisitTypeDeclUnit(self, node):
+    """Convert AST for an entire module back to constraints string."""
+    # TODO: add handling for node.modules
+    sections = [node.constants, node.functions, node.classes]
+    sections_as_string = ("\n".join(section_suite)
+                          for section_suite in sections
+                          if section_suite)
+    return "\n\n".join(sections_as_string)
+
+  def VisitConstant(self, node):
+    """Convert class-level or module-level constant to constraints string."""
+    return "constant_type({}, {}).".format(self.SafeAtom(node.name), node.type)
+
+  def EnterClass(self, node):
+    """Entering a class - record class name for children's use."""
+    n = self.SafeAtom(node.name)
+    if node.template:
+      n += ("(" +
+            ", ".join(t.Visit(PrologConstraintsVisitor()) for t in node.template)
+            + ")")
+    self.class_names.append(n)
+
+  def LeaveClass(self, unused_node):
+    self.class_names.pop()
+
+  def VisitClass(self, node):
+    """Visit a class, producing a string."""
+    # The string for functions assumes it's outside a class, so convert into
+    # the form for being inside a class (trailing "." are stripped later).
+    method_lines = sum((m.splitlines() for m in node.methods), [])
+    return ("class({name}, [{template}], [{parents}], "
+            "[{constants}],\n    [{methods}]).").format(
+        name=self.SafeAtom(node.name),
+        template=", ".join(node.template or []),
+        parents=", ".join(node.parents or []),
+        constants=", ".join(node.constants),
+        methods=",\n     ".join(m.rstrip(".") for m in method_lines))
+
+  def VisitFunction(self, node):
+    """Visit function, producing multi-line string (one for each signature)."""
+    # node.signatures has the function name incorporated with '%s'
+    function_name = self.SafeAtom(node.name)
+    return "\n".join(("function(" + sig + ").") % function_name
+                     for sig in node.signatures)
+
+  def VisitSignature(self, node):
+    """Visit a signature, producing a string with %s for function name."""
+    # E.g. for this (except VistFunction adds the 'function(' part), so it's
+    #      not really needed right now)::
+    #   function(%s, [], [param(a, str)], ...).
+    # The '%s' is for VisitFunction (parent) to fill in the function name.
+    before = "%s, [{}]".format(", ".join(node.template or []))
+    return_type = node.return_type
+    exc = ", ".join(node.exceptions) if node.exceptions else "no_raises"
+    optional = "optional" if node.has_optional else "no_optional"
+    # pylint: disable=no-member
+    #  (old_node is set in parse/node.py)
+    mutable_params = [(p.name, p.new_type) for p in self.old_node.params
+                      if isinstance(p, pytd.MutableParameter)]
+    # pylint: enable=no-member
+
+    if mutable_params:
+      body = ", ".join("mutable({name}, {new_type})".format(
+              name=name,
+              new_type=new_type.Visit(PrologConstraintsVisitor()))
+          for name, new_type in mutable_params)
+    else:
+      body = ""
+
+    return ("{before}, [{params}], "
+            "{optional}, {return_type}, {exc}, [{body}]").format(
+                before=before, params=", ".join(node.params), optional=optional,
+                return_type=return_type, exc=exc, body=body)
+
+  def VisitParameter(self, node):
+    """Convert a function parameter to a string."""
+    return "param({name}, {type})".format (
+        name=self.SafeAtom(node.name), type=node.type)
+
+  def VisitMutableParameter(self, node):
+    """Convert a mutable function parameter to a string."""
+    return self.VisitParameter(node)
+
+  def VisitTemplateItem(self, node):
+    return "template({type}, {within})".format(
+        type=node.type_param, within=node.within_type)
+
+  def VisitNamedType(self, node):
+    return self.SafeAtom(node.name)
+
+  def VisitNativeType(self, node):
+    return self.SafeAtom(node.python_type.__name__)
+
+  def VisitUnknownType(self, unused_node):
+    return self.SafeAtom("?")
+
+  def VisitNothingType(self, unused_node):
+    return self.SafeAtom("nothing")
+
+  def VisitClassType(self, node):
+    return self.SafeAtom(node.name)
+
+  def VisitTypeParameter(self, node):
+    return self.PrologVariable(node.name)
+
+  def VisitHomogeneousContainerType(self, node):
+    return "homogeneous({base}, {element})".format(
+        base=node.base_type, element=node.element_type)
+
+  def VisitGenericType(self, node):
+    return "generic({base}, [{elements}])".format(
+        base=node.base_type, elements=", ".join(node.parameters))
+
+  def VisitUnionType(self, node):
+    """Convert a union type ("x or y") to a string."""
+    return "(" + r" \/ ".join(node.type_list) + ")"
+
+  def VisitIntersectionType(self, node):
+    # TODO: need test case
+    return "(" + r" /\ ".join(node.type_list) + ")"

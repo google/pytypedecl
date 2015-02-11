@@ -178,7 +178,7 @@ class TestVisitors(parser_test.ParserTest):
                                                     return_type=pytd.UnknownType(),
                                                     exceptions=(),
                                                     template=(),
-                                                    has_optional=True), ))
+                                                    has_optional=True),))
                                         ),
                                     pytd.Parameter(
                                         name="y",
@@ -187,10 +187,10 @@ class TestVisitors(parser_test.ParserTest):
                                     (), pytd.UnknownType(), (), (), True),
                                 exceptions=(),
                                 template=(),
-                                has_optional=False), )
-                        ), # end Function(__getitem__)
+                                has_optional=False),)
+                        ),  # end Function(__getitem__)
                     ),
-                ), ))
+                ),))
     expect = textwrap.dedent("""\
         class list:
             def __getitem__(self: list<(...)>, y: `~unknown3`) -> (...)
@@ -200,46 +200,82 @@ class TestVisitors(parser_test.ParserTest):
     printed = pytd.Print(tree)
     self.AssertSourceEquals(printed, expect)
 
+  # TODO: node.modules
+  # TODO: 'and' in type?
+  # TODO: is 'def F() -> ?' is same as 'def F()'
+  # TODO: BUG - printing of `C 1`.__init__ doesn't match self's type properly
+  _SRC1 = """
+    `CONST 1`: `an int`
+    CONST2: int or float or Foo
+
+    def `Func `()
+    def FuncX() -> ?
+    def Func2(`a 1`: `an int`, b) raises `An Exception`
+    def Func3(a: str or `a float`, ...) -> ? raises Except1 or `Except 2`
+    def func4<T>(AA: int, b: T, c: list<T>) -> float or T or NoneType
+    def func5<K extends `an int`, V>(a: `a dict`<K, V>) -> NoneType
+
+    class `C 1`<V, K extends `a str`>(C2, C3, C4):
+        def __init__(self: `C 1`<V, K>) -> NoneType
+        def func6(k: K, v: V) -> K or V or NoneType
+        def Func_7<Z>(self):
+            self := `C 1`<K or NoneType>
+  """
+
+  def _PrepSrcExpect(self, src, expect):
+    src = textwrap.dedent(src)
+    expect = textwrap.dedent(expect)
+    # remove trailing blanks on lines (dedent doesn't do it):
+    expect = re.sub(r" +\n", "\n", expect).strip() + "\n"
+    tree = self.Parse(src)
+    return src, expect, tree
+
   def testPrint(self):
     """Try every pytd class that can be generated from parser."""
-    # TODO: node.modules
-    # TODO: 'and' in type?
-    # TODO: is 'def F() -> ?' is same as 'def F()'
-    src = textwrap.dedent("""
-      CONST1: int
+    expect = """
+      `CONST 1`: `an int`
       CONST2: int or float or Foo
 
-      def Func()
-      def FuncX() -> ?
-      def Func2(a: int, b) raises AnException
-      def Func3(a: str or float) -> ? raises Except1 or Except2
-      def Func3<T>(a: int, b: T, c: list<T>) -> float or T or int
-      def Func4<K extends int, V>(a: dict<K, V>) -> NoneType
-
-      class C1<V, K extends str>(C2, C3, C4):
-          def __init__(self: C1<V, K>) -> NoneType
-          def Func4(k: K, v: V) -> K or V
-    """)
-    expect = textwrap.dedent("""
-      CONST1: int
-      CONST2: int or float or Foo
-
-      def Func()
+      def `Func `()
       def FuncX()
-      def Func2(a: int, b) raises AnException
-      def Func3(a: str or float) raises Except1 or Except2
-      def Func3<T>(a: int, b: T, c: list<T>) -> float or T or int
-      def Func4<K extends int, V>(a: dict<K, V>) -> NoneType
+      def Func2(`a 1`: `an int`, b) raises `An Exception`
+      def Func3(a: str or `a float`, ...) raises Except1 or `Except 2`
+      def func4<T>(AA: int, b: T, c: list<T>) -> float or T or NoneType
+      def func5<K extends `an int`, V>(a: `a dict`<K, V>) -> NoneType
 
-      class C1<V, K extends str>(C2, C3, C4):
-          def __init__(self) -> NoneType
-          def Func4(k: K, v: V) -> K or V
-    """)
-    # remove trailing blanks on lines (dedent doesn't do it):
-    expect = re.sub(r" +\n", "\n", expect).lstrip()
-    tree = self.Parse(src)
+      class `C 1`<V, K extends `a str`>(C2, C3, C4):
+          def __init__(self: `C 1`<V, K>) -> NoneType
+          def func6(k: K, v: V) -> K or V or NoneType
+          def Func_7<Z>(self: `C 1`<V, K>):
+              self := `C 1`<K or NoneType>
+    """
+    src, expect, tree = self._PrepSrcExpect(self._SRC1, expect)
     printed = pytd.Print(tree)
     self.AssertSourceEquals(printed, expect)
+
+  def testConstraints(self):
+    expect = """
+      constant_type('CONST 1', 'an int').
+      constant_type('CONST2', (int \/ float \/ 'Foo')).
+
+      function('Func ', [], [], no_optional, '?', no_raises, []).
+      function('FuncX', [], [], no_optional, '?', no_raises, []).
+      function('Func2', [], [param('a 1', 'an int'), param(b, object)], no_optional, '?', 'An Exception', []).
+      function('Func3', [], [param(a, (str \/ 'a float'))], optional, '?', ('Except1' \/ 'Except 2'), []).
+      function(func4, [template(Var_T, object)], [param('AA', int), param(b, Var_T), param(c, homogeneous(list, Var_T))], no_optional, (float \/ Var_T \/ 'NoneType'), no_raises, []).
+      function(func5, [template(Var_K, 'an int'), template(Var_V, object)], [param(a, generic('a dict', [Var_K, Var_V]))], no_optional, 'NoneType', no_raises, []).
+
+      class('C 1', [template(Var_V, object), template(Var_K, 'a str')], ['C2', 'C3', 'C4'], [],
+          [function('__init__', [], [param(self, generic('C 1', [Var_V, Var_K]))], no_optional, 'NoneType', no_raises, []),
+           function(func6, [], [param(k, Var_K), param(v, Var_V)], no_optional, (Var_K \/ Var_V \/ 'NoneType'), no_raises, []),
+           function('Func_7', [template(Var_Z, object)], [param(self, generic('C 1', [Var_V, Var_K]))], no_optional, '?', no_raises, [mutable(self, homogeneous('C 1', (Var_K \/ 'NoneType')))])]).
+    """
+    src, expect, tree = self._PrepSrcExpect(self._SRC1, expect)
+
+    self.maxDiff = None  # For assertMultiLineEqual
+    constraints = tree.Visit(
+        visitors.PrologConstraintsVisitor()).strip() + "\n"
+    self.assertMultiLineEqual(expect, constraints)
 
 
 if __name__ == "__main__":
