@@ -677,7 +677,7 @@ class TypeDeclParser(object):
     if len(p[3]) == 1:
       element_type, = p[3]
       p[0] = pytd.HomogeneousContainerType(base_type=pytd.NamedType(p[1]),
-                                           element_type=element_type)
+                                           parameters=(element_type,))
     else:
       p[0] = pytd.GenericType(base_type=pytd.NamedType(p[1]), parameters=p[3])
 

@@ -194,17 +194,15 @@ def ConvertToType(module, type_node):
   elif isinstance(type_node, pytd.IntersectionType):
     return pytd.IntersectionType([ConvertToType(module, t)
                                   for t in type_node.type_list])
+  elif isinstance(type_node, pytd.HomogeneousContainerType):
+    return pytd.HomogeneousContainerType(
+        ConvertToType(module, type_node.base_type),
+        (ConvertToType(module, type_node.element_type),))
 
   elif isinstance(type_node, pytd.GenericType):
     return pytd.GenericType(ConvertToType(module,
                                           type_node.base_type),
                             type_node.parameters)
-
-  elif isinstance(type_node, pytd.HomogeneousContainerType):
-    return pytd.HomogeneousContainerType(ConvertToType(module,
-                                                       type_node.base_type),
-                                         ConvertToType(module,
-                                                       type_node.element_type))
 
   else:
     raise TypeError("Unknown type of type_node: {!r}".format(type_node))
@@ -258,11 +256,7 @@ def IsCompatibleType(actual, formal):
         return False
     return True
 
-  if isinstance(formal, pytd.GenericType):
-    # We do NOT check parameters. There is no generic way to know what they
-    # they mean.
-    return isinstance(actual, formal.base_type)
-  elif isinstance(formal, pytd.HomogeneousContainerType):
+  if isinstance(formal, pytd.HomogeneousContainerType):
     if not isinstance(actual, formal.base_type):
       return False
     if hasattr(actual, "__len__"):
@@ -271,6 +265,10 @@ def IsCompatibleType(actual, formal):
       # But we can at least check the very first element.
       return len(actual) == 0 or isinstance(actual[0], formal.element_type)
     return True
+  elif isinstance(formal, pytd.GenericType):
+    # We do NOT check parameters. There is no generic way to know what they
+    # they mean.
+    return isinstance(actual, formal.base_type)
 
   return isinstance(actual, formal)
 

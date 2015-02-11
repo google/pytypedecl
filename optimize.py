@@ -210,7 +210,7 @@ class CombineContainers(object):
       if isinstance(t, pytd.HomogeneousContainerType):
         if t.base_type not in collect:
           continue  # already added
-        add = t.Replace(element_type=collect[t.base_type])
+        add = t.Replace(parameters=(collect[t.base_type],))
         del collect[t.base_type]
       else:
         add = t
