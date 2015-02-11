@@ -1,7 +1,6 @@
 """Tests for match.sat_problem."""
 
 import logging
-import unittest
 from pytypedecl.match import sat_problem
 
 

@@ -287,7 +287,8 @@ class SATEncoder(object):
 
     Args:
       class_variables: an iterator of classes. See
-        sat_inferencer.TypeInferencer.SolveFormParsedLookUpClasses for an example.
+        sat_inferencer.TypeInferencer.SolveFormParsedLookUpClasses
+        for an example.
     Returns:
       None. The constraints are added to self
     """

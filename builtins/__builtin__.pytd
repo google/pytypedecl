@@ -137,7 +137,7 @@ class str(basestring):
     def __le__(self, y: str or bytearray) -> bool
     def __len__(self) -> int
     def __lt__(self, y: str or bytearray) -> bool
-    def __mod__(self, y: list or tuple) -> str
+    def __mod__(self, y) -> str
     def __mul__(self, n: int) -> str
     def __ne__(self, y: str or bytearray) -> bool
     def __rmod__(self, y: str or bytearray) -> str

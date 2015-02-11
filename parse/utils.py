@@ -35,6 +35,8 @@ def GetBuiltins():
     A pytd.TypeDeclUnit instance. It'll directly contain the builtin classes
     and functions, and submodules for each of the standard library modules.
   """
+  # TODO: This can be fairly slow; suggest pickling the result and
+  #                  reusing if possible (see lib2to3.pgen2.grammar)
   builtins_dir = utils.GetDataFile("builtins")
   builtins = parser.parse_file(os.path.join(builtins_dir, "__builtin__.pytd"))
   for mod_file in glob.iglob(os.path.join(builtins_dir, "*.pytd")):

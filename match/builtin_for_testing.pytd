@@ -1,4 +1,4 @@
-# This is excerpted from pytypedecl/builtins/__builtins__.pytd
+# This is excerpted from //third_party/py/pytypedecl/builtins/__builtins__.pytd
 # as a minimal set of builtins to simplify debugging.
 # Items have been added as needed, and some class definitions are incomplete.
 

@@ -13,53 +13,26 @@ FLAGS = flags.FLAGS  # TODO: move to google/
 
 class SATEncoderTest(unittest.TestCase):
 
-  def setUp(self):
+  @classmethod
+  def setUpClass(cls):
     if FLAGS.verbosity:
       logging.basicConfig(level=logging.INFO)
 
     # TODO: sat_inferencer.TypeInferencer()
-    self.inferencer = sat_inferencer.TypeInferencer(
+    cls.inferencer = sat_inferencer.TypeInferencer(
         builtins=parse_utils.GetBuiltinsFile(
             # The original builtins, but without all the other modules:
             #    "builtins/__builtin__.pytd"))
             # The stripped-down builtins:
             "match/builtin_for_testing.pytd"))
 
-    list_cls = self.inferencer.builtins.Lookup("list")
-    self.list_type = pytd.ClassType("list")
-    self.list_type.cls = list_cls
-
-    bytearray_cls = self.inferencer.builtins.Lookup("bytearray")
-    self.bytearray_type = pytd.ClassType("bytearray")
-    self.bytearray_type.cls = bytearray_cls
-
-    str_cls = self.inferencer.builtins.Lookup("str")
-    self.str_type = pytd.ClassType("str")
-    self.str_type.cls = str_cls
-
-    int_cls = self.inferencer.builtins.Lookup("int")
-    self.int_type = pytd.ClassType("int")
-    self.int_type.cls = int_cls
-
-    float_cls = self.inferencer.builtins.Lookup("float")
-    self.float_type = pytd.ClassType("float")
-    self.float_type.cls = float_cls
-
-    xrange_cls = self.inferencer.builtins.Lookup("xrange")
-    self.xrange_type = pytd.ClassType("xrange")
-    self.xrange_type.cls = xrange_cls
-
-    object_cls = self.inferencer.builtins.Lookup("object")
-    self.object_type = pytd.ClassType("object")
-    self.object_type.cls = object_cls
-
-    none_cls = self.inferencer.builtins.Lookup("NoneType")
-    self.none_type = pytd.ClassType("NoneType")
-    self.none_type.cls = none_cls
-
   def _ParseSolveCheck(self, src, expected):
     res = self.inferencer.ParseAndSolve(textwrap.dedent(src))
-    self.assertEqual(expected, res)
+    # TODO: If we can't guarantee that two different classes have the
+    #                  same print form (e.g., None vs NoneType), parse the
+    #                  expected and do == match against the ASTs.
+    res_to_name = {k: pytd.Print(v) for k, v in res.items()}
+    self.assertEqual(expected, res_to_name)
 
   def testMembersDirectFromParsedClass1(self):
     # Note that this test is a bit of a cheat: def _add__(self:float, ...)
@@ -72,8 +45,8 @@ class SATEncoderTest(unittest.TestCase):
         def __add__(self: bytearray, y: bytearray) -> bytearray
       """
     self._ParseSolveCheck(src,
-                          {"A": self.float_type,
-                           "B": self.bytearray_type})
+                          {"A": "float",
+                           "B": "bytearray"})
 
   def testMembersDirectFromParsedClass2(self):
     # The same as testMembersDirectFromClass1 with the cheat removed.
@@ -84,8 +57,8 @@ class SATEncoderTest(unittest.TestCase):
         def __add__(self: B, x:bytearray) -> bytearray
       """
     self._ParseSolveCheck(src,
-                          {"A": self.float_type,
-                           "B": self.bytearray_type})
+                          {"A": "float",
+                           "B": "bytearray"})
 
   @unittest.skip("Not yet implemented")
   def testUnion(self):
@@ -96,9 +69,9 @@ class SATEncoderTest(unittest.TestCase):
     # TODO: The '#' in the class names is from
     #                  sat_encode.ClassType.__str__ and possibly can be removed
     self._ParseSolveCheck(src,
-                          {"D": pytd.UnionType(
-                              (self.list_type, self.bytearray_type)),
-                           "D#.T": self.int_type})
+                          {"D": "list or bytearray",
+                           "D#.A": "xrange",
+                           "D#.T": "int"})
 
   def testSingleList(self):
     src = """
@@ -108,9 +81,9 @@ class SATEncoderTest(unittest.TestCase):
     # would require propogating information through mutable parameters which is
     # not yet supported in this system.
     self._ParseSolveCheck(src,
-                          {"D": self.list_type,
-                           "D#.T": self.float_type,
-                           "list": self.list_type})
+                          {"D": "list",
+                           "D#.T": "float",
+                           "list": "list"})
 
   def testSingleListInOut(self):
     src = """
@@ -123,12 +96,12 @@ class SATEncoderTest(unittest.TestCase):
         def __add__(self: float, y: float) -> float
       """
     self._ParseSolveCheck(src,
-                          {"A": self.float_type,
-                           "D": self.list_type,
-                           "D#.K": self.list_type,
-                           "D#.T": self.float_type,
-                           "D#.V": self.xrange_type,
-                           "list": self.list_type})
+                          {"A": "float",
+                           "D": "list",
+                           "D#.K": "list",
+                           "D#.T": "float",
+                           "D#.V": "xrange",
+                           "list": "list"})
 
   def testTwoLists(self):
     src = """
@@ -143,11 +116,11 @@ class SATEncoderTest(unittest.TestCase):
     #  builtins_for_testing.pytd, define append as
     #     def append(self, object: T) -> NoneType
     self._ParseSolveCheck(src,
-                          {"D": self.list_type,
-                           "D#.T": self.none_type,
-                           "D2": self.list_type,
-                           "D2#.T": self.float_type,
-                           "list": self.list_type})
+                          {"D": "list",
+                           "D#.T": "NoneType",
+                           "D2": "list",
+                           "D2#.T": "float",
+                           "list": "list"})
 
   def testUseOneOfManySignatures(self):
     src = """
@@ -155,7 +128,7 @@ class SATEncoderTest(unittest.TestCase):
         def __add__(self, v: int) -> float
       """
     self._ParseSolveCheck(src,
-                          {"A": self.float_type})
+                          {"A": "float"})
 
   @unittest.skip("TODO: Failing probably due to a set ordering issue.")
   def testAllAtOnce(self):
@@ -176,12 +149,12 @@ class SATEncoderTest(unittest.TestCase):
     # TODO: D#.A is actually wrong - should be D#.T.
     #              See testSingleList
     self._ParseSolveCheck(src,
-                          {"B": self.bytearray_type,
-                           "C": self.str_type,
-                           "D": self.list_type,
-                           "D#.A": self.none_type,
-                           "D2": self.list_type,
-                           "D2#.T": self.float_type})
+                          {"B": "bytearray",
+                           "C": "str",
+                           "D": "list",
+                           "D#.A": "NoneType",
+                           "D2": "list",
+                           "D2#.T": "float"})
 
 
 if __name__ == "__main__":
