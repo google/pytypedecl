@@ -36,7 +36,7 @@ def divmod(x: int or float, y: float) -> tuple<float>  # tuple<float, float>
 def divmod(x: int or float or complex, y: complex) -> tuple<complex>  # tuple<complex, complex>
 def divmod(x: float, y: int) -> tuple<float>  # tuple<float, float>
 def divmod(x: complex, y: int or float) -> tuple<complex>  # tuple<complex, complex>
-def eval(src, ...) -> ?
+def eval(src, ...) -> ?  # Can't say *anything* about the result -- different from "-> object"
 def execfile(filename: str, ...) -> NoneType
 def filter(function_or_None, sequence: str) -> str
 def filter(function_or_None, sequence: bytearray) -> list<int>
