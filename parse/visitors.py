@@ -778,6 +778,9 @@ class CanonicalOrderingVisitor(object):
   """Visitor for converting ASTs back to canonical (sorted) ordering.
   """
 
+  def __init__(self, sort_signatures=False):
+    self.sort_signatures = sort_signatures
+
   # TODO: might want to add __new__ defns to the various types here
   #                  to ensure the args are tuple, and can then remove the
   #                  tuple(...) wrappers here ...
@@ -797,11 +800,13 @@ class CanonicalOrderingVisitor(object):
                       template=node.template)
 
   def VisitFunction(self, node):
-    # signatures should *not* be sorted because their order determines lookup
-    # order. This do-nothing method is left here as a reminder of that.
-    # TODO: consider a bool in this visitor to decide whether to
-    #                  sort the signatures.
-    return node
+    # Typically, signatures should *not* be sorted because their order
+    # determines lookup order. But some pytd (e.g., inference output) doesn't
+    # have that property, in which case self.sort_signatures will be True.
+    if self.sort_signatures:
+      return node.Replace(signatures=tuple(sorted(node.signatures)))
+    else:
+      return node
 
   def VisitSignature(self, node):
     # params that are an instance of pytd.MutableParameters are

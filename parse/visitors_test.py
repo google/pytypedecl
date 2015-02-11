@@ -220,5 +220,23 @@ class TestVisitors(parser_test.ParserTest):
     self.assertRaises(visitors.RaiseIfContainsUnknown.HasUnknown, find_on, "C")
     self.assertRaises(visitors.RaiseIfContainsUnknown.HasUnknown, find_on, "D")
 
+  @unittest.skip("Needs CL 84347342")
+  def testCanonicalOrderingVisitor(self):
+    src1 = textwrap.dedent("""
+    def f(x: list<a>) -> ?
+    def f(x: list<b or c>) -> ?
+    def f(x: list<tuple<d>>) -> ?
+    """)
+    src2 = textwrap.dedent("""
+    def f(x: list<tuple<d>>) -> ?
+    def f(x: list<a>) -> ?
+    def f(x: list<b or c>) -> ?
+    """)
+    tree1 = self.Parse(src1)
+    tree1 = tree1.Visit(visitors.CanonicalOrderingVisitor(sort_signatures=True))
+    tree2 = self.Parse(src2)
+    tree2 = tree2.Visit(visitors.CanonicalOrderingVisitor(sort_signatures=True))
+    self.AssertSourceEquals(tree1, tree2)
+
 if __name__ == "__main__":
   unittest.main()
