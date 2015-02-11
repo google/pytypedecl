@@ -28,6 +28,9 @@ class TestASTGeneration(unittest.TestCase):
   def ParseWithVersion(self, src, version):
     return parser.TypeDeclParser(version).Parse(src)
 
+  def TestThrowsSyntaxError(self, src):
+    self.assertRaises((SyntaxError, SystemError), self.parser.Parse, src)
+
   def TestRoundTrip(self, src, old_src=None):
     """Compile a string, and convert the result back to a string. Compare."""
     tree = self.parser.Parse(src)
@@ -117,6 +120,26 @@ class TestASTGeneration(unittest.TestCase):
     foo = result.Lookup("Foo")
     self.assertEquals(["bar"], [f.name for f in foo.methods])
     self.assertEquals(["baz"], [f.name for f in result.functions])
+
+  def testDuplicates1(self):
+    src = textwrap.dedent("""
+        def<T, T> baz(i: int)
+    """)
+    self.TestThrowsSyntaxError(src)
+
+  def testDuplicates2(self):
+    src = textwrap.dedent("""
+        class<T> A:
+          def<T> baz(i: int)
+    """)
+    self.TestThrowsSyntaxError(src)
+
+  def testDuplicates3(self):
+    src = textwrap.dedent("""
+        class<T, T> A:
+          pass
+    """)
+    self.TestThrowsSyntaxError(src)
 
   def testMutable(self):
     src = textwrap.dedent("""

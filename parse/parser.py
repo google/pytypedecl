@@ -503,6 +503,13 @@ class TypeDeclParser(object):
         set(d.name for d in p[7])):
       # TODO: raise a syntax error right when the identifier is defined.
       raise make_syntax_error(self, 'Duplicate identifier(s)', p)
+    # Check that template parameter names are unique:
+    template_names = {t.name for t in p[2]}
+    for _, sig in funcdefs:
+      for t in sig.template:
+        if t.name in template_names:
+          raise make_syntax_error(self, 'Duplicate template parameter %s' %
+                                  t.name, p)
     cls = pytd.Class(name=p[3], parents=tuple(p[4]),
                      methods=tuple(MergeSignatures(funcdefs)),
                      constants=tuple(constants), template=tuple(p[2]))
@@ -535,6 +542,11 @@ class TypeDeclParser(object):
   def p_template(self, p):
     """template : LBRACKET templates RBRACKET"""
     p[0] = p[2]
+    # Verify we don't have duplicate identifiers.
+    names = [template.name for template in p[2]]
+    for name in names:
+      if names.count(name) > 1:
+        make_syntax_error(self, 'Duplicate name %s' % name, p)
 
   def p_template_null(self, p):
     """template : """  # pylint: disable=g-short-docstring-space
@@ -551,11 +563,11 @@ class TypeDeclParser(object):
 
   def p_template_item(self, p):
     """template_item : NAME"""
-    p[0] = pytd.TemplateItem(p[1], pytd.NamedType('object'), 0)
+    p[0] = pytd.TemplateItem(p[1], pytd.NamedType('object'))
 
   def p_template_item_subclss(self, p):
     """template_item : NAME EXTENDS type"""
-    p[0] = pytd.TemplateItem(p[1], p[3], 0)
+    p[0] = pytd.TemplateItem(p[1], p[3])
 
   def p_funcdefs_func(self, p):
     """funcdefs : funcdefs funcdef"""
@@ -790,6 +802,8 @@ def make_syntax_error(parser_or_tokenizer, msg, p):
   # is output in a nice format by traceback.print_exception
   # TODO: add test cases for this (including beginning/end of file,
   #                  lexer error, parser error)
+  # TODO: Add test cases for all the various places where this function
+  #              is used (duplicate detection etc.)
 
   if isinstance(p, yacc.YaccProduction):
     # TODO: pretty-print lexpos / lineno

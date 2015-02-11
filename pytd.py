@@ -171,7 +171,7 @@ class MutableParameter(node.Node('name', 'type', 'new_type')):
   __slots__ = ()
 
 
-class TemplateItem(node.Node('name', 'within_type', 'level')):
+class TemplateItem(node.Node('name', 'within_type')):
   """Represents "template name extends bounded_type".
 
   This can be either the result of the 'template' in the parser (e.g.,
@@ -181,11 +181,6 @@ class TemplateItem(node.Node('name', 'within_type', 'level')):
   Attributes:
     name: the name that's used in a generic type
     type: the "extends" type for this name (e.g., NamedType('object'))
-    level: When this object is the result of a lookup, it is how many
-           levels "up" the name was found. For example:
-             class <T> Foo:
-               def <U> bar(t: T, u: U)
-           in the definition of 'bar', T has level=1 and U has level=0
   """
   __slots__ = ()
 
