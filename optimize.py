@@ -826,7 +826,7 @@ class PullInMethodClasses(object):
 OptimizeFlags = collections.namedtuple("_", ["lossy", "use_abcs", "max_union"])
 
 
-def Optimize(node, flags=None):
+def Optimize(node, flags=None, contains_unresolved=False):
   """Optimize a PYTD tree.
 
   Tries to shrink a PYTD tree by applying various optimizations.
@@ -837,6 +837,9 @@ def Optimize(node, flags=None):
     flags: An instance of OptimizeFlags, to control which optimizations
         happen and what parameters to use for the ones that take parameters. Can
         be None, in which case defaults will be applied.
+    contains_unresolved: If the caller knows that it might be generating class
+        names that can't be resolved. If this is True, this function will make
+        no attempt to resolve any names.
 
   Returns:
     An optimized node.
@@ -846,11 +849,13 @@ def Optimize(node, flags=None):
   node = node.Visit(Factorize())
   node = node.Visit(ApplyOptionalArguments())
   node = node.Visit(CombineContainers())
-  node = node.Visit(RemoveInheritedMethods())
   if flags and flags.lossy:
     hierarchy = node.Visit(visitors.ExtractSuperClasses())
     node = node.Visit(
         FindCommonSuperClasses(hierarchy, flags and flags.use_abcs)
     )
     node = node.Visit(ShortenParameterUnions(flags and flags.max_union))
+  if not contains_unresolved:
+    node = visitors.LookupClasses(node, utils.GetBuiltins())
+    node = node.Visit(RemoveInheritedMethods())
   return node

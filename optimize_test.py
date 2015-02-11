@@ -47,32 +47,32 @@ class TestOptimize(parser_test.ParserTest):
 
   def testOneFunction(self):
     src = textwrap.dedent("""
-        def foo(a: int, c: bool) -> int raises Foo, Test
+        def foo(a: int, c: bool) -> int raises AssertionError, ValueError
     """)
     self.AssertOptimizeEquals(src, src)
 
   def testFunctionDuplicate(self):
     src = textwrap.dedent("""
-        def foo(a: int, c: bool) -> int raises Foo, Test
-        def foo(a: int, c: bool) -> int raises Foo, Test
+        def foo(a: int, c: bool) -> int raises AssertionError, ValueError
+        def foo(a: int, c: bool) -> int raises AssertionError, ValueError
     """)
     new_src = textwrap.dedent("""
-        def foo(a: int, c: bool) -> int raises Foo, Test
+        def foo(a: int, c: bool) -> int raises AssertionError, ValueError
     """)
     self.AssertOptimizeEquals(src, new_src)
 
   def testComplexFunctionDuplicate(self):
     src = textwrap.dedent("""
-        def foo(a: int or float, c: bool) -> list<int> raises Foo, Test
+        def foo(a: int or float, c: bool) -> list<int> raises IndexError
         def foo(a: str, c: str) -> str
-        def foo(a: int, ...) -> A or B raises E<str>
-        def foo(a: int or float, c: bool) -> list<int> raises Foo, Test
-        def foo(a: int, ...) -> A or B raises E<str>
+        def foo(a: int, ...) -> int or float raises list<str>
+        def foo(a: int or float, c: bool) -> list<int> raises IndexError
+        def foo(a: int, ...) -> int or float raises list<str>
     """)
     new_src = textwrap.dedent("""
-        def foo(a: int or float, c: bool) -> list<int> raises Foo, Test
+        def foo(a: int or float, c: bool) -> list<int> raises IndexError
         def foo(a: str, c: str) -> str
-        def foo(a: int, ...) -> A or B raises E<str>
+        def foo(a: int, ...) -> int or float raises list<str>
     """)
     self.AssertOptimizeEquals(src, new_src)
 
@@ -138,8 +138,8 @@ class TestOptimize(parser_test.ParserTest):
     # "compressible" items will be compressed. This test only checks that
     # non-compressible things stay the same.
     src = textwrap.dedent("""
-        def foo(a: A) -> B raises C
-        def foo(a: D) -> E raises F
+        def foo(a: int) -> float raises IndexError
+        def foo(a: str) -> complex raises AssertionError
     """)
     flags = optimize.OptimizeFlags(lossy=True, use_abcs=True, max_union=4)
     self.AssertSourceEquals(
@@ -148,13 +148,13 @@ class TestOptimize(parser_test.ParserTest):
 
   def testExpand(self):
     src = textwrap.dedent("""
-        def foo(a: A or B, z: X or Y, u: U) -> Z
+        def foo(a: int or float, z: complex or str, u: bool) -> file
     """)
     new_src = textwrap.dedent("""
-        def foo(a: A, z: X, u: U) -> Z
-        def foo(a: A, z: Y, u: U) -> Z
-        def foo(a: B, z: X, u: U) -> Z
-        def foo(a: B, z: Y, u: U) -> Z
+        def foo(a: int, z: complex, u: bool) -> file
+        def foo(a: int, z: str, u: bool) -> file
+        def foo(a: float, z: complex, u: bool) -> file
+        def foo(a: float, z: str, u: bool) -> file
     """)
     self.AssertSourceEquals(
         self.ApplyVisitorToString(src, optimize.ExpandSignatures()),
@@ -162,39 +162,39 @@ class TestOptimize(parser_test.ParserTest):
 
   def testFactorize(self):
     src = textwrap.dedent("""
-        def foo(a: A) -> Z
-        def foo(a: A, x: X) -> Z
-        def foo(a: A, x: Y) -> Z
-        def foo(a: B, x: X) -> Z
-        def foo(a: B, x: Y) -> Z
-        def foo(a: A, x: Z, ...) -> Z
+        def foo(a: int) -> file
+        def foo(a: int, x: complex) -> file
+        def foo(a: int, x: str) -> file
+        def foo(a: float, x: complex) -> file
+        def foo(a: float, x: str) -> file
+        def foo(a: int, x: file, ...) -> file
     """)
     new_src = textwrap.dedent("""
-        def foo(a: A) -> Z
-        def foo(a: A or B, x: X or Y) -> Z
-        def foo(a: A, x: Z, ...) -> Z
+        def foo(a: int) -> file
+        def foo(a: int or float, x: complex or str) -> file
+        def foo(a: int, x: file, ...) -> file
     """)
     self.AssertSourceEquals(
         self.ApplyVisitorToString(src, optimize.Factorize()), new_src)
 
   def testFactorizeMutable(self):
     src = textwrap.dedent("""
-        def foo(a: list<bool>, b: X) -> Z:
+        def foo(a: list<bool>, b: X) -> file:
             a := list<int>
-        def foo(a: list<bool>, b: Y) -> Z:
+        def foo(a: list<bool>, b: Y) -> file:
             a := list<int>
         # not groupable:
-        def bar(a: int, b: list<int>) -> Z:
+        def bar(a: int, b: list<int>) -> file:
             b := list<complex>
-        def bar(a: int, b: list<float>) -> Z:
+        def bar(a: int, b: list<float>) -> file:
             b := list<str>
     """)
     new_src = textwrap.dedent("""
-        def foo(a: list<bool>, b: X or Y) -> Z:
+        def foo(a: list<bool>, b: X or Y) -> file:
             a := list<int>
-        def bar(a: int, b: list<int>) -> Z:
+        def bar(a: int, b: list<int>) -> file:
             b := list<complex>
-        def bar(a: int, b: list<float>) -> Z:
+        def bar(a: int, b: list<float>) -> file:
             b := list<str>
     """)
     self.AssertSourceEquals(
