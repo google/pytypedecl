@@ -93,7 +93,7 @@ class PrintVisitor(object):
     """Visit function, producing multi-line string (one for each signature)."""
     # node.signatures has the function name incorporated with '%s'
     function_name = self.SafeName(node.name)
-    return "\n".join(("def " + sig) % function_name for sig in node.signatures)
+    return "\n".join("def " + function_name + sig for sig in node.signatures)
 
   def VisitSignature(self, node):
     """Visit a signature, producing a string with %s for function name."""
@@ -103,10 +103,7 @@ class PrintVisitor(object):
     # TODO: Remove the %s because not needed any more. However,
     #                  it exposes a bug, namely pytype generating an invalid
     #                  tree (see visitors_test.py testPrintInvalidTree)
-    if node.template:
-      before = "%s<" + ", ".join(node.template) + ">"
-    else:
-      before = "%s"
+    template = "<" + ", ".join(node.template) + ">" if node.template else ""
 
     # Potentially abbreviate. "?" is the default.
     return_type = node.return_type
@@ -128,8 +125,8 @@ class PrintVisitor(object):
     else:
       body = ""
 
-    return "{before}({params}){ret}{exc}{body}".format(
-        before=before, params=", ".join(node.params + optional),
+    return "{template}({params}){ret}{exc}{body}".format(
+        template=template, params=", ".join(node.params + optional),
         ret=ret, exc=exc, body=body)
 
   def VisitParameter(self, node):
