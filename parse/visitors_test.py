@@ -152,54 +152,6 @@ class TestVisitors(parser_test.ParserTest):
     new_tree = tree.Visit(visitors.StripSelf())
     self.AssertSourceEquals(new_tree, expected)
 
-  @unittest.skip("TODO: Invalid tree: Signature not inside Function")
-  def testPrintInvalidTree(self):
-    """An actual example that Print to fail."""
-    # The problem is Signature inside HomogeneousContainerType, but
-    # Print only works if Signature is directly inside Function
-    tree = pytd.TypeDeclUnit(
-        constants=(), functions=(), modules={},
-        classes=(
-            pytd.Class(
-                name="list", parents=(), constants=(), template=(),
-                methods=(
-                    pytd.Function(
-                        name="__getitem__",
-                        signatures=(
-                            pytd.Signature(
-                                params=(
-                                    pytd.Parameter(
-                                        name="self",
-                                        type=pytd.HomogeneousContainerType(
-                                            base_type=pytd.ClassType("list"),
-                                            parameters=(
-                                                pytd.Signature(
-                                                    params=(),
-                                                    return_type=pytd.UnknownType(),
-                                                    exceptions=(),
-                                                    template=(),
-                                                    has_optional=True),))
-                                        ),
-                                    pytd.Parameter(
-                                        name="y",
-                                        type=pytd.ClassType("~unknown3"))),
-                                return_type=pytd.Signature(
-                                    (), pytd.UnknownType(), (), (), True),
-                                exceptions=(),
-                                template=(),
-                                has_optional=False),)
-                        ),  # end Function(__getitem__)
-                    ),
-                ),))
-    expect = textwrap.dedent("""\
-        class list:
-            def __getitem__(self: list<(...)>, y: `~unknown3`) -> (...)
-    """)
-    # remove trailing blanks on lines (dedent doesn't do it):
-    expect = re.sub(r" +\n", "\n", expect).lstrip()
-    printed = pytd.Print(tree)
-    self.AssertSourceEquals(printed, expect)
-
   # TODO: node.modules
   # TODO: 'and' in type?
   # TODO: is 'def F() -> ?' is same as 'def F()'
