@@ -59,7 +59,7 @@ def isinstance(object, class_or_type_or_tuple: tuple or type) -> bool
 def issubclass(C, B: tuple) -> bool
 def issubclass(C: type, B: type) -> bool
 def iter(collection: str or unicode or bytearray or iterator) -> iterator
-def<T> iter(collection: list<T>) -> listiterator<T>
+def iter<T>(collection: list<T>) -> listiterator<T>
 def iter(collection: tuple<T>) -> tupleiterator<T>
 def iter(collection: set<T>) -> setiterator<T>
 def len(object) -> int
@@ -368,7 +368,7 @@ class dict_items:
     def __sub__(self, y) -> set
     def __xor__(self, y) -> set
 
-class <K, V> dict:
+class dict<K, V>:
     def __init__(self, p0)
     def __init__(self)
     def __contains__(self, k: K) -> bool
@@ -378,7 +378,7 @@ class <K, V> dict:
     def __iter__(self) -> `dictionary-keyiterator`
     def __len__(self) -> int
     def __ne__(self, y: dict) -> bool
-    def <K2, V2> __setitem__(self, i: K2, y: V2) -> NoneType:
+    def __setitem__<K2, V2>(self, i: K2, y: V2) -> NoneType:
       self := dict<K or K2, V or V2>
     def clear(self) -> NoneType
     def copy(self) -> dict<object, object>
@@ -395,11 +395,11 @@ class <K, V> dict:
     def itervalues(self) -> `dictionary-valueiterator`
     def keys(self) -> list<K>
     def pop(self, k) -> V
-    def <V2> pop(self, k, d: V2) -> V or V2
+    def pop<V2>(self, k, d: V2) -> V or V2
     def popitem(self) -> tuple<unicode, object>
-    def <K2> setdefault(self, k: K2) -> V or NoneType:
+    def setdefault<K2>(self, k: K2) -> V or NoneType:
         self := dict<K or K2, V or NoneType>
-    def <K2, V2> setdefault(self, k: K2, v: V2) -> V or V2:
+    def setdefault<K2, V2>(self, k: K2, v: V2) -> V or V2:
         self := dict<K or K2, V or V2>
     def update(self, E, ...) -> NoneType
     def update(self) -> NoneType
@@ -408,7 +408,7 @@ class <K, V> dict:
     def viewkeys(self) -> dict_keys
     def viewvalues(self) -> dict_values
 
-class<T> listiterator:
+class listiterator<T>:
     def __iter__(self: listiterator<T>) -> listiterator<T>
     def next(self: listiterator<T>) -> T
 
@@ -421,18 +421,18 @@ class listreverseiterator:
     def __iter__(self) -> listreverseiterator
     def next(self)
 
-class <T> list:
+class list<T>:
     # TODO: The type of self should be automatic
     def __init__(self: list<T>):
         self := list<nothing>
-    def <N> __init__(self, iterable: list<N>):
+    def __init__<N>(self, iterable: list<N>):
         self := list<N>
-    def <N> __init__(self, generator: generator<N>):
+    def __init__<N>(self, generator: generator<N>):
         # TODO: We should be able to just write "T := N"
         self := list<N>
     def __init__(self, x):
         self := list<?>
-    def <A> __add__(self, y: list<A>) -> list<T or A>
+    def __add__<A>(self, y: list<A>) -> list<T or A>
     def __contains__(self, y: T) -> bool
     def __delitem__(self, y: int) -> NoneType
     def __delslice__(self, i: int, j: int) -> NoneType
@@ -453,11 +453,11 @@ class <T> list:
     def __rmul__(self, n: int) -> list<T>
     def __setitem__(self, i: int, y) -> NoneType
     def __setslice__(self, i: int, j: int, y) -> NoneType
-    def <A> append(self, object: A) -> NoneType:
+    def append<A>(self, object: A) -> NoneType:
       self := list<T or A>
     def count(self, value: T) -> int
     def index(self, value, ...) -> int
-    def <A> insert(self, index: int, object: A) -> NoneType:
+    def insert<A>(self, index: int, object: A) -> NoneType:
       self := list<T or A>
     def pop(self, ...)
     def remove(self, value: T) -> NoneType
@@ -469,10 +469,10 @@ class reversed:
     def __iter__(self) -> reversed
     def next(self) -> str
 
-class <T> tuple:
+class tuple<T>:
     def __init__(self, p0)
     def __init__(self: tuple<T>)
-    def <A> __add__(self, y: tuple<A>) -> tuple<T or A>
+    def __add__<A>(self, y: tuple<A>) -> tuple<T or A>
     def __contains__(self, y: T) -> bool
     def __eq__(self, y: tuple) -> bool
     def __ge__(self, y: tuple) -> bool
@@ -489,14 +489,14 @@ class <T> tuple:
     def count(self, value: T) -> int
     def index(self, value, ...) -> int
 
-class<T> tupleiterator:
+class tupleiterator<T>:
     def __iter__(self: tupleiterator<T>) -> tupleiterator<T>
     def next(self: tupleiterator<T>) -> T
 
-class <T> set:
+class set<T>:
     def __init__(self: set<T>):
         self := set<nothing>
-    def <N> __init__(self, iterable: list<N>):
+    def __init__<N>(self, iterable: list<N>):
         self := set<N>
     def __init__(self, x):
         self := set<nothing>  # TODO: should be set<?>
@@ -529,7 +529,7 @@ class <T> set:
     def intersection_update(self, ...) -> NoneType
     def union(self, ...) -> set
     def update(self, ...) -> NoneType
-    def <A> add(self, object: A) -> NoneType:
+    def add<A>(self, object: A) -> NoneType:
         self := set<T or A>
 
 class frozenset:
@@ -561,7 +561,7 @@ class frozenset:
     def intersection(self, ...) -> frozenset
     def union(self, ...) -> frozenset
 
-class<T> setiterator:
+class setiterator<T>:
     def __iter__(self: setiterator<T>) -> setiterator<T>
     def next(self: setiterator<T>) -> T
 
@@ -845,7 +845,7 @@ class function:
     def __call__(self, ...) -> NoneType  # TODO: -> ?  (refer to kramm@)
     def __get__(self, obj, ...) -> instancemethod
 
-class<T> generator:
+class generator<T>:
     def __iter__(self: generator<T>) -> generator<T>
     def send(self, arg)
     def close(self) -> NoneType
@@ -873,10 +873,10 @@ class memoryview:
     def tobytes(self, ...) -> str
     def tolist(self, ...) -> list<int>
 
-class<G, S> property:
-    def<GET, SET> __init__(self, get: GET, set: SET):
+class property<G, S>:
+    def __init__<GET, SET>(self, get: GET, set: SET):
         self := property<GET, SET>
-    def<GET> __init__(self, get: GET):
+    def __init__<GET>(self, get: GET):
         self := property<GET, nothing>
     def __delete__(self, ...) -> NoneType
     def __get__(self, ...) -> G

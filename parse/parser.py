@@ -484,8 +484,8 @@ class TypeDeclParser(object):
   # TODO(raoulDoc): doesn't support nested classes
   # TODO: parents is redundant -- should match what's in .py file
   def p_classdef(self, p):
-    """classdef : CLASS template NAME parents COLON INDENT class_funcs DEDENT"""
-    #             1     2        3    4       5     6
+    """classdef : CLASS NAME template parents COLON INDENT class_funcs DEDENT"""
+    #             1     2    3        4       5     6
     # TODO: do name lookups for template within class_funcs
     funcdefs = [x for x in p[7] if isinstance(x, NameAndSig)]
     constants = [x for x in p[7] if isinstance(x, pytd.Constant)]
@@ -494,15 +494,15 @@ class TypeDeclParser(object):
       # TODO: raise a syntax error right when the identifier is defined.
       raise make_syntax_error(self, 'Duplicate identifier(s)', p)
     # Check that template parameter names are unique:
-    template_names = {t.name for t in p[2]}
+    template_names = {t.name for t in p[3]}
     for _, sig in funcdefs:
       for t in sig.template:
         if t.name in template_names:
           raise make_syntax_error(self, 'Duplicate template parameter %s' %
                                   t.name, p)
-    cls = pytd.Class(name=p[3], parents=tuple(p[4]),
+    cls = pytd.Class(name=p[2], parents=tuple(p[4]),
                      methods=tuple(MergeSignatures(funcdefs)),
-                     constants=tuple(constants), template=tuple(p[2]))
+                     constants=tuple(constants), template=tuple(p[3]))
     p[0] = cls.Visit(visitors.AdjustSelf())
 
   def p_class_funcs(self, p):
@@ -581,23 +581,23 @@ class TypeDeclParser(object):
     p[0] = pytd.Constant(p[1], p[3])
 
   def p_funcdef(self, p):
-    """funcdef : DEF template NAME LPAREN params RPAREN return raises signature maybe_body"""
-    #            1   2        3    4      5      6      7      8      9         10
+    """funcdef : DEF NAME template LPAREN params RPAREN return raises signature maybe_body"""
+    #            1   2    3        4      5      6      7      8      9         10
     # TODO: Output a warning if we already encountered a signature
     #              with these types (but potentially different argument names)
-    if p[3] == '__init__' and isinstance(p[7], pytd.UnknownType):
+    if p[2] == '__init__' and isinstance(p[7], pytd.UnknownType):
       # for __init__, the default return value is None
       ret = pytd.NamedType('NoneType')
     else:
       ret = p[7]
     signature = pytd.Signature(params=tuple(p[5].required), return_type=ret,
-                               exceptions=tuple(p[8]), template=tuple(p[2]),
+                               exceptions=tuple(p[8]), template=tuple(p[3]),
                                has_optional=p[5].has_optional)
     for mutator in p[10]:
       signature = signature.Visit(mutator)
       if not mutator.successful:
         make_syntax_error(self, 'No parameter named %s' % mutator.name, p)
-    p[0] = NameAndSig(name=p[3], signature=signature)
+    p[0] = NameAndSig(name=p[2], signature=signature)
 
   def p_empty_body(self, p):
     """maybe_body :"""

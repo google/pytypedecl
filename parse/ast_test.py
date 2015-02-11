@@ -195,20 +195,20 @@ class TestASTGeneration(parser_test.ParserTest):
 
   def testDuplicates1(self):
     src = textwrap.dedent("""
-        def<T, T> baz(i: int)
+        def baz<T, T>(i: int)
     """)
     self.TestThrowsSyntaxError(src)
 
   def testDuplicates2(self):
     src = textwrap.dedent("""
-        class<T> A:
-          def<T> baz(i: int)
+        class A<T>:
+          def baz<T>(i: int)
     """)
     self.TestThrowsSyntaxError(src)
 
   def testDuplicates3(self):
     src = textwrap.dedent("""
-        class<T, T> A:
+        class A<T, T>:
           pass
     """)
     self.TestThrowsSyntaxError(src)
@@ -490,9 +490,9 @@ class TestASTGeneration(parser_test.ParserTest):
     """Test template parsing."""
 
     data = textwrap.dedent("""
-        class<C extends Cbase> MyClass:
+        class MyClass<C extends Cbase>:
           def f1(p1: C)
-          def<T,U> f2(p1: C, p2: T, p3: dict<C, C or T or int>) -> T raises Error<T>
+          def f2<T,U>(p1: C, p2: T, p3: dict<C, C or T or int>) -> T raises Error<T>
         """)
 
     result = self.parser.Parse(data)
@@ -522,7 +522,7 @@ class TestASTGeneration(parser_test.ParserTest):
     """Test handling of self."""
 
     data = textwrap.dedent("""
-        class<U, V> MyClass:
+        class MyClass<U, V>:
           def f1(self)
         """)
 

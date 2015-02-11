@@ -94,7 +94,7 @@ class TestVisitors(parser_test.ParserTest):
     src = textwrap.dedent("""
         def foo(x: int) -> A<int>
 
-        class<T> A:
+        class A<T>:
             def foo(a: T) -> T raises T
     """)
     expected = textwrap.dedent("""
@@ -112,10 +112,10 @@ class TestVisitors(parser_test.ParserTest):
         def foo(x: int) -> T1<float, >
         def foo(x: int) -> T2<int, complex>
 
-        class<A> T1:
+        class T1<A>:
             def foo(a: A) -> A raises A
 
-        class<A, B> T2:
+        class T2<A, B>:
             def foo(a: A) -> B raises B
     """)
     expected = textwrap.dedent("""
@@ -213,10 +213,10 @@ class TestVisitors(parser_test.ParserTest):
       def FuncX() -> ?
       def Func2(a: int, b) raises AnException
       def Func3(a: str or float) -> ? raises Except1 or Except2
-      def <T> Func3(a: int, b: T, c: list<T>) -> float or T or int
-      def <K extends int, V> Func4(a: dict<K, V>) -> NoneType
+      def Func3<T>(a: int, b: T, c: list<T>) -> float or T or int
+      def Func4<K extends int, V>(a: dict<K, V>) -> NoneType
 
-      class <V, K extends str> C1(C2, C3, C4):
+      class C1<V, K extends str>(C2, C3, C4):
           def __init__(self: C1<V, K>) -> NoneType
           def Func4(k: K, v: V) -> K or V
     """)
@@ -228,10 +228,10 @@ class TestVisitors(parser_test.ParserTest):
       def FuncX()
       def Func2(a: int, b) raises AnException
       def Func3(a: str or float) raises Except1 or Except2
-      def <T> Func3(a: int, b: T, c: list<T>) -> float or T or int
-      def <K extends int, V> Func4(a: dict<K, V>) -> NoneType
+      def Func3<T>(a: int, b: T, c: list<T>) -> float or T or int
+      def Func4<K extends int, V>(a: dict<K, V>) -> NoneType
 
-      class <V, K extends str> C1(C2, C3, C4):
+      class C1<V, K extends str>(C2, C3, C4):
           def __init__(self) -> NoneType
           def Func4(k: K, v: V) -> K or V
     """)

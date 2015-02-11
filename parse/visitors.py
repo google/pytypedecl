@@ -32,7 +32,7 @@ class PrintVisitor(object):
   VALID_NAME = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
   def __init__(self):
-    self.class_names = []
+    self.class_names = []  # allow nested classes
 
   def SafeName(self, name):
     if not self.VALID_NAME.match(name):
@@ -99,8 +99,8 @@ class PrintVisitor(object):
     else:
       constants = []
       methods = [self.INDENT + "pass"]
-    before = ("<" + ", ".join(node.template) + "> ") if node.template else ""
-    header = "class " + before + self.SafeName(node.name) + parents + ":"
+    template = ("<" + ", ".join(node.template) + ">") if node.template else ""
+    header = "class " + self.SafeName(node.name) + template + parents + ":"
     return "\n".join([header] + constants + methods) + "\n"
 
   def VisitFunction(self, node):
@@ -131,8 +131,11 @@ class PrintVisitor(object):
       string representation of the signature with %s for the function name.
     """
     # The '%s' is for VisitFunction to fill in the function name
+    # TODO: Remove the %s because not needed any more. However,
+    #                  it exposes a bug, namely pytype generating an invalid
+    #                  tree (see visitors_test.py testPrintInvalidTree)
     if node.template:
-      before = "<" + ", ".join(node.template) + "> %s"
+      before = "%s<" + ", ".join(node.template) + ">"
     else:
       before = "%s"
 
@@ -526,7 +529,7 @@ class AdjustSelf(object):
   """
 
   def __init__(self, replace_unknown=False, force=False):
-    self.class_types = []
+    self.class_types = []  # allow nested classes
     self.force = force
     self.replaced_self_types = (pytd.NamedType("object"),
                                 pytd.ClassType("object"))

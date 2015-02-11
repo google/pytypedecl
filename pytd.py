@@ -192,7 +192,7 @@ class TypeParameter(node.Node('name')):
   A type parameter is a bound variable in the context of a function or class
   definition. It specifies an equivalence between types.
   For example, this defines a identity function:
-    def<T> f(x: T) -> T
+    def f<T>(x: T) -> T
   """
   __slots__ = ()
 
@@ -203,7 +203,7 @@ class TemplateItem(node.Node('type_param', 'within_type')):
   This is used for classes and signatures. The 'template' field of both is
   a list of TemplateItems. Note that *using* the template happens through
   TypeParameters.  E.g. in:
-    class<T> A:
+    class A<T>:
       def f(T x) -> T
   both the "T"s in the definition of f() are using pytd.TypeParameter to refer
   to the TemplateItem in class A's template.
