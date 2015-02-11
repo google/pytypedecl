@@ -675,6 +675,9 @@ class VerifyVisitor(object):
     assert all(isinstance(t, pytd.TYPE) for t in node.type_list), node
 
 
+# TODO: Move PrologConstraintsVisitor and _SafeAtom / _AtomCmp to a
+#                  separate module. (Also the related visitor_test stuff)
+
 class PrologConstraintsVisitor(object):
   """Visitor for outputting Prolog constraints.
 
@@ -686,25 +689,12 @@ class PrologConstraintsVisitor(object):
 
   implements_all_node_types = True
 
-  # The definition of a Prolog unquoted atom.
-  # Don't use \w in following because it can change with LOCALE/UNICODE.
-  _UNQUOTED_ATOM = re.compile(r"^[a-z][a-zA-Z0-9_]*$")
-
   # The definition of a Prolog variable.
-  # As above, don't use \w
+  # Don't use \w in following because it can change with LOCALE/UNICODE.
   _PROLOG_VAR = re.compile(r"[A-Z][a-zA-Z0-9_]*$")
 
   def __init__(self):
     self.class_names = []  # allow nested classes
-
-  def SafeAtom(self, name):
-    """Create a Prolog atom from a name, quoting if needed."""
-    if self._UNQUOTED_ATOM.match(name):
-      return name
-    else:
-      # A somewhat simple way of turning into Prolog atom form.
-      # Probably does the wrong thing with non-ASCII.
-      return "'" + str(name).replace("'", "''") + "'"
 
   def PrologVariable(self, name):
     """Create a Prolog variable name."""
@@ -723,11 +713,11 @@ class PrologConstraintsVisitor(object):
 
   def VisitConstant(self, node):
     """Convert class-level or module-level constant to constraints string."""
-    return "constant_type({}, {}).".format(self.SafeAtom(node.name), node.type)
+    return "constant_type({}, {}).".format(_SafeAtom(node.name), node.type)
 
   def EnterClass(self, node):
     """Entering a class - record class name for children's use."""
-    n = self.SafeAtom(node.name)
+    n = _SafeAtom(node.name)
     if node.template:
       n += ("(" +
             ", ".join(t.Visit(PrologConstraintsVisitor()) for t in node.template)
@@ -744,7 +734,7 @@ class PrologConstraintsVisitor(object):
     method_lines = sum((m.splitlines() for m in node.methods), [])
     return ("class({name}, [{template}], [{parents}], "
             "[{constants}],\n    [{methods}]).").format(
-        name=self.SafeAtom(node.name),
+        name=_SafeAtom(node.name),
         template=", ".join(node.template or []),
         parents=", ".join(node.parents or []),
         constants=", ".join(node.constants),
@@ -753,7 +743,7 @@ class PrologConstraintsVisitor(object):
   def VisitFunction(self, node):
     """Visit function, producing multi-line string (one for each signature)."""
     # node.signatures has the function name incorporated with '%s'
-    function_name = self.SafeAtom(node.name)
+    function_name = _SafeAtom(node.name)
     return "\n".join(("function(" + sig + ").") % function_name
                      for sig in node.signatures)
 
@@ -789,7 +779,7 @@ class PrologConstraintsVisitor(object):
   def VisitParameter(self, node):
     """Convert a function parameter to a string."""
     return "param({name}, {type})".format (
-        name=self.SafeAtom(node.name), type=node.type)
+        name=_SafeAtom(node.name), type=node.type)
 
   def VisitMutableParameter(self, node):
     """Convert a mutable function parameter to a string."""
@@ -800,19 +790,22 @@ class PrologConstraintsVisitor(object):
         type=node.type_param, within=node.within_type)
 
   def VisitNamedType(self, node):
-    return self.SafeAtom(node.name)
+    if node.name == "object":
+      return "object"
+    else:
+      return "named_type({})".format(_SafeAtom(node.name))
 
   def VisitNativeType(self, node):
-    return self.SafeAtom(node.python_type.__name__)
+    return "native_type({})".format(_SafeAtom(node.python_type.__name__))
 
   def VisitUnknownType(self, unused_node):
-    return self.SafeAtom("?")
+    return _SafeAtom("?")
 
   def VisitNothingType(self, unused_node):
-    return self.SafeAtom("nothing")
+    return _SafeAtom("nothing")
 
   def VisitClassType(self, node):
-    return self.SafeAtom(node.name)
+    return _SafeAtom(node.name)
 
   def VisitTypeParameter(self, node):
     return self.PrologVariable(node.name)
@@ -827,8 +820,35 @@ class PrologConstraintsVisitor(object):
 
   def VisitUnionType(self, node):
     """Convert a union type ("x or y") to a string."""
-    return "(" + r" \/ ".join(node.type_list) + ")"
+    return "union([{}])".format(
+        ", ".join(sorted(set(node.type_list), cmp=_AtomCmp)))
 
   def VisitIntersectionType(self, node):
-    # TODO: need test case
-    return "(" + r" /\ ".join(node.type_list) + ")"
+    # There's a good chance we'll get rid of IntersecitonType
+    raise NotImplemented(node)
+
+
+def _SafeAtom(name):
+  """Create a Prolog atom from a name, quoting if needed."""
+  # We could test for re.match(r"^[a-z][a-zA-Z0-9_]*$", name)
+  # but that makes sorting a bit mroe complicated, so just
+  # quote everything.
+  # Probably does the wrong thing with non-ASCII.
+  return "'" + str(name).replace("'", "''") + "'"
+
+def _AtomCmp(s1, s2):
+  """Comparisong function for sorting Prolog atoms, variables."""
+  # Depend on all atoms having initial single-quote (see _SafeAtom()) and
+  # variables starting with "Var_". The order is what Prolog expects: variables
+  # first, then atoms (the sort order of variables is undefined in Prolog, but
+  # we'll use lexicographic as "good enough").
+  s1_is_atom = s1 == "" or s1[0] == "'"
+  s2_is_atom = s2 == "" or s2[0] == "'"
+  if s1_is_atom and s2_is_atom:
+    return  cmp(s1, s2)
+  elif not s1_is_atom and not s2_is_atom:
+    return cmp(s1, s2)
+  elif s1_is_atom:  # and not s2_is_atom
+    return 1
+  else:
+    return -1

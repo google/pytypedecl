@@ -255,20 +255,20 @@ class TestVisitors(parser_test.ParserTest):
 
   def testConstraints(self):
     expect = """
-      constant_type('CONST 1', 'an int').
-      constant_type('CONST2', (int \/ float \/ 'Foo')).
+      constant_type('CONST 1', named_type('an int')).
+      constant_type('CONST2', union([named_type('Foo'), named_type('float'), named_type('int')])).
 
       function('Func ', [], [], no_optional, '?', no_raises, []).
       function('FuncX', [], [], no_optional, '?', no_raises, []).
-      function('Func2', [], [param('a 1', 'an int'), param(b, object)], no_optional, '?', 'An Exception', []).
-      function('Func3', [], [param(a, (str \/ 'a float'))], optional, '?', ('Except1' \/ 'Except 2'), []).
-      function(func4, [template(Var_T, object)], [param('AA', int), param(b, Var_T), param(c, homogeneous(list, Var_T))], no_optional, (float \/ Var_T \/ 'NoneType'), no_raises, []).
-      function(func5, [template(Var_K, 'an int'), template(Var_V, object)], [param(a, generic('a dict', [Var_K, Var_V]))], no_optional, 'NoneType', no_raises, []).
+      function('Func2', [], [param('a 1', named_type('an int')), param('b', object)], no_optional, '?', named_type('An Exception'), []).
+      function('Func3', [], [param('a', union([named_type('a float'), named_type('str')]))], optional, '?', union([named_type('Except 2'), named_type('Except1')]), []).
+      function('func4', [template(Var_T, object)], [param('AA', named_type('int')), param('b', Var_T), param('c', homogeneous(named_type('list'), Var_T))], no_optional, union([Var_T, named_type('NoneType'), named_type('float')]), no_raises, []).
+      function('func5', [template(Var_K, named_type('an int')), template(Var_V, object)], [param('a', generic(named_type('a dict'), [Var_K, Var_V]))], no_optional, named_type('NoneType'), no_raises, []).
 
-      class('C 1', [template(Var_V, object), template(Var_K, 'a str')], ['C2', 'C3', 'C4'], [],
-          [function('__init__', [], [param(self, generic('C 1', [Var_V, Var_K]))], no_optional, 'NoneType', no_raises, []),
-           function(func6, [], [param(k, Var_K), param(v, Var_V)], no_optional, (Var_K \/ Var_V \/ 'NoneType'), no_raises, []),
-           function('Func_7', [template(Var_Z, object)], [param(self, generic('C 1', [Var_V, Var_K]))], no_optional, '?', no_raises, [mutable(self, homogeneous('C 1', (Var_K \/ 'NoneType')))])]).
+      class('C 1', [template(Var_V, object), template(Var_K, named_type('a str'))], [named_type('C2'), named_type('C3'), named_type('C4')], [],
+          [function('__init__', [], [param('self', generic(named_type('C 1'), [Var_V, Var_K]))], no_optional, named_type('NoneType'), no_raises, []),
+           function('func6', [], [param('k', Var_K), param('v', Var_V)], no_optional, union([Var_K, Var_V, named_type('NoneType')]), no_raises, []),
+           function('Func_7', [template(Var_Z, object)], [param('self', generic(named_type('C 1'), [Var_V, Var_K]))], no_optional, '?', no_raises, [mutable(self, homogeneous(named_type('C 1'), union([Var_K, named_type('NoneType')])))])]).
     """
     src, expect, tree = self._PrepSrcExpect(self._SRC1, expect)
 

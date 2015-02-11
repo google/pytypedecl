@@ -196,8 +196,8 @@ class Pytype_SATTest(unittest.TestCase):
     # TODO: Maybe set up separate tests in ../examples, accessing
     #                  them via utils.GetDataFile and extracting "expect"
     #                  comments for expected results.
-    #                  OR: wrap in a simple infrastructure that minimizes
-    #                      the amount of pooilerplate
+    #              OR: wrap in a simple infrastructure that minimizes the
+    #                  amount of boilerplate
 
     end_to_end_test_src = textwrap.dedent("""
       # Trivial example for testing end-to-end
